@@ -14,8 +14,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:trnsparent; }
 :root {
   --bg: #1a1040;
   --header-bg: #2d1b69;
@@ -3108,6 +3107,8 @@ auth.onAuthStateChanged(user => {
     // Mirror to localStorage as fallback
     localStorage.setItem('reword_pid', user.uid);
     _authReadyResolve(user.uid);
+    // Pull game list from Firestore so it survives domain/device changes
+    syncGamesFromFirestore();
   } else {
     auth.signInAnonymously().catch(err => {
       console.warn('[Auth] anonymous sign-in failed:', err);
@@ -3509,11 +3510,44 @@ function addStoredGame(gameId, myRole) {
   games.unshift({gameId, myRole});
   localStorage.setItem('reword_games', JSON.stringify(games));
   updateGamesBadge();
+  const uid = getPlayerId();
+  if (uid) {
+    db.collection('users').doc(uid).set(
+      { games: firebase.firestore.FieldValue.arrayUnion({gameId, myRole}) },
+      { merge: true }
+    ).catch(() => {});
+  }
 }
 function removeStoredGame(gameId) {
+  const entry = getStoredGames().find(g => g.gameId === gameId);
   const games = getStoredGames().filter(g => g.gameId !== gameId);
   localStorage.setItem('reword_games', JSON.stringify(games));
   updateGamesBadge();
+  const uid = getPlayerId();
+  if (uid && entry) {
+    db.collection('users').doc(uid).update({
+      games: firebase.firestore.FieldValue.arrayRemove(entry)
+    }).catch(() => {});
+  }
+}
+async function syncGamesFromFirestore() {
+  const uid = getPlayerId();
+  if (!uid) return;
+  try {
+    const doc = await db.collection('users').doc(uid).get();
+    if (doc.exists) {
+      const remote = doc.data().games || [];
+      if (remote.length > 0) {
+        const local = getStoredGames();
+        const merged = [...local];
+        remote.forEach(rg => {
+          if (!merged.find(g => g.gameId === rg.gameId)) merged.push(rg);
+        });
+        localStorage.setItem('reword_games', JSON.stringify(merged));
+        updateGamesBadge();
+      }
+    }
+  } catch(e) { console.warn('[Sync] could not load games from Firestore:', e); }
 }
 
 // ── Games badge (shows count of games with your turn) ──

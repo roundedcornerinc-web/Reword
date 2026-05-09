@@ -1,0 +1,3926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Reword</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0e0825">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Reword">
+<link rel="apple-touch-icon" href="icons/icon-1024.png">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+:root {
+  --bg: #1a1040;
+  --header-bg: #2d1b69;
+  --board-bg: #dfdfdf;
+  --board-line: #a9a8a8;
+  --tile-bg: #f5deb3;
+  --tile-text: #2c1a00;
+  --tile-placed: #e8c870;
+  --tile-shadow: #8b6914;
+  --tw: #e63946;
+  --dw: #ff9f1c;
+  --tl: #2191fb;
+  --dl: #4cc9f0;
+  --center: #f72585;
+  --btn-primary: #7b2ff7;
+  --btn-swap: #e63946;
+  --btn-safe: #2dc653;
+  --rack-bg: #2d1b69;
+  --msg-good: #2dc653;
+  --msg-bad: #e63946;
+  --msg-info: #4cc9f0;
+}
+
+body {
+  background: var(--bg);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #fff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: hidden;
+}
+
+/* ── HEADER ── */
+#header {
+  width: 100%;
+  max-width: 520px;
+  background: var(--header-bg);
+  padding: 10px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.5);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+#game-title {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #f72585, #7b2ff7, #4cc9f0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+#scoreboard {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.score-panel {
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 6px 16px;
+  text-align: center;
+  flex: 1;
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+.score-panel.active { border-color: #f72585; }
+.score-panel .name {
+  font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px;
+  cursor: pointer; display: flex; align-items: center; gap: 4px;
+}
+.score-panel .name:hover { color: #ddd; }
+.name-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #f72585;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  width: 100%;
+  min-width: 0;
+  outline: none;
+  padding: 0;
+}
+.score-panel .pts { font-size: 1.5rem; font-weight: 900; color: #fff; }
+
+#turn-badge {
+  background: var(--btn-primary);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  min-width: 70px;
+  letter-spacing: 0.5px;
+}
+@keyframes turnPulse {
+  0%,100% { transform: scale(1);   box-shadow: 0 0 0 0 rgba(123,47,247,0.7); }
+  50%      { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(123,47,247,0); }
+}
+#turn-badge.pulse {
+  animation: turnPulse 0.9s ease-in-out 3;
+}
+
+/* ── MESSAGE BAR ── */
+#msg-bar {
+  width: 100%;
+  max-width: 520px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0 10px;
+  transition: background 0.3s;
+  text-align: center;
+}
+#msg-bar.good { background: rgba(45,198,83,0.18); color: var(--msg-good); }
+#msg-bar.bad  { background: rgba(230,57,70,0.18); color: var(--msg-bad); }
+#msg-bar.info { background: rgba(76,201,240,0.18); color: var(--msg-info); }
+#msg-bar.hidden { background: transparent; color: transparent; }
+
+/* ── BOARD WRAPPER ── */
+#board-wrapper {
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  padding: 6px 4px;
+  display: flex;
+  justify-content: center;
+}
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  grid-template-rows: repeat(15, 1fr);
+  gap: 2px;
+  background: var(--board-line);
+  border: 3px solid var(--board-line);
+  border-radius: 6px;
+  width: min(98vw, 510px);
+  height: min(98vw, 510px);
+  flex-shrink: 0;
+  transform-origin: 0 0;
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cell {
+  background: var(--board-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  font-size: clamp(6px, 1.7vw, 9px);
+  font-weight: 700;
+  letter-spacing: 0;
+  border-radius: 2px;
+  transition: filter 0.1s;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.cell:hover { filter: brightness(1.2); }
+
+.cell.tw { background: var(--tw); color: rgba(255,255,255,0.85); }
+.cell.dw { background: var(--dw); color: rgba(255,255,255,0.85); }
+.cell.tl { background: var(--tl); color: rgba(255,255,255,0.85); }
+.cell.dl { background: var(--dl); color: rgba(255,255,255,0.85); }
+.cell.center { background: var(--center); color: rgba(255,255,255,0.85); }
+
+.cell-label {
+  font-size: clamp(5px, 1.3vw, 8px);
+  text-align: center;
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+/* Tile on board */
+.cell .tile-on-board {
+  position: absolute;
+  inset: 1px;
+  background: var(--tile-bg);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 -2px 0 var(--tile-shadow);
+  pointer-events: none;
+}
+.cell .tile-on-board.is-new {
+  background: var(--tile-placed);
+  box-shadow: inset 0 -2px 0 #a07010, 0 0 6px rgba(255,200,0,0.7);
+}
+.cell .tile-on-board.is-swap {
+  background: #d4a0ff;
+  box-shadow: inset 0 -2px 0 #7b2ff7, 0 0 6px rgba(123,47,247,0.7);
+}
+.cell .tile-on-board.is-blank {
+  background: #f5e6c8;
+  box-shadow: inset 0 -2px 0 #b89a60;
+}
+.cell .tile-on-board.is-blank::after {
+  content: '★';
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 7px;
+  line-height: 1;
+  color: rgba(0,0,0,0.4);
+}
+.tile-letter {
+  color: var(--tile-text);
+  font-weight: 900;
+  font-size: clamp(9px, 2.6vw, 15px);
+  line-height: 1;
+}
+.tile-val {
+  color: var(--tile-text);
+  font-size: clamp(5px, 1.3vw, 8px);
+  font-weight: 700;
+  opacity: 0.7;
+  align-self: flex-end;
+  padding-right: 2px;
+  line-height: 1;
+}
+
+.cell.swap-target-hover .tile-on-board { box-shadow: inset 0 -2px 0 var(--tile-shadow), 0 0 10px rgba(230,57,70,0.9); }
+.cell.drop-target { background: rgba(255,255,255,0.25) !important; outline: 2px dashed #fff; }
+
+/* ── RACK ── */
+#rack-area {
+  width: 100%;
+  max-width: 520px;
+  background: var(--rack-bg);
+  padding: 8px 10px 6px;
+  border-top: 2px solid #3d2b79;
+  border-bottom: 2px solid #3d2b79;
+}
+
+#strength-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+  padding: 0 4px;
+}
+#strength-label {
+  font-size: 0.58rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#strength-track {
+  flex: 1;
+  height: 5px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+#strength-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: #555;
+  transition: width 0.45s ease, background-color 0.45s ease;
+}
+#strength-pct {
+  font-size: 0.6rem;
+  color: #aaa;
+  min-width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+#rack {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  min-height: 52px;
+  align-items: center;
+  border-radius: 8px;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+#rack.rack-drop-target {
+  background: rgba(255, 220, 80, 0.25);
+  box-shadow: 0 0 0 2px #ffd050;
+}
+
+.rack-tile {
+  width: 46px;
+  height: 52px;
+  background: var(--tile-bg);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--tile-shadow), 0 4px 8px rgba(0,0,0,0.4);
+  user-select: none;
+  transition: transform 0.1s, box-shadow 0.1s;
+  position: relative;
+  flex-shrink: 0;
+}
+.rack-tile:hover { transform: translateY(-4px); box-shadow: 0 7px 0 var(--tile-shadow), 0 8px 16px rgba(0,0,0,0.4); }
+.rack-tile.selected {
+  background: #fffb80;
+  transform: translateY(-8px);
+  box-shadow: 0 10px 0 #a08000, 0 12px 20px rgba(0,0,0,0.5);
+}
+.rack-tile.swap-selected {
+  background: #ffb3c1;
+  transform: translateY(-8px);
+  box-shadow: 0 10px 0 #c00000, 0 12px 20px rgba(0,0,0,0.5);
+}
+.rack-tile .tile-letter { font-size: 1.3rem; color: var(--tile-text); }
+.rack-tile .tile-val { font-size: 0.6rem; color: var(--tile-text); opacity: 0.7; align-self: flex-end; padding-right: 3px; }
+.rack-tile.empty-slot { background: rgba(255,255,255,0.06); box-shadow: none; cursor: default; border: 2px dashed rgba(255,255,255,0.15); }
+.rack-tile.empty-slot:hover { transform: none; }
+
+.held-tile {
+  width: 40px;
+  height: 44px;
+  background: #ffb3c1;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #c00000, 0 0 10px rgba(230,57,70,0.5);
+  animation: pulse 1s ease-in-out infinite alternate;
+  flex-shrink: 0;
+}
+.held-tile .tile-letter { font-size: 1.2rem; color: #2c1a00; }
+.held-tile .tile-val { font-size: 0.6rem; color: #2c1a00; opacity: 0.7; align-self: flex-end; padding-right: 2px; }
+.held-tile.held-selected {
+  background: #fff176;
+  box-shadow: 0 3px 0 #a08000, 0 0 12px rgba(255,220,0,0.9);
+  animation: none;
+  transform: scale(1.12);
+}
+@keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+
+/* ── CONTROLS ── */
+#controls {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+  padding: 8px 10px;
+  background: #110b2e;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn {
+  border: none;
+  border-radius: 20px;
+  padding: 7px 11px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  cursor: pointer;
+  letter-spacing: 0.4px;
+  transition: filter 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn-play     { background: var(--btn-safe);  color: #fff; }
+.btn-swap     { background: var(--btn-swap);  color: #fff; }
+.btn-exchange { background: #c07000;          color: #fff; }
+.btn-pass     { background: #555;             color: #fff; }
+.btn-recall   { background: #4455aa;          color: #fff; }
+.btn-shuffle  { background: #337;             color: #fff; }
+
+/* ── BOARD SCORE PREVIEW ── */
+#board { position: relative; }
+.board-score-preview {
+  position: absolute;
+  z-index: 60;
+  background: #287900;
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 50%;
+  padding: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  width: clamp(15px, 3.4vw, 21px);
+  height: clamp(15px, 3.4vw, 21px);
+}
+
+/* Last committed play score badge */
+.last-score-badge {
+  position: absolute;
+  z-index: 60;
+  background: #2191fb;
+  border: 1px solid rgba(255,255,255,0.85);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  width: clamp(15px, 3.4vw, 21px);
+  height: clamp(15px, 3.4vw, 21px);
+}
+.bsp-pts {
+  font-size: clamp(7px, 1.5vw, 10px);
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+}
+
+/* ── TILE ANIMATIONS ── */
+@keyframes tilePop {
+  0%   { transform: scale(0.25); opacity: 0; }
+  65%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+@keyframes tileSwapPop {
+  0%   { transform: scale(0.1);  opacity: 0; }
+  55%  { transform: scale(1.4);  opacity: 1; }
+  75%  { transform: scale(0.9);  }
+  100% { transform: scale(1);    }
+}
+.tile-on-board.pop {
+  animation: tilePop 0.38s ease-out both;
+}
+.tile-on-board.is-last-swap.pop {
+  animation: tileSwapPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.tile-on-board.is-last-move {
+  box-shadow: inset 0 -2px 0 #8b6914, 0 0 0 2px rgba(0,0,0,0.28);
+  background: #d4b96a;
+}
+.tile-on-board.swap-shade-0 { background: #b57fff; box-shadow: inset 0 -2px 0 #6a1fc2, 0 0 0 2px rgba(107,31,194,0.5); }
+.tile-on-board.swap-shade-1 { background: #7c44ef; box-shadow: inset 0 -2px 0 #3a1080, 0 0 0 2px rgba(58,16,128,0.5); }
+.tile-on-board.swap-shade-2 { background: #e060c0; box-shadow: inset 0 -2px 0 #8a1a6a, 0 0 0 2px rgba(138,26,106,0.5); }
+.tile-on-board.swap-shade-3 { background: #5533cc; box-shadow: inset 0 -2px 0 #1e0e70, 0 0 0 2px rgba(30,14,112,0.5); }
+
+/* ── AI SKILL ── */
+#skill-row {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 10px 6px;
+}
+#skill-label {
+  font-size: 0.65rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.btn-skill {
+  background: rgba(255,255,255,0.08);
+  color: #aaa;
+  border: none;
+  border-radius: 12px;
+  padding: 3px 11px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-skill:hover { background: rgba(255,255,255,0.15); color: #fff; }
+.btn-skill.active { background: var(--btn-primary); color: #fff; }
+.rack-tile.exchange-selected {
+  background: #ff9900;
+  transform: translateY(-6px);
+  box-shadow: 0 8px 0 #994400, 0 10px 18px rgba(0,0,0,0.5);
+}
+.rack-tile.swapped-tile {
+  background: #c070ff;
+  box-shadow: 0 3px 0 #7b2ff7, 0 4px 8px rgba(123,47,247,0.5);
+}
+.rack-tile.swapped-tile:hover {
+  background: #d090ff;
+  transform: translateY(-4px);
+  box-shadow: 0 7px 0 #7b2ff7, 0 8px 16px rgba(123,47,247,0.5);
+}
+.rack-tile.blank-tile { background: #f0ece0; box-shadow: 0 3px 0 #999, 0 4px 8px rgba(0,0,0,0.3); border: 1.5px dashed #aaa; }
+.rack-tile.blank-tile .tile-letter { color: #888; font-size: 1rem; }
+.rack-tile.blank-tile:hover { transform: translateY(-4px); box-shadow: 0 7px 0 #999, 0 8px 16px rgba(0,0,0,0.4); }
+
+/* Blank letter picker */
+#blank-picker { position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:300; display:none; align-items:center; justify-content:center; }
+#blank-picker.show { display:flex; }
+#blank-picker-inner { background:#2d1b69; border-radius:14px; padding:18px 14px; width:min(320px,92vw); box-shadow:0 8px 32px rgba(0,0,0,0.6); }
+#blank-picker-title { text-align:center; color:#fff; font-weight:800; font-size:0.9rem; margin-bottom:12px; letter-spacing:0.5px; }
+#blank-picker-letters { display:grid; grid-template-columns:repeat(9,1fr); gap:5px; }
+.blank-letter-btn { background:#f5deb3; color:#2c1a00; border:none; border-radius:5px; padding:7px 2px; font-size:0.85rem; font-weight:800; cursor:pointer; }
+.blank-letter-btn:hover { background:#e8c870; }
+
+.rack-tile.rack-reorder-target {
+  outline: 2px solid #ffd050;
+  transform: translateY(-4px);
+}
+.btn.active { outline: 3px solid #fff; }
+
+/* ── MORE BUTTON ── */
+.btn-more {
+  background: transparent;
+  color: #aaa;
+  font-size: 1.3rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.btn-more:hover { color: #fff; background: rgba(255,255,255,0.08); filter: none; transform: none; }
+.btn-more.active { color: #fff; background: rgba(255,255,255,0.12); outline: none; }
+
+/* ── MORE MENU ── */
+#controls { position: relative; }
+#more-menu {
+  position: fixed;
+  background: #2d1b69;
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 170px;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.65);
+  z-index: 400;
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+#more-menu.show { display: flex; }
+.more-item {
+  background: rgba(255,255,255,0.06);
+  color: #ddd;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 14px;
+  text-align: left;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  letter-spacing: 0.3px;
+}
+.more-item:hover { background: rgba(255,255,255,0.14); color: #fff; }
+.more-item.pass-item { color: #ff9090; }
+.more-item.pass-item:hover { background: rgba(230,57,70,0.18); color: #ffb0b0; }
+.more-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0; }
+.more-section-label {
+  font-size: 0.6rem;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 4px 6px 2px;
+}
+.more-skills { display: flex; gap: 4px; padding: 2px 4px 4px; }
+.more-skills .btn-skill { flex: 1; text-align: center; }
+
+/* ── TILE BAG ── */
+#bag-count {
+  font-size: 0.7rem;
+  color: #888;
+  text-align: center;
+  padding: 2px 0 2px;
+  width: 100%;
+  max-width: 520px;
+}
+#btn-remaining {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 0.62rem;
+  cursor: pointer;
+  text-decoration: underline;
+  letter-spacing: 0.3px;
+  padding: 0 0 5px;
+  display: block;
+  margin: 0 auto;
+}
+#btn-remaining:hover { color: #aaa; }
+#remaining-modal { position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:300; display:none; align-items:center; justify-content:center; }
+#remaining-modal.show { display:flex; }
+#remaining-modal-inner { background:#2d1b69; border-radius:14px; padding:18px 14px; width:min(340px,94vw); box-shadow:0 8px 32px rgba(0,0,0,0.6); }
+#remaining-modal-title { text-align:center; color:#fff; font-weight:800; font-size:0.9rem; margin-bottom:12px; letter-spacing:0.5px; }
+#remaining-modal-close { display:block; margin:12px auto 0; background:rgba(255,255,255,0.12); color:#ccc; border:none; border-radius:10px; padding:5px 20px; font-size:0.75rem; font-weight:700; cursor:pointer; }
+#remaining-modal-close:hover { background:rgba(255,255,255,0.22); color:#fff; }
+.rem-grid { display:flex; flex-wrap:wrap; gap:4px; justify-content:center; }
+.rem-tile {
+  background: var(--tile-bg);
+  border-radius: 3px;
+  width: 30px;
+  height: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 -2px 0 var(--tile-shadow);
+}
+.rem-tile .rem-letter { font-size: 0.75rem; font-weight: 900; color: var(--tile-text); line-height: 1; }
+.rem-tile .rem-count  { font-size: 0.52rem; font-weight: 700; color: var(--tile-text); opacity: 0.55; }
+.rem-tile.zero { background: rgba(255,255,255,0.07); box-shadow: none; }
+.rem-tile.zero .rem-letter { color: rgba(255,255,255,0.25); }
+.rem-tile.zero .rem-count  { color: rgba(255,255,255,0.25); }
+
+/* ── OVERLAY ── */
+#overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+#overlay.show { display: flex; }
+#modal {
+  background: var(--header-bg);
+  border-radius: 16px;
+  padding: 30px 28px;
+  max-width: 340px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+}
+#modal h2 { font-size: 1.7rem; margin-bottom: 18px; }
+#modal .btn { font-size: 0.95rem; padding: 11px 32px; margin-top: 20px; }
+.go-scores {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.go-score {
+  background: rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 10px 18px;
+  min-width: 90px;
+}
+.go-score.winner { background: rgba(80,200,80,0.15); border: 1px solid rgba(80,200,80,0.35); }
+.go-label { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.1em; color: #aaa; text-transform: uppercase; margin-bottom: 4px; }
+.go-pts { font-size: 1.8rem; font-weight: 900; color: #fff; line-height: 1; }
+.go-deduct { font-size: 0.65rem; color: #888; margin-top: 3px; }
+.go-vs { font-size: 0.75rem; color: #666; font-weight: 700; }
+.go-reason { font-size: 0.78rem; color: #999; line-height: 1.4; margin: 0; }
+
+/* ── AI THINKING ── */
+#ai-indicator {
+  display: none;
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+  padding: 6px;
+  font-size: 0.8rem;
+  color: #aaa;
+  letter-spacing: 1px;
+}
+#ai-indicator.show { display: block; }
+@keyframes dots { 0%,20%{content:'.'} 40%{content:'..'} 60%,100%{content:'...'} }
+#ai-indicator::after { content:'.'; animation: dots 1.2s infinite; }
+
+/* ── LAST PLAY SCORE POPUP ── */
+.score-popup {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #f72585;
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.9rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  pointer-events: none;
+  animation: floatUp 1.4s ease-out forwards;
+  z-index: 50;
+  white-space: nowrap;
+}
+@keyframes floatUp { 0%{opacity:1;transform:translateX(-50%) translateY(0)} 100%{opacity:0;transform:translateX(-50%) translateY(-40px)} }
+
+/* ── ONLINE INVITE MODAL ── */
+#online-modal {
+  position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.8);
+  display:flex;align-items:center;justify-content:center;
+}
+#online-modal.hidden{display:none}
+#online-modal-inner {
+  background:#1a1040;border:1px solid #4a2fa0;border-radius:16px;
+  padding:24px 20px;width:90%;max-width:340px;text-align:center;
+}
+#online-modal-inner h2{font-size:1.2rem;margin-bottom:6px;color:#f72585}
+#online-modal-status{font-size:0.8rem;color:#aaa;margin-bottom:16px;min-height:1.4em}
+#online-modal-code-row{font-size:0.85rem;margin-bottom:14px;color:#ccc}
+#online-modal-code{font-size:1.6rem;letter-spacing:6px;color:#7b2ff7;margin-left:8px;font-weight:900}
+#online-modal-link-row{display:flex;gap:8px;margin-bottom:14px}
+#online-modal-link{
+  flex:1;background:#110b2e;border:1px solid #4a2fa0;border-radius:8px;
+  color:#aaa;font-size:0.65rem;padding:6px 8px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#online-modal-copy-btn{
+  background:#7b2ff7;color:#fff;border:none;border-radius:8px;
+  padding:6px 14px;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+#online-modal-copy-btn.copied{background:#2dc653}
+/* Name entry modal */
+#name-modal{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
+#name-modal.hidden{display:none}
+#name-modal-inner{background:#1a1040;border:1px solid #4a2fa0;border-radius:16px;padding:28px 20px;width:90%;max-width:320px;text-align:center;}
+#name-modal-inner h2{font-size:1.2rem;margin:0 0 6px;color:#f72585}
+#name-modal-subtitle{font-size:0.8rem;color:#aaa;margin:0 0 18px}
+#name-modal-input{width:100%;box-sizing:border-box;background:#110b2e;border:2px solid #7b2ff7;border-radius:10px;color:#fff;font-size:1.1rem;padding:10px 14px;text-align:center;margin-bottom:18px;outline:none;font-family:inherit;}
+#name-modal-input::placeholder{color:#555}
+#name-modal-input.error{border-color:#f72585}
+/* My Games modal */
+#games-modal{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
+#games-modal.hidden{display:none}
+#join-code-modal{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
+#join-code-modal.hidden{display:none}
+#games-modal-inner{background:#1a1040;border:1px solid #4a2fa0;border-radius:16px;padding:24px 20px;width:90%;max-width:340px;text-align:center;max-height:80vh;display:flex;flex-direction:column;}
+#games-modal-inner h2{font-size:1.2rem;margin:0 0 14px;color:#f72585}
+#games-list{overflow-y:auto;flex:1;margin-bottom:14px;}
+.game-row{background:#110b2e;border:1px solid #4a2fa0;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:border-color 0.15s,background 0.15s;}
+.game-row:active{background:#1f1060}
+.game-row.your-turn{border-color:#7b2ff7;background:#180d45}
+.game-row-vs{font-size:0.88rem;color:#ccc;text-align:left}
+.game-row-vs strong{color:#fff}
+.game-row-status{font-size:0.72rem;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;margin-left:10px;}
+.turn-yes{background:#7b2ff7;color:#fff}
+.turn-no{background:#333;color:#aaa}
+.turn-waiting{background:#333;color:#aaa}
+#games-modal-badge{display:none;background:#f72585;color:#fff;font-size:0.6rem;font-weight:900;border-radius:50%;width:16px;height:16px;line-height:16px;text-align:center;position:absolute;top:-4px;right:-4px;}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="game-title">REWORD</div>
+  <div id="scoreboard">
+    <div class="score-panel active" id="panel-player">
+      <div class="name" id="player-name-display" onclick="startEditName()">
+        <span id="player-name-text">You</span> <span style="font-size:0.55rem;opacity:0.5">✎</span>
+      </div>
+      <div class="pts" id="score-player">0</div>
+    </div>
+    <div id="turn-badge">Your Turn</div>
+    <div class="score-panel" id="panel-ai">
+      <div class="name" id="ai-name-display">AI</div>
+      <div class="pts" id="score-ai">0</div>
+    </div>
+  </div>
+</div>
+
+<div id="msg-bar" class="hidden"></div>
+
+<div id="board-wrapper">
+  <div id="board"></div>
+</div>
+
+<div id="rack-area">
+  <div id="strength-area">
+    <span id="strength-label">Word Strength</span>
+    <div id="strength-track"><div id="strength-fill"></div></div>
+    <span id="strength-pct">—</span>
+  </div>
+  <div id="rack"></div>
+</div>
+
+<div id="controls">
+  <button class="btn btn-play"     id="btn-play"     onclick="submitPlay()">Play Word</button>
+  <button class="btn btn-exchange" id="btn-exchange"  onclick="toggleExchangeMode()">Exchange</button>
+  <button class="btn btn-recall"   id="btn-recall"    onclick="recallTiles()">Recall</button>
+  <button class="btn btn-shuffle"  id="btn-shuffle"   onclick="shuffleRack()">Shuffle</button>
+  <button class="btn btn-more"     id="btn-more"      onclick="toggleMoreMenu(event)">☰</button>
+  <div id="more-menu">
+    <button class="more-item" onclick="toggleRemaining();closeMoreMenu()">Tile Bag</button>
+    <button class="more-item pass-item" onclick="passTurn();closeMoreMenu()">Pass</button>
+    <div class="more-divider"></div>
+    <button class="more-item" onclick="showGamesModal();closeMoreMenu()" style="position:relative">My Games<span id="games-modal-badge"></span></button>
+    <button class="more-item" onclick="newOnlineGame();closeMoreMenu()">New vs Friend</button>
+    <button class="more-item" onclick="showJoinByCodeUI();closeMoreMenu()">Join with Code</button>
+    <button class="more-item" id="menu-resign" style="display:none;color:#f72585" onclick="resignOnlineGame();closeMoreMenu()">Resign Game</button>
+    <div class="more-divider"></div>
+    <div class="more-section-label">AI Level</div>
+    <div class="more-skills">
+      <button class="btn-skill"         id="skill-easy"   onclick="setSkill('easy')">Easy</button>
+      <button class="btn-skill"         id="skill-medium" onclick="setSkill('medium')">Medium</button>
+      <button class="btn-skill active"  id="skill-hard"   onclick="setSkill('hard')">Hard</button>
+    </div>
+  </div>
+</div>
+
+<div id="bag-count">Tiles in bag: <span id="bag-num">100</span></div>
+<div id="ai-indicator">AI is thinking</div>
+
+<div id="blank-picker">
+  <div id="blank-picker-inner">
+    <div id="blank-picker-title">Choose a letter for the blank tile</div>
+    <div id="blank-picker-letters"></div>
+  </div>
+</div>
+
+<div id="remaining-modal" onclick="if(event.target===this)toggleRemaining()">
+  <div id="remaining-modal-inner">
+    <div id="remaining-modal-title">Tiles Remaining in Bag</div>
+    <div class="rem-grid" id="rem-grid"></div>
+    <button id="remaining-modal-close" onclick="toggleRemaining()">Close</button>
+  </div>
+</div>
+
+<div id="overlay">
+  <div id="modal">
+    <h2 id="modal-title"></h2>
+    <div id="modal-body"></div>
+    <button class="btn btn-play" onclick="playAgain()">Play Again?</button>
+  </div>
+</div>
+
+<div id="games-modal" class="hidden">
+  <div id="games-modal-inner">
+    <h2>My Games</h2>
+    <div id="games-list"><div style="color:#aaa;font-size:0.85rem;padding:16px 0">Loading…</div></div>
+    <button class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="hideGamesModal();newOnlineGame()">+ New Game</button>
+    <button class="btn btn-exchange" style="width:100%;margin-bottom:10px" onclick="showJoinByCodeUI()">Join with Code</button>
+    <button class="btn btn-recall" style="width:100%" onclick="hideGamesModal()">Close</button>
+  </div>
+</div>
+
+<div id="join-code-modal" class="hidden">
+  <div id="join-code-modal-inner" style="background:#1e1e2e;border-radius:16px;padding:28px 24px;max-width:340px;width:90%;margin:auto;box-shadow:0 8px 32px rgba(0,0,0,0.6);text-align:center">
+    <h2 style="margin:0 0 8px;font-size:1.3rem">Join with Code</h2>
+    <p style="color:#aaa;font-size:0.85rem;margin:0 0 18px">Enter the game code or paste the invite link</p>
+    <input id="join-code-input" type="text" maxlength="100" placeholder="e.g. ABCD1234"
+      autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+      style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #444;background:#12121e;color:#fff;font-size:1.1rem;text-align:center;letter-spacing:2px;margin-bottom:14px" />
+    <button class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="confirmJoinByCode()">Join Game</button>
+    <button class="btn btn-recall" style="width:100%" onclick="hideJoinByCodeUI()">Cancel</button>
+  </div>
+</div>
+
+<div id="name-modal" class="hidden">
+  <div id="name-modal-inner">
+    <h2 id="name-modal-title">What's your name?</h2>
+    <p id="name-modal-subtitle">Your opponent will see this</p>
+    <input id="name-modal-input" type="text" maxlength="20" placeholder="Your name" autocomplete="off" />
+    <button id="name-modal-confirm-btn" class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="confirmNameModal()">Continue</button>
+    <button class="btn btn-recall" style="width:100%" onclick="cancelNameModal()">Cancel</button>
+  </div>
+</div>
+
+<div id="online-modal" class="hidden">
+  <div id="online-modal-inner">
+    <h2>Invite a Friend</h2>
+    <p id="online-modal-status">Waiting for opponent to join…</p>
+    <div id="online-modal-code-row">Code: <strong id="online-modal-code"></strong></div>
+    <div id="online-modal-link-row">
+      <input id="online-modal-link" readonly />
+      <button id="online-modal-copy-btn" onclick="copyOnlineLink()">Copy Link</button>
+    </div>
+    <button class="btn btn-recall" style="width:100%" onclick="cancelOnlineGame()">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════════════
+const BS = 15; // board size
+
+const PREMIUM = {};
+// TW – Triple Word (pink)
+[[0,4],[0,10],[4,0],[4,14],[10,0],[10,14],[14,4],[14,10]].forEach(([r,c])=>PREMIUM[`${r},${c}`]='TW');
+// DW – Double Word (orange)
+[[1,1],[1,7],[1,13],[13,1],[13,7],[13,13]].forEach(([r,c])=>PREMIUM[`${r},${c}`]='DW');
+// TL – Triple Letter (dark blue)
+[[4,4],[4,10],[10,4],[10,10]].forEach(([r,c])=>PREMIUM[`${r},${c}`]='TL');
+// DL – Double Letter (light blue)
+[[0,7],[1,6],[1,8],[2,5],[2,9],[5,2],[5,7],[5,12],[6,1],[6,13],[7,0],[7,4],[7,10],[7,14],[8,1],[8,13],[9,2],[9,7],[9,12],[12,5],[12,9],[13,6],[13,8],[14,7]].forEach(([r,c])=>PREMIUM[`${r},${c}`]='DL');
+PREMIUM['7,7'] = 'CENTER';
+
+const VAL = {A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10,' ':0};
+
+const DIST = {A:9,B:2,C:2,D:4,E:12,F:2,G:3,H:2,I:9,J:1,K:1,L:4,M:2,N:6,O:8,P:2,Q:1,R:6,S:4,T:6,U:4,V:2,W:2,X:1,Y:2,Z:1};
+
+// ═══════════════════════════════════════════════════════
+//  DICTIONARY  (curated Scrabble-valid word list)
+// ═══════════════════════════════════════════════════════
+const WORD_DATA = `AA AB AD AE AG AH AI AL AM AN AR AS AT AW AX AY BA BE BI BO BY DA DE DO ED EF EH EL EM EN ER ES ET EW EX FA FE GI GO HA HE HI HM HO ID IF IN IS IT JO KA KI LA LI LO MA ME MI MM MO MU MY NA NE NO NU OD OE OF OH OI OM ON OP OR OS OW OX OY PA PE PI PO QI RE SH SI SO TA TI TO UH UM UN UP UT WE WO XI XU YA YE YO ZA
+AAH AAL AAS ABA ABO ABS ABY ACE ACT ADD ADO ADS ADZ AFF AFT AGA AGE AGO AGS AHA AID AIM AIN AIR AIS AIT ALA ALB ALE ALT AMI AMP AMU ANA AND ANE ANI ANT ANY APE APO APT ARB ARC ARE ARF ARK ARM ARS ART ASH ASK ASP ASS ATE ATT AUK AVA AVE AVO AWA AWE AWL AWN AXE AYS AZO BAA BAD BAG BAH BAL BAM BAN BAP BAR BAS BAT BAY BED BEG BEL BES BET BEY BIB BID BIG BIN BIO BIS BIT BIZ BOA BOB BOD BOG BOO BOP BOT BOW BOX BOY BRA BRO BRR BUB BUD BUG BUM BUN BUR BUS BUT BUY CAB CAD CAM CAN CAP CAR CAT CAW CAY CEE CEL CEP CHI CIG COB COD COG COL CON COO COP COT COW COX COY COZ CRY CUB CUD CUE CUR CUT DAB DAD DAG DAH DAK DAL DAM DAP DAW DAY DEB DEE DEL DEN DEW DEX DEY DIG DIM DIN DIP DIT DOC DOE DOG DOM DON DOP DOT DOW DRY DUB DUD DUG DUN DUO DUP EAR EAT EEK EEL EFF EGG EGO ELK ELL ELM ELS EME EMF EMS EMU END ENG EON ERA ERE ERG ERN ERR ERS ESS ETA ETH EVE EWE EYE FAB FAD FAG FAN FAR FAT FAX FAY FED FEH FEM FEN FEW FEY FEZ FIB FID FIG FIN FIR FIT FIX FIZ FLY FOB FOE FOG FOP FOR FOY FRO FRY FUB FUD FUN FUR GAB GAG GAL GAM GAP GAR GAS GAY GEL GEM GET GEY GIG GIN GNU GOA GOB GOD GOO GOP GOT GOY GUL GUM GUN GUT GUY GYM GYP HAD HAE HAG HAH HAJ HAM HAP HAS HAT HAW HAY HEH HEM HEN HEP HER HES HET HEW HEX HEY HID HIE HIM HIN HIP HIS HIT HOB HOD HOE HOG HOM HOP HOT HOW HOY HUB HUE HUG HUH HUM HUT ICE ICK ICY IDS ILL IMP INK INN INS ION IRE IRK ISM ITS JAB JAG JAM JAP JAR JAW JAY JEE JET JEU JEW JIB JIG JIN JOB JOE JOG JOT JOY JUG JUS JUT KAB KAE KAF KAS KAT KAY KEA KED KEF KEG KEN KEP KEX KEY KHI KID KIF KIN KIP KIR KIT LAB LAC LAD LAG LAM LAP LAR LAS LAT LAV LAW LAX LAY LEA LED LEE LEG LET LEU LEV LEX LEY MAB MAD MAE MAG MAN MAP MAR MAS MAT MAW MAX MAY MED MEL MEM MEN MET MEW MHO MIB MID MIG MIM MIR MIS MIX MOB MOD MOO MOP MOR MOT MOW MUD MUG MUM MUN NAB NAE NAG NAH NAP NAW NAY NEF NET NEW NIB NIM NIP NIT NIX NOB NOD NOM NOR NOS NOT NOW NTH NUB NUN NUT OAF OAK OAR OAT OBE OBI OCA ODD ODS OES OFF OFT OOH OPE OPS OPT ORA ORB ORC ORE ORS ORT OUR OUT OVA OWE OWL OWN PAC PAD PAH PAL PAM PAP PAR PAS PAT PAW PAX PAY PEA PEC PED PEE PEG PEH PEN PEP PER PES PEW PHO PIA PIC PIE PIG PIN PIP PIS PIX PLY POD POM POP POT POW POX RAG RAH RAJ RAM RAN RAP RAS RAT RAW RAY REC RED REF REI REM REP RES RET REV REX RHO RIB RID RIF RIG RIM RIN RIP ROB ROC ROD ROE ROM ROT ROW RUB RUG RUM RUN RUT SAC SAD SAG SAL SAP SAT SAW SAX SAY SEA SEC SEE SEG SEI SEN SET SEW SEX SHA SHE SHH SHY SIN SIP SIR SIS SIT SKI SKY SLY SOB SOD SON SOP SOT SOW SOX SOY SPA SPY STY SUB SUE SUM SUN SUP TAB TAD TAJ TAM TAN TAO TAP TAR TAS TAT TAV TAW TAX TEA TED TEE TEG TEN TET TEW THE THO TIC TIE TIL TIN TIP TIS TOD TOE TOG TOM TON TOO TOP TOR TOT TOW TOY TRY TSK TUB TUG TUI TUN TUP TUX TWA TWO UDO UGH ULU UMP UNS UPO URB URD USE UTE VAC VAN VAR VAS VAT VAU VAV VAW VEX VIE VIM VIS VOE VOW WAB WAD WAE WAG WAN WAP WAR WAS WAT WAW WAX WAY WEB WED WEE WEN WET WHO WHY WIG WIN WIS WIT WIZ WOE WOG WOK WON WOO WOP WOT WOW YAH YAK YAM YAP YAR YAW YEA YEH YEN YEP YES YEW YIN YOD YOM YON ZAP ZAX ZED ZEK ZEN ZIP ZIT ZOA ZOO
+ABLE ABLY ABUT ACED ACES ACNE ACRE AGED AGES AGUE AIDE ALBA ALEC ALEE ALSO ALTO ALUM AMAH AMBO AMEN AMID AMIE AMOK AMPS ANAL ANEW ANKH ANNO ANOA ANON ANTA ANTE ANTI ANTS ANUS APED APEX AQUA ARCH AREA ARIA ARID ARTY ASEA ASHY ATOM ATOP AUNT AURA AUTO AVID AVOW AWAY AWED AWES AWLS AWRY AXED AXES AXIL AXIS AXON AYES BABE BABY BACH BACK BADE BAIL BAIT BALE BALK BALL BALM BAND BANE BANG BANK BARE BARD BARK BARN BASH BASK BASS BAST BATH BAUD BAWL BEAD BEAM BEAN BEAR BEAT BEAU BEEF BEEN BEER BEET BELL BELT BEMA BEND BENT BIER BILE BILL BIND BIRD BITE BLAB BLAH BLED BLEW BLOB BLOT BLOW BLUE BLUR BOAR BOAT BODE BODY BOLD BOLE BOLT BOND BONE BONG BOOK BOOM BOON BOOR BORE BORN BOSS BOUT BRAG BRAT BREW BRIM BROW BUCK BUFF BULK BULL BUMP BUNK BUNT BURP BURY BUSH BUSS BUST BUTT CAFE CAGE CANE CANT CAPE CARP CART CASE CASH CAST CAVE CELL CHAP CHAR CHAT CHEW CHIN CHIP CHIT CHOP CLAD CLAM CLAN CLAP CLEW CLIP CLOD CLOG CLOP CLOT CLOY CLUB CLUE COAL COAT COCK CODE COIL COIN COLD COME CONE COOK COOL COPE CORD CORE CORK CORN COST COUP CRAB CREW CROP CROW CUFF CULT CURD CURE CURL CUTE DAME DARE DARK DARN DASH DATE DAUB DAWN DAZE DEAD DEAF DEAL DEAR DECK DEEP DEFT DELI DELL DEMO DENY DICE DIED DIES DIKE DILL DIME DINE DING DIRE DIRK DIRT DISK DISS DIVE DOCK DOME DONE DOPE DOTE DOUR DOVE DOWN DRAB DRAG DRAW DREW DRIP DROP DRUM DUAL DUFF DULL DUMP DUNE DUNG DUSK DUST DUTY EACH EARL EARN EASE EAST EDGE ELSE EMIT EPIC EVEN EVER EVIL EXAM EYED EYES FACE FACT FADE FAIL FAIR FALL FAME FANG FARE FARM FAST FATE FAUN FAWN FAZE FEED FEEL FEET FELL FELT FEND FERN FEST FEUD FIAT FIFE FILM FIND FINE FIRE FIRM FISH FIST FIZZ FLAB FLAK FLAT FLAW FLED FLEX FLIP FLIT FLOG FLOP FOAM FOIL FOLD FONT FORD FORE FORM FORT FOUL FOUR FOWL FRAY FROG FUEL FULL FUME FURY FUSE FUSS FUZZ GALE GALL GAME GANG GASP GATE GAVE GAWK GAZE GEAR GENE GENT GERM GIBE GILL GIRD GIRL GIRT GLEE GLUE GLUT GNAW GOAD GOAL GOAT GOLD GOLF GORE GORY GOUT GRAB GRAM GUST GUTS GUYS HACK HAIL HAIR HALF HALL HALT HAND HANG HARD HARE HARM HARP HATE HAUL HAVE HAWK HAZE HEAD HEAL HEAP HEAT HEEL HELP HERB HERD HERE HICK HIDE HILL HINT HOAX HOCK HOLD HOLE HOLM HOLY HOOD HOOK HOOP HOOT HOPE HORN HOSE HOST HOUR HOWL HUFF HULK HULL HUMP HUNG HUNK HUNT HURL HYMN IBIS ICON IDEA IDLE INCH IRIS ISLE ITCH JACK JAIL JAMB JAPE JINK JIVE JOKE JOLT JUDO JUST KEEL KEEN KELP KERN KILL KINK KNOB KNEW KNIT KNOT KNOW LACE LACK LAID LAKE LAMB LAMP LAND LANE LARK LASH LAST LAUD LAWN LAZY LEAD LEAF LEAN LEAP LEFT LEND LIEN LIFE LIMB LIME LIMP LINE LINT LION LOAD LOAM LOBE LOCK LOFT LONE LONG LOOP LOOT LORE LOSE LOSS LOST LOUR LOUT LOVE LUCK LULL LUMP LUNG LURK LUST LUTE MADE MAIL MAIN MAKE MALE MALL MANE MANY MARS MART MASK MASS MAST MATE MAZE MEAD MEAL MEAN MEAT MEET MELD MELT MEMO MENU MERE MESH MESS MICA MILD MILE MILK MILL MIME MIND MINE MINK MINT MISS MIST MOAN MOAT MOCK MOLE MONK MOOD MOOR MOPE MORN MOST MOTH MOVE MUCH MULE MUST MUTE NAIL NAPE NAVY NEAT NECK NEED NEST NEXT NICE NICK NIGH NOCK NOEL NONE NORM NOSE NOTE NOUN NUDE OATH OBEY ODES ODDS OMEN OMIT ONCE ONLY ONYX OPAL OPEN ORCA OUTS OVEN OVER OWED OXEN PACE PACK PAGE PAIR PALE PALM PANE PANG PARK PART PAST PAVE PAWN PEAL PEAR PEAT PEEL PEER PELT PICK PIER PILL PINE PIPE PLAN PLAY PLEA PLOD PLOT PLOW PLUG PLUM PLUS POKE POLE POLO PONY POOL POOR PORK POUT PRAY PREP PREY PRIM PROD PROP PROW PUMP PURE PUSH QUAD QUAY QUID QUIP QUIT RACE RACK RAGE RAID RAIL RAIN RAKE RAMP REIN RELY REND REEK REEL REEF RIFE RIFT RING RIOT RISE RISK ROAM ROAN ROBE ROCK RODE ROLL ROMP ROOF ROOK ROOT ROPE ROSE ROUT ROVE RUBY RUIN RULE RUNE RUNG RUSH RUST SAGE SAKE SALE SALT SAME SAND SANE SANG SANK SASH SAVE SCAB SCAN SCAR SEAM SEAT SELF SELL SEND SENT SERF SHED SHIN SHIP SHOE SHOP SHOT SHOW SHUT SICK SIDE SIGH SIGN SILK SILL SING SIRE SITE SLAB SLAP SLAT SLEW SLIM SLIP SLIT SLOB SLOE SLOP SLOT SLOW SLUM SNAG SNAP SNIP SNIT SNOW SNUB SOAK SOAR SOCK SOFA SOIL SOLE SONG SOON SOOT SORT SOUP SOUR SPAN SPAR SPIT SPOT SPEW SPIN SPUR STAB STAG STAR STAY STEM STEP STEW STIR STOP STUB STUN SUCH SUIT SURE SURF SWAP TACK TAIL TAKE TALE TALK TALL TANK TARE TEAK TEAL TEAM TEAR TEAT TELL TEMP TEND TENT TERM TEST THAN THAT THAW THEE THEM THEN THEY THIN THOU TICK TIDE TIED TIER TIFF TILL TIME TINT TIRE TOAD TOIL TOLL TONE TOOK TOOT TORE TORN TOSS TOWN TRAP TRAY TREE TRIM TRIP TROT TUBE TUFT TUNA TUNE TURF TUSK TWIN TYPE UGLY UNDO UPON URGE USED USER VALE VANE VASE VAST VEAL VEIL VERB VERY VEST VETO VIEW VILE VINE VOID WADE WAIL WAIT WAKE WALE WALK WALL WAND WANE WARD WARE WARM WARN WART WARY WASH WASP WAVE WEAK WEAN WEAR WEEN WELD WELL WELT WENT WERE WEST WHAT WHEN WHET WHIM WHIP WHIZ WICK WIDE WILD WILL WILY WIMP WIND WINE WING WINK WISE WISH WISP WITH WOOD WOOF WORD WORE WORK WORM WORN WOVE WRAP WREN WRIT YACK YANK YARD YARN YAWL YEAR YELL YELP YOGI YORE YOUR YUAN YULE ZEAL ZEST ZINC ZING ZONE ZOOM
+ABACK ABASH ABIDE ABODE ABORT ABOUT ABOVE ADEPT ADMIT ADOPT ADORN ADULT AHEAD AISLE ALARM ALBUM ALERT ALGAE ALIEN ALOFT ALONE ALONG ALOOF ALOUD ALTAR AMAZE AMBER AMEND AMINO AMPLE AMUSE ANGEL ANGER ANGLE ANGRY ANGST ANNEX ANNOY APART APPLE APPLY APRON ARDOR AROMA AROSE ARRAY ASCOT ASIDE ASTER ASTIR ATONE ATTIC AUGUR AVAIL AVOID AWAKE AWARD AWARE BADGE BADLY BAGEL BALMY BANAL BANJO BASIC BASIN BATCH BAYOU BEACH BEAST BEGAN BEIGE BELOW BENCH BERRY BIBLE BICEP BISON BLAND BLAST BLAZE BLEAK BLEND BLIND BLISS BLOCK BLOOD BLOOM BLOWN BLUNT BLURB BOARD BOGUS BOOTH BOOZE BOTCH BOUND BOXER BRACE BRAIN BRAKE BRAND BRAVE BRAWL BREAD BREAK BREED BRICK BRIDE BRIEF BROIL BROOK BROOD BROTH BROWN BRUNT BRUSH BUYER CACHE CAMEL CANDY CARGO CATCH CAUSE CEDAR CEASE CHAIN CHAIR CHALK CHAMP CHANT CHASE CHEAP CHEER CHESS CHEST CHIEF CHILD CHILE CHILL CHOIR CHORD CHORE CHOSE CIVIC CIVIL CLAIM CLASS CLEAN CLEAR CLEAT CLOCK CLONE CLOSE CLOTH CLOUD CLOWN COLON COMMA COMBO COMIC COMET CORAL COULD COUCH COURT COVER CRAFT CRANE CRASH CRAWL CRAZY CREAK CREAM CREEP CRIME CRISP CROSS CROWN CRUEL CRUSH CURVE DADDY DAILY DAISY DANCE DANDY DATUM DEALT DECAY DELTA DEPOT DEPTH DERBY DETER DIRTY DISCO DIZZY DODGE DOGMA DOLLY DONOR DOUGH DRAFT DRAMA DRAPE DROOL DROWN DUNCE DWARF DWELL DYING EAGLE EARLY EARTH EASEL EATEN EJECT ELITE ELBOW EMPTY ENEMY ENJOY ENSUE ENTER ENTRY EPOXY EQUIP ERODE ERROR EVADE EVENT EXACT EXIST EXPEL EXERT EXUDE FABLE FACET FAINT FAITH FANCY FATAL FAULT FEAST FEIGN FENCE FEVER FIBER FIFTH FIFTY FIGHT FINCH FIRST FIXED FLAIR FLAME FLANK FLASK FLECK FLESH FLOCK FLOOD FLUTE FOCAL FOGGY FOLLY FORCE FORGE FOUND FOYER FRAME FRANK FRAUD FREAK FRESH FROTH FROZE FUDGE FUNGI FUNKY FURRY FUZZY GAUZE GAVEL GAWKY GIDDY GIRTH GIVEN GLAND GLARE GLASS GLEAM GLEAN GLIDE GLOAT GLOBE GLOOM GLORY GLOSS GLOVE GNOME GORGE GOUGE GOURD GRACE GRADE GRATE GRAZE GREET GRIEF GRIPE GROAN GROPE GROSS GROUT GROVE GROWL GROWN GRUEL GRUFF GRUMP GUISE GUSTO HABIT HAPPY HARSH HAVEN HAVOC HAZEL HEART HEAVY HEIST HENCE HERON HOBBY HOLLY HONOR HORSE HOTEL HOTLY HOUND HOWDY HUMAN HUMID HUMOR ICING IDIOT IGLOO IMPLY INCUR INDEX INEPT INFER INNER INPUT INTER INTRO IVORY JAZZY JEWEL JIFFY JOUST JUICE JUICY JUROR KAYAK KNAVE KNEEL KNELT KNIFE KNOCK KUDOS LABEL LARGE LASER LATCH LATER LAYER LEAFY LEASE LEDGE LEGAL LEMON LEVEL LIGHT LINER LIVER LIVID LODGE LOGIC LOOSE LOUSY LOYAL LUCID LUNAR LUSTY MACHO MAGIC MAMBO MAPLE MARSH MAXIM MAYOR MEDIA MERCY MERIT METAL MIRTH MISER MOOSE MOURN MUCKY MUDDY MUSHY MUSTY MYRRH NADIR NERVE NEVER NIPPY NOBLE NOISE NOISY NORTH NOTCH NOVEL NYMPH OCCUR OCEAN OFFER OFTEN OLIVE OPTIC ORATE ORBIT ORDER OUGHT OUTDO OUTER OVERT OXIDE PANIC PANSY PAPER PARTY PASTA PEACH PENAL PERCH PESKY PETTY PIANO PILOT PINCH PITHY PIXEL PIXIE PLACE PLAID PLAIN PLATE PLAZA PLIER PLUCK POACH POINT POISE POLAR POUCH POUND PRANK PREEN PRICE PRIDE PRIME PRIOR PRISM PRIVY PRIZE PROBE PROSE PROUD PROVE PROWL PRUDE PRUNE PSALM PUDGY PULPY PULSE PUNCH PUPIL PURGE PYGMY QUALM QUEEN QUEST QUEUE QUOTA QUOTE RABBI RADAR RADIO RAINY RAJAH RAMEN RANCH RAPID RAVEN REACH REALM REBEL REDUX REIGN RENAL REPAY REPEL REPLY RIVET RISKY RIVAL ROACH ROBOT ROCKY ROGUE ROMAN ROOST ROWDY RUDDY RUGBY RULER RUNNY RUSTY SADLY SAINT SALVE SANDY SAUCE SAVOR SCALP SCENE SCENT SCONE SCOPE SCORN SCOUT SCOWL SCREW SCRUB SEEDY SEIZE SENSE SERUM SERVE SEVEN SHALE SHAME SHAPE SHARE SHARK SHARP SHAWL SHEEN SHELF SHELL SHORE SHORT SHOVE SIEGE SIXTH SIXTY SKATE SKULL SLASH SLATE SLEEK SLEEP SLEET SLICK SLIDE SLIME SMALL SMART SMASH SMELL SMIRK SNACK SNARE SNEAK SNORE SNORT SOLAR SOLID SOLVE SONIC SORRY SOUTH SPARE SPADE SPANK SPARK SPAWN SPEAK SPECK SPEND SPICY SPIKE SPILL SPINE SPIRE SPITE SPOOF SPOON SPORE SPORT SPOUT SPRAY SQUAD SQUID SQUAT STALE STALL STAMP STAND STASH STATE STEAK STEAL STEEL STEEP STEER STERN STICK STIFF STILL STING STOCK STOMP STONE STOOL STORE STORY STOUT STOVE STRAP STRAY STRIP STUCK STUDY STUFF STUMP STUNT STYLE SUGAR SUITE SURLY SWAMP SWEAR SWEAT SWEEP SWIFT SWIRL SWOOP TABLE TABOO TACKY TALON TAPIR TARDY TASTE TASTY TAUNT TEARY TENSE TEPID THEIR THEME THERE THICK THING THONG THORN THOSE THREE THREW THROB THROW THUMB TITHE TONIC TOPAZ TOPIC TOUGH TOXIC TRACE TRACK TRADE TRAIL TRAIN TRAIT TRAMP TRITE TRUNK TRUCE TRULY TRUMP TRYST TULIP TUMOR TURBO TWANG TWEAK TWEED TWICE TWIST ULCER UNDER UNDUE UNFIT UNION UNTIE UNTIL UPPER UPSET USHER UTTER VAGUE VALID VALOR VALVE VAULT VENOM VERGE VIOLA VIRAL VISTA VOMIT VOTER VOUCH WAGER WASTE WATCH WATER WEARY WEAVE WEEDY WEIRD WHEAT WHERE WHICH WHILE WHINE WHIRL WIDER WITTY WOMAN WOMEN WORLD WORSE WORST WOULD WOUND WRATH YOUNG YOUTH ZAPPY ZEBRA ZIPPY
+ABSENT ACCORD ACROSS ACTIVE ACTUAL AFFECT AFFORD AGENDA AGHAST ALMOND ALMOST ALWAYS ANCHOR ANIMAL ANNUAL ANSWER ANTLER ANYONE ANYWAY APPALL APPEAL ARDENT AROUND AROUSE ARREST ARTFUL ARTIST ASLEEP ASPIRE ASSENT ASSERT ASSIST ASTRAY ATTAIN ATTEND AUGUST AWOKEN BADGER BANTER BARELY BARREL BASKET BATTLE BEACON BEARER BEATEN BEAUTY BELONG BERATE BESIDE BEWARE BITTER BLANCH BLEACH BLIGHT BLOTCH BOLDLY BONNET BOUGHT BRANCH BREACH BREATH BREEZE BRIDGE BRIGHT BROOCH BUCKET BUDGET BUFFET BUNGLE BURDEN BUSTLE BUTLER BUTTON BYGONE BYPASS CANVAS CAREER CASTLE CASUAL CHARGE CHOOSE CHORUS CHOSEN CHROME CIRCLE CLEVER COBALT COFFEE COFFIN COMBAT COMMON COMPLY CORNER COTTON COUPLE COUPON COUSIN COVERT COWBOY CRANKY CROUCH CUSTOM DAMAGE DAMPEN DANGER DARING DARKEN DEBATE DEBRIS DECENT DECIDE DEFEAT DEFEND DEGREE DEMAND DEPART DEPEND DEPLOY DESERT DESIRE DETOUR DEVOTE DIFFER DIGEST DIRECT DISCARD DOMAIN DOUBLE DRAGON DRAWER DRIVEN DROWSE DURING EFFECT EFFORT EITHER EMPIRE ENABLE ENDING ENGAGE ESCAPE EXCEED EXCEPT EXCUSE EXEMPT EXPAND EXPECT EXPOSE EXTEND EXTENT FAMINE FASTEN FATHER FELINE FEMALE FERRET FILTER FISCAL FIXING FLIGHT FOREST FORMAL FOSTER FROTHY FROZEN FUTURE GAMBIT GARDEN GATHER GENTLE GIFTED GIVING GLOBAL GOLDEN GOSSIP GOVERN GRAVEL GREEDY GRIEVE GRISLY GUTTER HAMPER HANDLE HAPPEN HARBOR HARDLY HEARTH HEATED HERESY HIDDEN HONEST HORROR HUNTER HUSTLE IGNITE IMMUNE IMPORT IMPOSE IMPURE INHALE INJECT INSANE INSECT INSERT INSIDE INSIST INVENT ISLAND ITSELF JUNGLE KETTLE KITTEN LAMENT LAUNCH LESSEN LESSON LETHAL LIVELY LOCATE LONELY LOOSEN LOUNGE LOVELY LURKER MANNER MARKET MAYHEM MEDIUM MELODY MENACE MENTAL METHOD MIGHTY MIRROR MODERN MODEST MOLTEN MOMENT MORTAL MOSTLY MOTIVE MUDDLE MUSCLE MUTUAL MYSELF MYSTIC NARROW NATIVE NATURE NEARBY NEARLY NEEDLE NORMAL NOTICE NOTION OBJECT OBTAIN OFFSET ORDAIN ORIENT OUTLAW OUTRUN OUTSET OXYGEN PALACE PARDON PARENT PARLOR PATRON PESTER PEWTER PIGEON PILFER PILLAR PLUNGE POCKET PONDER PORTAL POTION POTENT PREFER PRETTY PROPER PUNISH PUPPET PURPLE PUZZLE RAGGED RANDOM RAGING RATHER REALLY REASON RECEDE RECENT RECKON REFUSE REGAIN REMOVE RENDER RESCUE RESULT RETURN REVEAL REVIVE REWARD RIDDLE RITUAL ROBBER ROCKET ROTATE ROTTEN ROOKIE RUSTLE SADDLE SCARED SCHEME SEARCH SECOND SECRET SECURE SETTLE SHADOW SIGNAL SIMPLE SISTER SOLEMN SOLACE SOOTHE SORTED SORROW SOUGHT SPEECH SPIRAL SPRITE SPREAD STABLE STEADY STOLEN STRICT STRIKE STRIVE STRONG STRUCK SUDDEN SUMMIT SUPPLY SURELY SURVEY SWITCH SYMBOL TANGLE TARGET TEMPLE TENDER TERROR THANKS THEORY THIRTY THOUGHT THREAT THROAT THRONE THRONG TIMBER TIMELY TONGUE TOWARD TRAVEL TREBLE TROPHY TURTLE TUSSLE UNABLE UNBEND UNDONE UNFOLD UNIQUE UNLIKE UNREST URGENT USEFUL UTOPIA VACANT VANISH VARIED VICTIM VISION VIVID VOYAGE WANDER WEAKEN WEAPON WICKED WISDOM WONDER WRENCH YELLOW YONDER ZEALOT ZONING
+ABANDON ABILITY ABSENCE ABSOLVE ANCIENT ANOTHER ANXIETY APOLOGY APPLIED ARRANGE ATTEMPT ATTRACT AVERAGE BALANCE BANQUET BARGAIN BARRIER BATTERY BECAUSE BEDROOM BENEATH BETWEEN BINDING BLANKET BLOSSOM BRAVERY BREADTH BRIEFLY BROTHER BRUISED BUILDUP CABINET CAPTAIN CAPTURE CARTOON CATALOG CEILING CENTURY CERTAIN CHAPTER CHICKEN CIRCUIT CLARIFY CLEARLY CLIMATE CLUSTER COMMAND COMPILE COMPLEX CONTAIN CONTENT CONVERT COUNSEL COURAGE COUNCIL COVERED CREATED CRUMBLE CULTURE CURIOUS CURRENT CUSHION CAREFUL CURTAIN DECIDED DEFENSE DELIVER DENSITY DEVELOP DEVICES DIAMOND DIGITAL DISCUSS DISMISS DISPLAY DISTANT DISTILL DISTURB DIVIDED DOLLARS DRAWING DYNAMIC EARNEST ECONOMY ELEGANT ELEMENT EMOTION EMPEROR ENACTED ENGAGED ENHANCE ENJOYED ENTRUST EXAMINE EXPLORE FAILURE FASHION FEATURE FICTION FIFTEEN FINALLY FINDING FLATTEN FLEXING FORWARD FULFILL FULFILL GENERAL GENUINE GESTURE GETTING GLIMPSE GRAMMAR GRANTED GRAVITY GREATLY GROCERY GUIDING HANDLER HEADING HEALTHY HELPFUL HISTORY HOLDING HOWEVER HUNDRED IMAGINE IMPROVE INCLUDE INSPIRE INSTEAD INTENSE INVOLVE ISOLATE JOURNAL JOURNEY JUSTICE KINSHIP LARGELY LEARNED LEAVING LOGICAL LOYALTY MAXIMUM MEANING MENTION MESSAGE MINERAL MINIMUM MISTAKE MIXTURE MONITOR MONTHLY MORNING MYSTERY NATURAL NETWORK NEUTRAL NOTHING OBVIOUS OPINION ORGANIC OUTCOME OUTSIDE OVERCOME PACKAGE PASSION PATTERN PAYMENT PERFECT PERHAPS PERFORM PICTURE PLASTIC PLEASED POPULAR POSSESS POVERTY PREVENT PRIVATE PROBLEM PROCEED PROCESS PRODUCT PROFILE PROGRAM PROJECT PROMOTE PROTECT PROPOSE PURPOSE QUALIFY QUICKLY REALIZE REBUILD RECEIVE REFLECT REGULAR REPLACE REQUIRE RESOLVE RESTORE RESPECT RESPOND RESTORE RHYTHM ROBBERY ROUGHLY ROUTINE SCATTER SCIENCE SEGMENT SERIOUS SEVERAL SERVICE SILENCE SIMILAR SIMPLE SKILLED SOCIETY SOMEHOW SOMEONE STATION STORAGE STRANGE STUDENT SUBJECT SUCCEED SURFACE SUSPECT SURFACE SUSTAIN TEACHER TENSION THROUGH THOUGHT NEITHER TROUBLE TYPICAL SUPPORT UNKNOWN VARIOUS VILLAGE VISIBLE WAITING WELCOME WESTERN WILLING WRITING YOUNGER`;
+
+// Supplemental words missing from the main list
+const WORD_SUPP = `CHORES SHORES STORES SCORES BORES CORES MORES PORES TORES GORES LORES FORES SNORES SPORES CHORE SHORE STORE SCORE RIPS TIPS HIPS DIPS SIPS NIPS ZIPS PIPS LIPS VAIN LAIN FAIN PAIN GAIN WAIN SAIN NAIF WAIF DAIS BANE CANE FANE LANE MANE VANE VINE WINE TINE PINE BONE CONE DONE GONE HONE LONE TONE ZONE DOTE MOTE ROTE TOTE VOTE BORE FORE PORE SORE WORE GORE LORE BODE LODE NODE CODE MODE MOLE POLE ROLE SOLE TOLL DOLL POLL ROLL BELL DELL FELL HELL JELL YELL FILL GILL JILL SILL TILL DILL GULL HULL LULL NULL YARN HORN MORN LARK BARK LACK JACK DOCK LOCK MOCK BUCK DUCK LUCK PUCK TUCK SAIL KALE HALE DALE LAVE RAVE NAVE DAZE FAZE LAZE MAZE RAZE CAVE VALE WALE SALE JADE WADE BADE FADE LANE CANE SANE WANE SINE YORE WORE GORE LORE MORE SIRE HIRE FIRE TIRE MIRE DIRE WIRE LITHE TITHE LATHE BATHE LIEGE BINGE HINGE LUNGE SINGE RIFE LIFE WIFE KNIFE STRIFE STRIFE CHIVE DRIVE STRIVE THRIVE WIVE ALIVE ARRIVE DERIVE
+STAIN STAID STAIR STANK STARK STARE STAVE DRAIN GRAIN CRANE BRAVE GRAVE SHAVE SLAVE CLOVE GROVE DROVE BRINE SPINE SWINE TWINE RHYME CHIME SLIME GRIME PRIME CRIME ATONE PRONE PHONE GROAN GROIN BRAID PLAID MOIST FOIST HOIST BOOST QUAIL SNAIL FRAIL TAINT FEINT GLINT FLINT RIVET BRISK DROWN FROWN CROWN BLOWN FLOWN SHOWN SPAN CLAN BRAN SLICK FLICK TRICK THICK BRICK CLICK FLOCK CLOCK BLOCK KNOCK STOCK SHOCK FROCK BROOK DROOL SPOOL DROOP SWOOP SNOOP TROOP GROUP SNEAK CREAK BLEAK STEAK FREAK SQUEAK SPEAK STREAK SLEEK CREEK REEK BREEK CHEEK SLEEK GEEK MEEK SEEK PEEK WEEK HEEL FEEL KEEL PEEL REEL TEEL HEEL KNEEL STEEL WHEEL IDEAL MODAL TONAL MORAL LOCAL NAVAL BANAL CANAL FINAL PENAL LEGAL REGAL VOCAL FOCAL PETAL MEDAL PEDAL RIVEN GIVEN TOKEN RISEN OAKEN LADEN WIDEN WOKEN RIPEN TAKEN VIXEN LIKEN RISEN STAIN DRAINS GRAINS TRAINS PLAINS SNAILS TRAILS TAINTS FEINTS GLINTS FLINTS HOISTS
+SITZ SMITE SMEAR SMASH SMART SMALL SMELL SMILE SMIRK SMOKE SNARE SNEAK SNIFF SNORE SNORT SNOUT SNOWY SOBER SHRUG SHRUB SHRED SHREW SHOWN SHOES SHOOT SHOUT SHOVE SHRINE SHRILL SHIRE SHIRT SHINY SHINE SHTICK SPRAT SPRIG SPRIT SPRITE SQUALL SQUAT SQUID SQUIRT STORK STORM STORE STOIC STOMP STOOP SLOPE SLOTH SLOSH SLOSH SNOBS SNOWY SNUFF SOFTY SOGGY SOLAR SONAR SONIC SORRY SOUND SOUTH STARK STASH STIFF STOCK STOIC STONE STORM STOUT STRAP STRAW STRAY STRIP STRUT STUNT SUAVE SUNNY SUPER SURGE SWARM SWORN SWORD SWORE SYRUP TABBY TACIT TAFFY TALLY TARDY TAWNY TEPID TERSE THEFT THEIR THERE THESE THICK THING THOSE THREE THREW THROB THROW THUMP TIDAL TILLS TIMID TIPSY TITAN TITLE TITTY TOADY TOFFY TOLLS TONAL TOPSY TORSO TOTAL TOUGH TOXIC TRACK TRADE TRAIL TRAMP TRAWL TREAD TREAT TREND TRIAL TRICK TRIED TRITE TROLL TROUT TROVE TRUCE TRUCK TRULY TRUMP TRUNK TRUSS TRYST TULIP TUMOR TUMMY TUNER TUNIC TYING ULCER ULTRA UMAMI UNIFY UNITY UNTIE UPPER USURP UTTER UVULA VAGUE VALID VALOR VAPID VAULT VAUNT VENAL VERGE VIPER VIRGE VISOR VOCAL VODKA VOGUE VOILA VOUCH VULVA WARTY WEARY WEDGE WEEDY WEIRD WHACK WHARF WHEAT WHERE WHICH WHILE WHIFF WHINE WHIRL WHOSE WIDER WINDY WITTY WOOZY WORDY WORSE WORST WRATH WRIST WRONG YACHT YEARN YIELD YOUNG YOURS YUMMY ZAPPY ZIPPY ZONAL ZONED ZONES ZOOMS ZOMBIE ZIPPER ZITHER`;
+
+// AI_WORDS is always the compact curated list — keeps the AI move search fast.
+const AI_WORDS = new Set([
+  ...WORD_DATA.trim().split(/\s+/).filter(w=>w.length>=2),
+  ...WORD_SUPP.trim().split(/\s+/).filter(w=>w.length>=2)
+]);
+
+// WORDS starts as the curated list and is replaced by the full dictionary once loaded.
+// Only used for player word validation — never for the AI search loop.
+let WORDS = new Set(AI_WORDS);
+
+// Fetch the full NWL2020 Scrabble dictionary in the background.
+// Each line has the format: "WORD definition [...]" — we take only the first token.
+// Falls back silently to the curated list above if offline.
+(async () => {
+  try {
+    const res = await fetch('https://raw.githubusercontent.com/scrabblewords/scrabblewords/main/words/North-American/NWL2020.txt');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const full = new Set(
+      text.trim().split(/\r?\n/)
+        .map(line => line.trim().split(/\s/)[0].toUpperCase())
+        .filter(w => /^[A-Z]{2,}$/.test(w))
+    );
+    if (full.size > 1000) {
+      WORDS = full;
+      try { showMsg(`Full Scrabble dictionary loaded (${full.size.toLocaleString()} words).`, 'good'); } catch {}
+    }
+  } catch { /* stay on curated fallback */ }
+})();
+
+// ═══════════════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════════════
+let board, bag, playerRack, aiRack, playerScore, aiScore;
+let pendingPlacements; // {key: {letter, rackIdx}}
+let swapMode = false;     // kept for legacy reset calls — always false now
+let swapPendingPositions; // Set of board keys where rack tiles replaced board tiles
+let swappedRackIndices;   // Set of playerRack indices that came from the board (must all be played)
+let swapCount;            // number of swaps done this turn (max 4)
+let passCount;
+let currentPlayer;     // 'player' | 'ai'
+let gameOver;
+let bestPossibleScore = null;
+let _bestScoreTimer = null;
+let dragRackIdx     = null; // rack tile index being dragged (mouse)
+let dragPendingKey  = null; // board key of pending tile being dragged (mouse)
+let rackDragOrigRects = null; // tile rects captured on dragstart, used for slide calculation
+let rackInsertIdx   = null;   // live insertion position during rack reorder drag
+let touchPendingKey = null; // board key of pending tile being dragged (touch)
+let blankPickerCallback = null;
+let exchangeMode    = false;
+let exchangeSelectedIdxs = new Set();
+let aiSkill = 'hard';
+let lastMoveKeys  = [];
+let lastSwapKeys  = []; // ordered array so each swap gets a distinct shade index
+let lastPlayScore = null; // score of the most recently committed play (player or AI)
+
+let boardZoomed = false;
+function zoomToCell(r, c) {
+  const boardEl = document.getElementById('board');
+  if (!boardEl) return;
+  const W = boardEl.offsetWidth, H = boardEl.offsetHeight;
+  const S = 15 / 9;
+  const x0 = (c + 0.5) * (W / 15);
+  const y0 = (r + 0.5) * (H / 15);
+  const Tx = Math.max(W * (1 - S), Math.min(0, W / 2 - x0 * S));
+  const Ty = Math.max(H * (1 - S), Math.min(0, H / 2 - y0 * S));
+  boardEl.style.transform = `translate(${Tx}px,${Ty}px) scale(${S})`;
+  boardZoomed = true;
+}
+function zoomBoardOut() {
+  const boardEl = document.getElementById('board');
+  if (boardEl) boardEl.style.transform = '';
+  boardZoomed = false;
+}
+let boardSwapPositions = new Set(); // permanent: all positions occupied by swap-involved tiles
+let lastMoveAnimated = false; // flip to true after first render so pop doesn't replay
+
+// ═══════════════════════════════════════════════════════
+//  BAG & RACK
+// ═══════════════════════════════════════════════════════
+function buildBag() {
+  const b = [];
+  for (const [letter, count] of Object.entries(DIST))
+    for (let i = 0; i < count; i++) b.push(letter);
+  b.push(' ', ' '); // 2 blank tiles
+  for (let i = b.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [b[i], b[j]] = [b[j], b[i]];
+  }
+  return b;
+}
+
+function drawTiles(rack, n = 7) {
+  while (rack.length < n && bag.length > 0)
+    rack.push(bag.pop());
+}
+
+// ── Tile conservation audit ────────────────────────────
+// Logs a warning if any letter appears more times than its
+// distribution allows (bag + both racks + committed board).
+function auditTiles(context) {
+  const counts = {};
+  // Count in bag
+  for (const l of bag) counts[l] = (counts[l]||0) + 1;
+  // Count in racks
+  for (const l of playerRack) counts[l] = (counts[l]||0) + 1;
+  for (const l of aiRack)     counts[l] = (counts[l]||0) + 1;
+  // Count on committed board (lowercase = blank playing as that letter → counts as ' ')
+  for (const row of board)
+    for (const cell of row)
+      if (cell) { const k = cell === cell.toUpperCase() ? cell : ' '; counts[k] = (counts[k]||0) + 1; }
+  // Expected distribution
+  const expected = {...DIST, ' ': 2};
+  const violations = [];
+  for (const [letter, exp] of Object.entries(expected)) {
+    const got = counts[letter] || 0;
+    if (got !== exp) violations.push(`${letter}:expected ${exp} got ${got}`);
+  }
+  // Also check for letters not in expected
+  for (const [letter, got] of Object.entries(counts)) {
+    if (!(letter in expected)) violations.push(`${letter}:unexpected (got ${got})`);
+  }
+  if (violations.length)
+    console.warn(`[TileAudit] ${context} — VIOLATION: ${violations.join(', ')}`);
+  else
+    console.log(`[TileAudit] ${context} — OK (${Object.values(counts).reduce((a,b)=>a+b,0)} tiles)`);
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOARD HELPERS
+// ═══════════════════════════════════════════════════════
+function cellAt(r, c) { return board[r]?.[c] ?? null; }
+function isEmpty() { return board.every(row => row.every(c => !c)); }
+
+function boardWithPending() {
+  const b = board.map(r => [...r]);
+  for (const [key, {letter}] of Object.entries(pendingPlacements))
+    b[+key.split(',')[0]][+key.split(',')[1]] = letter;
+  return b;
+}
+
+function getWordAt(b, r, c, dr, dc) {
+  let sr = r, sc = c;
+  while (sr-dr >= 0 && sc-dc >= 0 && b[sr-dr]?.[sc-dc]) { sr -= dr; sc -= dc; }
+  const cells = [];
+  let cr = sr, cc = sc;
+  while (cr >= 0 && cr < BS && cc >= 0 && cc < BS && b[cr]?.[cc]) {
+    cells.push({row:cr, col:cc, letter:b[cr][cc]});
+    cr += dr; cc += dc;
+  }
+  if (cells.length < 2) return null;
+  return {word: cells.map(c=>c.letter).join(''), cells};
+}
+
+function getWordsFormed(placements, tempBoard) {
+  const newKeys = new Set(Object.keys(placements));
+  const words = [];
+  const seen = new Set();
+  for (const key of newKeys) {
+    const [r, c] = key.split(',').map(Number);
+    for (const [dr, dc] of [[0,1],[1,0]]) {
+      const w = getWordAt(tempBoard, r, c, dr, dc);
+      if (!w) continue;
+      const wKey = `${w.cells[0].row},${w.cells[0].col},${dr},${dc}`;
+      if (seen.has(wKey)) continue;
+      if (!w.cells.some(cell => newKeys.has(`${cell.row},${cell.col}`))) continue;
+      seen.add(wKey);
+      words.push(w);
+    }
+  }
+  return words;
+}
+
+function hasAdjacentTile(b, r, c, skipKey) {
+  for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+    const nr = r+dr, nc = c+dc;
+    const k = `${nr},${nc}`;
+    if (k !== skipKey && nr>=0 && nr<BS && nc>=0 && nc<BS && b[nr][nc]) return true;
+  }
+  return false;
+}
+
+function hasGaps(keys) {
+  if (keys.length <= 1) return false;
+  const rows = keys.map(k=>+k.split(',')[0]);
+  const cols = keys.map(k=>+k.split(',')[1]);
+  const b = boardWithPending();
+  if (new Set(rows).size === 1) {
+    const r = rows[0], mn = Math.min(...cols), mx = Math.max(...cols);
+    for (let c = mn; c <= mx; c++) if (!b[r][c]) return true;
+  } else {
+    const c = cols[0], mn = Math.min(...rows), mx = Math.max(...rows);
+    for (let r = mn; r <= mx; r++) if (!b[r][c]) return true;
+  }
+  return false;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SCORING
+// ═══════════════════════════════════════════════════════
+function scoreWords(words, newKeys, noScoreKeys = new Set()) {
+  let total = 0;
+  for (const {cells} of words) {
+    let wordScore = 0, wordMult = 1;
+    for (const {row, col, letter} of cells) {
+      const key = `${row},${col}`;
+      const isNew = newKeys.has(key) && !noScoreKeys.has(key);
+      const prem = isNew ? PREMIUM[key] : null;
+      const lv = VAL[letter] ?? 0;
+      let ls = lv;
+      if (prem === 'DL') ls *= 2;
+      else if (prem === 'TL') ls *= 3;
+      if (prem === 'DW' || prem === 'CENTER') wordMult *= 2;
+      else if (prem === 'TW') wordMult *= 3;
+      wordScore += ls;
+    }
+    total += wordScore * wordMult;
+  }
+  return total;
+}
+
+// ═══════════════════════════════════════════════════════
+//  VALIDATION
+// ═══════════════════════════════════════════════════════
+function validatePlay(placements, swapKeys = new Set()) {
+  const keys = Object.keys(placements);
+  if (keys.length === 0) return {ok:false, err:'Place at least one tile.'};
+
+  // Swap positions occupy an existing board square — exclude them from the
+  // line/gap/connectivity checks that apply to the newly-placed tiles.
+  const primaryKeys = keys.filter(k => !placements[k].isSwap);
+  const checkKeys = primaryKeys.length > 0 ? primaryKeys : keys;
+
+  const rows = checkKeys.map(k=>+k.split(',')[0]);
+  const cols = checkKeys.map(k=>+k.split(',')[1]);
+  const allNewKeys = new Set(keys);
+
+  // All primary tiles in one line
+  if (new Set(rows).size > 1 && new Set(cols).size > 1)
+    return {ok:false, err:'Tiles must be in a single row or column.'};
+
+  // Gap check on primary tiles only
+  if (hasGaps(checkKeys)) return {ok:false, err:'No gaps allowed between tiles.'};
+
+  const tb = boardWithPending();
+
+  // First move must cover center
+  if (isEmpty()) {
+    if (!placements['7,7']) return {ok:false, err:'First word must cover the center star.'};
+  } else {
+    // Must connect to existing tiles (primary tiles only)
+    let connected = false;
+    for (const key of checkKeys) {
+      if (swapKeys.has(key)) continue; // swap position connects by definition
+      const [r,c] = key.split(',').map(Number);
+      if (hasAdjacentTile(board, r, c, null)) { connected = true; break; }
+    }
+    if (!connected) {
+      if (new Set(rows).size === 1) {
+        const r = rows[0], mn = Math.min(...cols), mx = Math.max(...cols);
+        for (let c = mn; c <= mx; c++) if (board[r][c] && !allNewKeys.has(`${r},${c}`)) { connected = true; break; }
+      } else {
+        const c = cols[0], mn = Math.min(...rows), mx = Math.max(...rows);
+        for (let r = mn; r <= mx; r++) if (board[r][c] && !allNewKeys.has(`${r},${c}`)) { connected = true; break; }
+      }
+    }
+    if (!connected) return {ok:false, err:'Word must connect to existing tiles.'};
+  }
+
+  const words = getWordsFormed(placements, tb);
+  if (words.length === 0) return {ok:false, err:'No valid word formed.'};
+  for (const {word} of words)
+    if (!WORDS.has(word.toUpperCase())) return {ok:false, err:`"${word.toUpperCase()}" is not a valid word.`};
+
+  return {ok:true, words};
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAME ACTIONS
+// ═══════════════════════════════════════════════════════
+function submitPlay() {
+  if (currentPlayer !== 'player' || gameOver) return;
+
+  const allPlacements = {...pendingPlacements};
+  const swapKeys = new Set(swapPendingPositions);
+
+  // All swapped-in tiles (from board to rack) must be placed before submitting
+  // Must be a non-swap placement — the swap itself doesn't count as placing the stolen tile
+  const unplacedSwapped = [...swappedRackIndices].filter(idx =>
+    !Object.values(allPlacements).some(p => p.rackIdx === idx && !p.isSwap)
+  );
+  if (unplacedSwapped.length > 0) {
+    showMsg(`Place all ${unplacedSwapped.length} purple tile(s) before submitting.`, 'bad');
+    return;
+  }
+
+  const playKeys = new Set(Object.keys(allPlacements));
+
+  if (playKeys.size === 0) { showMsg('Place at least one tile.', 'bad'); return; }
+
+  const result = validatePlay(allPlacements, swapKeys);
+  if (!result.ok) { showMsg(result.err, 'bad'); return; }
+
+  // Swap positions don't earn points — only words formed by held/normal tiles score
+  const pts = scoreWords(result.words, playKeys, swapKeys);
+
+  // Record last-move keys in word order (for animation + highlight)
+  const primaryKeys = Object.keys(allPlacements).filter(k => !allPlacements[k].isSwap);
+  const pRows = primaryKeys.map(k => +k.split(',')[0]);
+  lastMoveKeys = [...primaryKeys].sort(new Set(pRows).size === 1
+    ? (a, b) => +a.split(',')[1] - +b.split(',')[1]
+    : (a, b) => +a.split(',')[0] - +b.split(',')[0]);
+  lastSwapKeys = [...swapKeys].sort((a,b)=>{ const [ar,ac]=a.split(',').map(Number),[br,bc]=b.split(',').map(Number); return ar!==br?ar-br:ac-bc; });
+  lastMoveAnimated = false;
+
+  // Mark swap source squares and where swapped-in tiles were played (cleared next turn)
+  boardSwapPositions = new Set();
+  for (const key of swapKeys) boardSwapPositions.add(key);
+  for (const [key, p] of Object.entries(allPlacements)) {
+    if (swappedRackIndices.has(p.rackIdx)) boardSwapPositions.add(key);
+  }
+
+  // Commit to board
+  for (const [key, {letter}] of Object.entries(allPlacements))
+    board[+key.split(',')[0]][+key.split(',')[1]] = letter;
+
+  // Remove used tiles from rack
+  const rackSizeBeforePlay = playerRack.length;
+  const usedIdx = new Set(Object.values(allPlacements).map(p=>p.rackIdx).filter(i=>i!=null));
+  // Sort descending to remove without index shifting
+  [...usedIdx].sort((a,b)=>b-a).forEach(i => playerRack.splice(i, 1));
+  // Bingo bonus only when the full 7-tile rack was emptied this turn
+  const usedAllTiles = rackSizeBeforePlay === 7 && playerRack.length === 0;
+  drawTiles(playerRack);
+
+  playerScore += pts;
+  passCount = 0;
+  resetPending();
+
+  lastPlayScore = pts + (usedAllTiles ? 35 : 0);
+  zoomBoardOut();
+  updateUI();
+
+  // All-tiles bonus — fires when every rack tile was placed this turn
+  if (usedAllTiles) {
+    playerScore += 35;
+    setTimeout(() => showMsg(`All tiles used! +35 bonus — you scored ${lastPlayScore} pts this turn!`, 'good'), 1000);
+  } else {
+    showMsg(`You scored ${lastPlayScore} pts!`, 'good');
+  }
+
+  auditTiles('commitPlay');
+  checkGameOver();
+  if (isOnlineMode) { saveOnlineState(); return; }
+  if (!gameOver) setTimeout(doAiTurn, 1200);
+}
+
+function passTurn() {
+  if (currentPlayer !== 'player' || gameOver) return;
+  recallTiles(() => {
+    passCount++;
+    showMsg('You passed your turn.', 'info');
+    updateUI();
+    checkGameOver();
+    if (isOnlineMode) { saveOnlineState(); return; }
+    if (!gameOver) setTimeout(doAiTurn, 800);
+  });
+}
+
+function shuffleRack() {
+  const rackEl = document.getElementById('rack');
+  const oldTiles = [...rackEl.querySelectorAll('.rack-tile')];
+  const oldRects = oldTiles.map(t => t.getBoundingClientRect());
+
+  // Positions that must not move: tiles already placed on the board
+  // or swapped-in tiles that still need to be played this turn.
+  const fixedIdxs = new Set([
+    ...Object.values(pendingPlacements).filter(p => !p.isSwap).map(p => p.rackIdx).filter(i => i != null),
+    ...swappedRackIndices,
+  ]);
+
+  // Fisher-Yates over only the free (unplaced) positions
+  const from = playerRack.map((_, i) => i);
+  const freePos = playerRack.map((_, i) => i).filter(i => !fixedIdxs.has(i));
+  for (let i = freePos.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const pi = freePos[i], pj = freePos[j];
+    [playerRack[pi], playerRack[pj]] = [playerRack[pj], playerRack[pi]];
+    [from[pi], from[pj]] = [from[pj], from[pi]];
+  }
+
+  renderRack();
+
+  const newTiles = [...rackEl.querySelectorAll('.rack-tile')];
+
+  requestAnimationFrame(() => {
+    newTiles.forEach((tile, i) => {
+      const newRect = tile.getBoundingClientRect();
+      const old = oldRects[from[i]];
+      if (!old) return;
+      const dx = old.left - newRect.left;
+      const dy = old.top  - newRect.top;
+      tile.style.transition = 'none';
+      tile.style.transform  = `translate(${dx}px,${dy}px)`;
+    });
+    requestAnimationFrame(() => {
+      newTiles.forEach(tile => {
+        tile.style.transition = 'transform 0.25s cubic-bezier(0.4,0,0.2,1)';
+        tile.style.transform  = '';
+      });
+      setTimeout(() => newTiles.forEach(tile => {
+        tile.style.transition = '';
+        tile.style.transform  = '';
+      }), 270);
+    });
+  });
+}
+
+function recallTiles(onComplete) {
+  zoomBoardOut();
+  const pending = Object.entries(pendingPlacements).filter(([, p]) => !p.isSwap);
+
+  if (pending.length === 0) {
+    resetPending();
+    cancelExchangeMode();
+    updateUI();
+    showMsg('Select a tile, then tap the board to place it.', 'info');
+    onComplete?.();
+    return;
+  }
+
+  const rackEl = document.getElementById('rack');
+  const clones = [];
+
+  for (const [key, p] of pending) {
+    const [r, c] = key.split(',');
+    const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+    if (!cell) continue;
+    const boardTile = cell.querySelector('.tile-on-board');
+    const fromRect = cell.getBoundingClientRect();
+    const rackSlot = rackEl.querySelector(`.rack-tile[data-idx="${p.rackIdx}"]`);
+    const toRect = rackSlot ? rackSlot.getBoundingClientRect()
+      : { left: rackEl.getBoundingClientRect().left, top: rackEl.getBoundingClientRect().top, width: 46, height: 52 };
+
+    if (boardTile) boardTile.style.opacity = '0';
+
+    const letter = (p.letter || '').toUpperCase();
+    const val = p.isBlank ? 0 : (VAL?.[letter] ?? 0);
+    const clone = document.createElement('div');
+    clone.innerHTML = `<span class="tile-letter">${letter}</span><span class="tile-val">${val}</span>`;
+    clone.style.cssText = `position:fixed;z-index:9999;pointer-events:none;border-radius:3px;` +
+      `background:#e8c870;box-shadow:inset 0 -2px 0 #a07010;` +
+      `display:flex;flex-direction:column;align-items:center;justify-content:center;` +
+      `left:${fromRect.left + 1}px;top:${fromRect.top + 1}px;` +
+      `width:${fromRect.width - 2}px;height:${fromRect.height - 2}px;`;
+    document.body.appendChild(clone);
+    clones.push({ clone, toRect });
+  }
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    for (const { clone, toRect } of clones) {
+      clone.style.transition = 'left 0.22s cubic-bezier(0.4,0,0.2,1),top 0.22s cubic-bezier(0.4,0,0.2,1),width 0.22s,height 0.22s,opacity 0.22s';
+      clone.style.left    = toRect.left + 'px';
+      clone.style.top     = toRect.top  + 'px';
+      clone.style.width   = '46px';
+      clone.style.height  = '52px';
+      clone.style.opacity = '0.15';
+    }
+    setTimeout(() => {
+      clones.forEach(({ clone }) => clone.remove());
+      resetPending();
+      cancelExchangeMode();
+      updateUI();
+      showMsg('Select a tile, then tap the board to place it.', 'info');
+      onComplete?.();
+    }, 240);
+  }));
+}
+
+// Snap a dragged rack tile to the nearest empty board cell when the drop misses.
+function snapToNearestBoardCell(rackIdx, x, y) {
+  const boardEl = document.getElementById('board');
+  if (!boardEl) return;
+  const br = boardEl.getBoundingClientRect();
+  const margin = 80;
+  // Don't snap when released below the board — that's the rack/controls area
+  if (y > br.bottom) return;
+  if (x < br.left - margin || x > br.right + margin || y < br.top - margin) return;
+
+  let nearest = null, minDist = Infinity;
+  for (const cell of boardEl.querySelectorAll('.cell')) {
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    if (board[r][c] || pendingPlacements[`${r},${c}`]) continue;
+    const rect = cell.getBoundingClientRect();
+    const dist = Math.hypot(rect.left + rect.width / 2 - x, rect.top + rect.height / 2 - y);
+    if (dist < minDist) { minDist = dist; nearest = cell; }
+  }
+  if (nearest) onCellDrop(+nearest.dataset.r, +nearest.dataset.c, rackIdx);
+}
+
+// Move rack tile from index `from` to `to`, updating all pending rackIdx pointers.
+function reorderRackTile(from, to) {
+  if (from === to) return;
+  for (const p of Object.values(pendingPlacements)) {
+    if (p.rackIdx == null) continue;
+    if (p.rackIdx === from) { p.rackIdx = to; }
+    else if (from < to) { if (p.rackIdx > from && p.rackIdx <= to) p.rackIdx--; }
+    else                { if (p.rackIdx >= to && p.rackIdx < from) p.rackIdx++; }
+  }
+  const remapped = new Set();
+  for (const idx of swappedRackIndices) {
+    if (idx === from) remapped.add(to);
+    else if (from < to && idx > from && idx <= to) remapped.add(idx - 1);
+    else if (from > to && idx >= to && idx < from) remapped.add(idx + 1);
+    else remapped.add(idx);
+  }
+  swappedRackIndices = remapped;
+  const moved = playerRack.splice(from, 1)[0];
+  playerRack.splice(to, 0, moved);
+  renderRack();
+}
+
+// ── Rack slide helpers ──────────────────────────────────
+function computeRackInsertIdx(mouseX) {
+  if (!rackDragOrigRects || dragRackIdx == null) return dragRackIdx ?? 0;
+  const n = playerRack.length;
+  const first = rackDragOrigRects.find(r => r);
+  const last  = [...rackDragOrigRects].reverse().find(r => r);
+  if (first && mouseX < first.left) return 0;
+  if (last  && mouseX > last.right)  return n - 1;
+  let best = dragRackIdx, bestDist = Infinity;
+  for (let i = 0; i < n; i++) {
+    const rect = rackDragOrigRects[i];
+    if (!rect) continue;
+    const mid = rect.left + rect.width / 2;
+    const dist = Math.abs(mouseX - mid);
+    if (dist < bestDist) { bestDist = dist; best = i; }
+  }
+  return best;
+}
+
+function applyRackSlide() {
+  const rackEl = document.getElementById('rack');
+  if (!rackEl || dragRackIdx == null || rackInsertIdx == null || !rackDragOrigRects) return;
+  const from = dragRackIdx, to = rackInsertIdx;
+  const slotW = rackDragOrigRects.length >= 2
+    ? rackDragOrigRects[1].left - rackDragOrigRects[0].left : 51;
+  [...rackEl.querySelectorAll('.rack-tile')].forEach((tile, i) => {
+    tile.style.transition = 'transform 0.13s ease';
+    if (i === from) {
+      tile.style.transform = '';
+    } else if (from < to && i > from && i <= to) {
+      tile.style.transform = `translateX(${-slotW}px)`;
+    } else if (from > to && i >= to && i < from) {
+      tile.style.transform = `translateX(${slotW}px)`;
+    } else {
+      tile.style.transform = '';
+    }
+  });
+}
+
+function clearRackSlide() {
+  rackInsertIdx   = null;
+  rackDragOrigRects = null;
+  const rackEl = document.getElementById('rack');
+  if (!rackEl) return;
+  [...rackEl.querySelectorAll('.rack-tile')].forEach(tile => {
+    tile.style.transition = '';
+    tile.style.transform  = '';
+    tile.style.opacity    = '';
+  });
+}
+
+function resetPending() {
+  // Restore any swapped rack slots to their original letters.
+  // Each rackIdx is only restored once (first entry = the original rack tile).
+  const restoredIdx = new Set();
+  for (const p of Object.values(pendingPlacements || {})) {
+    if (p.isSwap && p.rackIdx != null && !restoredIdx.has(p.rackIdx)) {
+      playerRack[p.rackIdx] = p.isBlank ? ' ' : p.letter;
+      restoredIdx.add(p.rackIdx);
+    }
+  }
+  pendingPlacements = {};
+  swapMode = false;
+  swapPendingPositions = new Set();
+  swappedRackIndices = new Set();
+  swapCount = 0;
+}
+
+function toggleExchangeMode() {
+  if (currentPlayer !== 'player' || gameOver) return;
+  if (exchangeMode) {
+    confirmExchange();
+  } else {
+    if (Object.keys(pendingPlacements).length > 0) {
+      showMsg('Recall your placed tiles before exchanging.', 'bad'); return;
+    }
+    exchangeMode = true;
+    exchangeSelectedIdxs = new Set();
+    document.getElementById('btn-exchange').textContent = 'Confirm';
+    document.getElementById('btn-exchange').classList.add('active');
+    showMsg('Click tiles to select them for exchange, then click Confirm.', 'info');
+    renderRack();
+  }
+}
+
+function cancelExchangeMode() {
+  exchangeMode = false;
+  exchangeSelectedIdxs = new Set();
+  const btn = document.getElementById('btn-exchange');
+  if (btn) { btn.textContent = 'Exchange'; btn.classList.remove('active'); }
+}
+
+function confirmExchange() {
+  if (!exchangeMode) return;
+  if (exchangeSelectedIdxs.size === 0) {
+    showMsg('Select at least one tile to exchange.', 'bad'); return;
+  }
+  if (bag.length === 0) {
+    showMsg('The bag is empty — no tiles to exchange.', 'bad'); return;
+  }
+  const count = Math.min(exchangeSelectedIdxs.size, bag.length);
+  const idxs = [...exchangeSelectedIdxs].sort((a, b) => b - a);
+  const returned = idxs.map(i => playerRack[i]);
+  idxs.forEach(i => playerRack.splice(i, 1));
+  drawTiles(playerRack);
+  // Return the old tiles to a random position in the bag
+  returned.forEach(letter => {
+    const pos = Math.floor(Math.random() * (bag.length + 1));
+    bag.splice(pos, 0, letter);
+  });
+  cancelExchangeMode();
+  passCount = 0;
+  showMsg(`Exchanged ${count} tile(s).`, 'good');
+  updateUI();
+  checkGameOver();
+  if (isOnlineMode) { saveOnlineState(); return; }
+  if (!gameOver) setTimeout(doAiTurn, 800);
+}
+
+function recallPendingTile(key) {
+  const p = pendingPlacements[key];
+  if (!p) return;
+  playRecall();
+  if (p.isSwap) {
+    swapPendingPositions.delete(key);
+    swapCount = Math.max(0, swapCount - 1);
+    // If the player used a blank for this swap, restore blank; otherwise restore original letter
+    playerRack[p.rackIdx] = p.isBlank ? ' ' : p.letter;
+    swappedRackIndices.delete(p.rackIdx);
+  }
+  delete pendingPlacements[key];
+  updateUI();
+  // If we just recalled the last swap tile, clear the stale "place your purple tile" message
+  if (p.isSwap && swappedRackIndices.size === 0) {
+    showMsg('Select a tile, then tap the board to place it.', 'info');
+  }
+}
+
+function checkGameOver() {
+  if (passCount >= 4) { endGame('four consecutive passes'); return; }
+  if (bag.length === 0 && (playerRack.length === 0 || aiRack.length === 0)) {
+    const opLabel = isOnlineMode ? opponentOnlineName : 'AI';
+    endGame(playerRack.length === 0 ? 'you used all your tiles' : `${opLabel} used all their tiles`);
+  }
+}
+
+function endGame(reason) {
+  gameOver = true;
+  const playerDeduct = playerRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
+  const aiDeduct     = aiRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
+  playerScore -= playerDeduct;
+  aiScore     -= aiDeduct;
+
+  const playerWins = playerScore > aiScore;
+  const oppWins    = aiScore > playerScore;
+  const opLabel    = isOnlineMode ? opponentOnlineName : 'AI';
+  const title = playerWins ? 'You Win! 🎉' : oppWins ? `${opLabel} Wins!` : "It's a Tie!";
+
+  const body = `
+    <div class="go-scores">
+      <div class="go-score${playerWins ? ' winner' : ''}">
+        <div class="go-label">You</div>
+        <div class="go-pts">${playerScore}</div>
+        ${playerDeduct ? `<div class="go-deduct">−${playerDeduct} tiles</div>` : ''}
+      </div>
+      <div class="go-vs">vs</div>
+      <div class="go-score${oppWins ? ' winner' : ''}">
+        <div class="go-label">${opLabel}</div>
+        <div class="go-pts">${aiScore}</div>
+        ${aiDeduct ? `<div class="go-deduct">−${aiDeduct} tiles</div>` : ''}
+      </div>
+    </div>
+    <p class="go-reason">${reason.charAt(0).toUpperCase() + reason.slice(1)}</p>`;
+  showModal(title, body);
+  updateUI();
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOARD CLICK
+// ═══════════════════════════════════════════════════════
+function onCellClick(r, c) {
+  if (currentPlayer !== 'player' || gameOver) return;
+  const key = `${r},${c}`;
+
+  const selIdx = playerRack.findIndex((_, i) =>
+    document.querySelector(`.rack-tile[data-idx="${i}"]`)?.classList.contains('selected'));
+
+  // RECALL a pending tile by clicking it — but not swap tiles while something is selected
+  if (pendingPlacements[key]) {
+    if (pendingPlacements[key].isSwap && selIdx !== -1) {
+      showMsg('Recall first, or pick an empty square to place your tile.', 'info');
+      return;
+    }
+    recallPendingTile(key);
+    return;
+  }
+
+  if (selIdx === -1) { showMsg('Select a tile from your rack first.', 'info'); return; }
+
+  // SWAP: rack tile selected + clicking a committed board square
+  if (board[r][c]) {
+    if (swapCount >= 4) { showMsg('Maximum 4 swaps per turn.', 'bad'); return; }
+    if (swappedRackIndices.has(selIdx)) { showMsg('Stolen tiles must be placed on the board this turn, not swapped again.', 'bad'); return; }
+    const rackLetter  = playerRack[selIdx];
+    const boardLetter = board[r][c];
+    const isCommittedBlank = boardLetter !== boardLetter.toUpperCase();
+    const finishClickSwap = (letter, isBlank) => {
+      pendingPlacements[key] = {letter, rackIdx: selIdx, isSwap: true, ...(isBlank && {isBlank: true})};
+      swapPendingPositions.add(key);
+      // Committed blanks go back to raw blank so the picker fires on placement
+      playerRack[selIdx] = isCommittedBlank ? ' ' : boardLetter;
+      swappedRackIndices.add(selIdx);
+      swapCount++;
+      document.querySelectorAll('.rack-tile.selected').forEach(el => el.classList.remove('selected'));
+      const remaining = 4 - swapCount;
+      const tileDesc = isCommittedBlank ? 'A blank tile' : `"${boardLetter.toUpperCase()}"`;
+      showMsg(`${tileDesc} is now in your rack (purple). Place it this turn. ${remaining > 0 ? `${remaining} swap${remaining===1?'':'s'} left.` : 'No more swaps this turn.'}`, 'info');
+      playDrop();
+      updateUI();
+    };
+    if (rackLetter === ' ') { showBlankPicker(chosen => finishClickSwap(chosen.toLowerCase(), true)); }
+    else { finishClickSwap(rackLetter, false); }
+    return;
+  }
+
+  // NORMAL PLACEMENT (intercept blanks)
+  if (playerRack[selIdx] === ' ') {
+    const k = key, si = selIdx;
+    document.querySelectorAll('.rack-tile.selected').forEach(el => el.classList.remove('selected'));
+    showBlankPicker(chosen => {
+      pendingPlacements[k] = {letter: chosen.toLowerCase(), rackIdx: si, isBlank: true};
+      showMsg('', 'info');
+      playDrop();
+      updateUI();
+    });
+    return;
+  }
+  pendingPlacements[key] = {letter: playerRack[selIdx], rackIdx: selIdx};
+  document.querySelectorAll('.rack-tile.selected').forEach(el => el.classList.remove('selected'));
+  showMsg('', 'info');
+  playDrop();
+  updateUI();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RACK CLICK
+// ═══════════════════════════════════════════════════════
+function onRackTileClick(idx) {
+  if (currentPlayer !== 'player' || gameOver) return;
+  const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === idx);
+  if (alreadyUsed) return;
+
+  if (exchangeMode) {
+    if (exchangeSelectedIdxs.has(idx)) exchangeSelectedIdxs.delete(idx);
+    else exchangeSelectedIdxs.add(idx);
+    renderRack();
+    return;
+  }
+
+  // Normal selection
+  const tiles = document.querySelectorAll('.rack-tile');
+  const isSelected = tiles[idx]?.classList.contains('selected');
+  document.querySelectorAll('.rack-tile.selected').forEach(el => el.classList.remove('selected'));
+  if (!isSelected) { tiles[idx]?.classList.add('selected'); playPickup(); }
+}
+
+// ═══════════════════════════════════════════════════════
+//  DRAG-AND-DROP PLACEMENT
+// ═══════════════════════════════════════════════════════
+function onCellDrop(r, c, rackIdx) {
+  if (currentPlayer !== 'player' || gameOver) return;
+  const key = `${r},${c}`;
+  const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === rackIdx);
+  if (alreadyUsed) return;
+
+  // UNDO SWAP: stolen rack tile dropped back on its own swap source square → undo the swap
+  if (swappedRackIndices.has(rackIdx) && pendingPlacements[key]?.isSwap && pendingPlacements[key]?.rackIdx === rackIdx) {
+    recallPendingTile(key);
+    return;
+  }
+
+  // SWAP: dropping a rack tile onto a committed board square
+  if (board[r][c] && !pendingPlacements[key]) {
+    if (swapCount >= 4) { showMsg('Maximum 4 swaps per turn.', 'bad'); return; }
+    if (swappedRackIndices.has(rackIdx)) { showMsg('Stolen tiles must be placed on the board this turn, not swapped again.', 'bad'); return; }
+    const rackLetter  = playerRack[rackIdx];
+    const boardLetter = board[r][c];
+    const isCommittedBlank = boardLetter !== boardLetter.toUpperCase();
+    const finishDragSwap = (letter, isBlank) => {
+      pendingPlacements[key] = {letter, rackIdx, isSwap: true, ...(isBlank && {isBlank: true})};
+      swapPendingPositions.add(key);
+      // Committed blanks go back to raw blank so the picker fires on placement
+      playerRack[rackIdx] = isCommittedBlank ? ' ' : boardLetter;
+      swappedRackIndices.add(rackIdx);
+      swapCount++;
+      document.querySelectorAll('.rack-tile.selected').forEach(el => el.classList.remove('selected'));
+      const remaining = 4 - swapCount;
+      const tileDesc = isCommittedBlank ? 'A blank tile' : `"${boardLetter.toUpperCase()}"`;
+      showMsg(`${tileDesc} is now in your rack (purple). Place it this turn. ${remaining > 0 ? `${remaining} swap${remaining===1?'':'s'} left.` : 'No more swaps this turn.'}`, 'info');
+      playDrop();
+      updateUI();
+      zoomToCell(r, c);
+    };
+    if (rackLetter === ' ') { showBlankPicker(chosen => finishDragSwap(chosen.toLowerCase(), true)); }
+    else { finishDragSwap(rackLetter, false); }
+    return;
+  }
+
+  if (board[r][c] || pendingPlacements[key]) {
+    showMsg('That square is already occupied.', 'bad'); return;
+  }
+
+  document.querySelectorAll('.rack-tile.selected').forEach(el => el.classList.remove('selected'));
+  if (playerRack[rackIdx] === ' ') {
+    const k = key, ri = rackIdx;
+    showBlankPicker(chosen => {
+      pendingPlacements[k] = {letter: chosen.toLowerCase(), rackIdx: ri, isBlank: true};
+      showMsg('', 'info');
+      playDrop();
+      updateUI();
+      zoomToCell(r, c);
+    });
+    return;
+  }
+  pendingPlacements[key] = {letter: playerRack[rackIdx], rackIdx};
+  showMsg('', 'info');
+  playDrop();
+  updateUI();
+  zoomToCell(r, c);
+}
+
+// Move or swap a pending (not-yet-committed) tile to another board cell
+function onPendingTileDrop(r, c, fromKey) {
+  if (currentPlayer !== 'player' || gameOver) return;
+  const toKey = `${r},${c}`;
+  if (toKey === fromKey) return;
+  const moving = pendingPlacements[fromKey];
+  if (!moving) return;
+
+  // SWAP TILE: re-target to a different committed board square
+  if (moving.isSwap) {
+    if (!board[r][c]) { showMsg('Swap tiles must be placed on an occupied square.', 'bad'); return; }
+    if (pendingPlacements[toKey]) { showMsg('That square is already occupied.', 'bad'); return; }
+    const newBoardLetter = board[r][c];
+    const isCommittedBlank = newBoardLetter !== newBoardLetter.toUpperCase();
+    playerRack[moving.rackIdx] = isCommittedBlank ? ' ' : newBoardLetter;
+    swapPendingPositions.delete(fromKey);
+    delete pendingPlacements[fromKey];
+    pendingPlacements[toKey] = {...moving};
+    swapPendingPositions.add(toKey);
+    const tileDesc = isCommittedBlank ? 'A blank tile' : `"${newBoardLetter.toUpperCase()}"`;
+    const remaining = 4 - swapCount;
+    showMsg(`${tileDesc} is now in your rack (purple). Place it this turn. ${remaining > 0 ? `${remaining} swap${remaining===1?'':'s'} left.` : 'No more swaps this turn.'}`, 'info');
+    playDrop();
+    updateUI();
+    return;
+  }
+
+  if (board[r][c]) { showMsg('That square is already occupied.', 'bad'); return; }
+
+  const target = pendingPlacements[toKey];
+  if (target && target.isSwap) { showMsg('Cannot move a tile onto a swap square.', 'bad'); return; }
+
+  if (target) {
+    // Swap the two pending tiles
+    pendingPlacements[toKey]   = moving;
+    pendingPlacements[fromKey] = target;
+  } else {
+    pendingPlacements[toKey] = moving;
+    delete pendingPlacements[fromKey];
+  }
+  updateUI();
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOUCH DRAG
+// ═══════════════════════════════════════════════════════
+let touchDragIdx  = null; // rack tile index for touch drag
+let touchGhost    = null;
+
+function onTouchStart(e, idx) {
+  if (currentPlayer !== 'player' || gameOver) return;
+  const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === idx);
+  if (alreadyUsed) return;
+
+  e.preventDefault();
+  touchDragIdx = idx;
+  playPickup();
+  const letter = playerRack[idx];
+
+  // Create ghost tile that follows finger
+  touchGhost = document.createElement('div');
+  touchGhost.className = 'rack-tile';
+  touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;width:46px;height:52px;transform:translate(-50%,-50%);transition:none;`;
+  touchGhost.innerHTML = `<span class="tile-letter">${letter}</span><span class="tile-val">${VAL[letter]??0}</span>`;
+  document.body.appendChild(touchGhost);
+
+  const t = e.touches[0];
+  touchGhost.style.left = t.clientX + 'px';
+  touchGhost.style.top  = t.clientY + 'px';
+
+  // Set up rack-reorder state (shared with drag system)
+  dragRackIdx = idx;
+  const rEl = document.getElementById('rack');
+  rackDragOrigRects = rEl ? [...rEl.querySelectorAll('.rack-tile')].map(tl => tl.getBoundingClientRect()) : null;
+  const srcTile = rEl?.querySelectorAll('.rack-tile')[idx];
+  if (srcTile) srcTile.style.opacity = '0.4';
+
+  document.addEventListener('touchmove', onTouchMove, {passive: false});
+  document.addEventListener('touchend',  onTouchEnd,  {passive: false});
+}
+
+function onTouchMove(e) {
+  if (!touchGhost) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  touchGhost.style.left = t.clientX + 'px';
+  touchGhost.style.top  = t.clientY + 'px';
+
+  // Rack reorder: if dragging a rack tile at rack level, show live slide
+  const rackEl = document.getElementById('rack');
+  const rr = rackEl?.getBoundingClientRect();
+  if (touchDragIdx !== null && rr &&
+      t.clientY >= rr.top - 20 && t.clientY <= rr.bottom + 20) {
+    const newInsert = computeRackInsertIdx(t.clientX);
+    if (newInsert !== rackInsertIdx) {
+      rackInsertIdx = newInsert;
+      applyRackSlide();
+    }
+    document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
+    return;
+  }
+
+  // Finger moved away from rack — clear slide, record exit side
+  if (rackInsertIdx !== null && rr) {
+    rackInsertIdx = t.clientX < rr.left + rr.width / 2 ? 0 : playerRack.length - 1;
+    [...document.querySelectorAll('#rack .rack-tile')].forEach(tl => {
+      tl.style.transition = 'transform 0.13s ease';
+      tl.style.transform  = '';
+    });
+  }
+
+  // Highlight board cell under finger
+  document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  const cell = el?.closest?.('.cell');
+  if (cell) {
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    const key = `${r},${c}`;
+    if (touchPendingKey != null) {
+      const touchMoving = pendingPlacements[touchPendingKey];
+      if (touchMoving?.isSwap) {
+        if (board[r][c] && !pendingPlacements[key]) cell.classList.add('drop-target');
+      } else {
+        if (!board[r][c] && !(pendingPlacements[key]?.isSwap)) cell.classList.add('drop-target');
+      }
+    } else if (!cell.querySelector('.tile-on-board')) {
+      cell.classList.add('drop-target');
+    }
+  }
+}
+
+function onTouchEnd(e) {
+  document.removeEventListener('touchmove', onTouchMove);
+  document.removeEventListener('touchend',  onTouchEnd);
+  document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
+
+  if (touchGhost) { touchGhost.remove(); touchGhost = null; }
+
+  const t = e.changedTouches[0];
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  const rackEl = document.getElementById('rack');
+
+  // Pending board tile returned to rack
+  if (touchPendingKey != null && rackEl && rackEl.contains(el)) {
+    const p = pendingPlacements[touchPendingKey];
+    if (p && !p.isSwap) recallPendingTile(touchPendingKey);
+    touchPendingKey = null;
+    touchDragIdx = null;
+    clearRackSlide(); dragRackIdx = null;
+    return;
+  }
+
+  // Rack tile released near rack row — reorder
+  if (touchDragIdx !== null && rackEl) {
+    const rr = rackEl.getBoundingClientRect();
+    if (t.clientY >= rr.top - 30 && t.clientY <= rr.bottom + 30) {
+      const savedInsert = rackInsertIdx;
+      const from = touchDragIdx;
+      clearRackSlide(); dragRackIdx = null;
+      touchDragIdx = null;
+      if (savedInsert !== null && savedInsert !== from) reorderRackTile(from, savedInsert);
+      return;
+    }
+  }
+
+  clearRackSlide(); dragRackIdx = null;
+
+  const cell = el?.closest?.('.cell');
+  if (cell) {
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    if (touchPendingKey != null) onPendingTileDrop(r, c, touchPendingKey);
+    else if (touchDragIdx != null) onCellDrop(r, c, touchDragIdx);
+  }
+  touchDragIdx    = null;
+  touchPendingKey = null;
+}
+
+function onPendingTouchStart(e, key) {
+  if (currentPlayer !== 'player' || gameOver) return;
+  const pending = pendingPlacements[key];
+  if (!pending) return;
+
+  e.preventDefault();
+  touchPendingKey = key;
+
+  touchGhost = document.createElement('div');
+  touchGhost.className = 'tile-on-board ' + (pending.isSwap ? 'is-swap' : 'is-new');
+  touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;transform:translate(-50%,-50%);transition:none;`;
+  touchGhost.innerHTML = `<span class="tile-letter">${pending.letter}</span><span class="tile-val">${VAL[pending.letter]??0}</span>`;
+  document.body.appendChild(touchGhost);
+
+  const t = e.touches[0];
+  touchGhost.style.left = t.clientX + 'px';
+  touchGhost.style.top  = t.clientY + 'px';
+
+  document.addEventListener('touchmove', onTouchMove, {passive: false});
+  document.addEventListener('touchend',  onTouchEnd,  {passive: false});
+}
+
+// ═══════════════════════════════════════════════════════
+//  AI TURN
+// ═══════════════════════════════════════════════════════
+function doAiTurn() {
+  if (gameOver) return;
+  zoomBoardOut();
+  currentPlayer = 'ai';
+  updateTurnBadge();
+  document.getElementById('ai-indicator').classList.add('show');
+
+  setTimeout(() => {
+    const normalMove = findAIMove();
+    const swapMove   = findAISwapMove();
+    document.getElementById('ai-indicator').classList.remove('show');
+
+    // Decide: use swap move if it outscores the normal move
+    const useSwap = swapMove && (!normalMove || swapMove.score > normalMove.score);
+
+    if (useSwap) {
+      // ── Commit AI swap move ──────────────────────────────────
+      const { swapRackIdx, swapRow, swapCol, swapRackLetter, swapBoardLetter, play } = swapMove;
+
+      // 1. Place rack tile onto swap square
+      board[swapRow][swapCol] = swapRackLetter;
+      // 2. Move stolen board tile into rack
+      aiRack[swapRackIdx] = swapBoardLetter;
+
+      // 3. Place the subsequent play tiles onto the board
+      const usedIdx = new Set();
+      for (const { row, col, letter, rackIdx } of play.placements) {
+        board[row][col] = letter;
+        if (rackIdx != null) usedIdx.add(rackIdx);
+      }
+
+      // 4. If the swapped-in board tile was used in the play, remove swapRackIdx too
+      const playUsedSwapTile = play.placements.some(p => p.rackIdx === swapRackIdx);
+      if (playUsedSwapTile) usedIdx.add(swapRackIdx);
+
+      [...usedIdx].sort((a, b) => b - a).forEach(i => aiRack.splice(i, 1));
+      drawTiles(aiRack);
+
+      // 5. Animation keys
+      lastSwapKeys = [`${swapRow},${swapCol}`];
+      lastMoveKeys = [...play.placements]
+        .sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col)
+        .map(p => `${p.row},${p.col}`);
+
+      // Mark the swap source and where the stolen tile was played (cleared next turn)
+      boardSwapPositions = new Set();
+      boardSwapPositions.add(`${swapRow},${swapCol}`);
+      const stolenPlacement = play.placements.find(p => p.rackIdx === swapRackIdx);
+      if (stolenPlacement) boardSwapPositions.add(`${stolenPlacement.row},${stolenPlacement.col}`);
+      lastMoveAnimated = false;
+
+      const aiBonus = play.placements.length === 7 ? 35 : 0;
+      aiScore += play.score + aiBonus;
+      lastPlayScore = play.score + aiBonus;
+      passCount = 0;
+      showMsg(
+        `AI swapped ${swapBoardLetter.toUpperCase()} off the board and played "${play.word}" for ${play.score + aiBonus} points${aiBonus ? ' (+35 bonus)' : ''}!`,
+        'info'
+      );
+
+    } else if (normalMove) {
+      // ── Commit normal AI move ────────────────────────────────
+      boardSwapPositions = new Set();
+      const usedIdx = new Set();
+      for (const {row, col, letter, rackIdx} of normalMove.placements) {
+        board[row][col] = letter;
+        if (rackIdx != null) usedIdx.add(rackIdx);
+      }
+      [...usedIdx].sort((a,b)=>b-a).forEach(i => aiRack.splice(i,1));
+      drawTiles(aiRack);
+
+      lastSwapKeys = [];
+      lastMoveKeys = [...normalMove.placements]
+        .sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col)
+        .map(p => `${p.row},${p.col}`);
+      lastMoveAnimated = false;
+
+      const aiBonus = normalMove.placements.length === 7 ? 35 : 0;
+      aiScore += normalMove.score + aiBonus;
+      lastPlayScore = normalMove.score + aiBonus;
+      passCount = 0;
+      // Use the actual word formed (may be longer than the searched word if it extended board tiles)
+      // Primary word is the one containing ALL newly placed tiles (cross-words only contain one each)
+      const primaryWord = normalMove.words
+        ? (normalMove.words.find(w =>
+            normalMove.placements.every(p =>
+              w.cells.some(c => c.row === p.row && c.col === p.col)
+            )
+          ) || normalMove.words[0]).word
+        : normalMove.word;
+      showMsg(`AI played "${primaryWord}" for ${normalMove.score + aiBonus} points${aiBonus ? ' (+35 all-tiles bonus)' : ''}.`, 'info');
+
+    } else {
+      // ── No move found — pass ─────────────────────────────────
+      boardSwapPositions = new Set();
+      passCount++;
+      showMsg('AI passed.', 'info');
+    }
+
+    currentPlayer = 'player';
+    updateTurnBadge();
+    checkGameOver();
+    updateUI();
+    computeBestScore();
+  }, 800);
+}
+
+// ═══════════════════════════════════════════════════════
+//  AI MOVE FINDER
+// ═══════════════════════════════════════════════════════
+function canSpell(word, letters) {
+  const avail = [...letters];
+  for (const ch of word) {
+    const i = avail.indexOf(ch);
+    if (i !== -1) { avail.splice(i, 1); continue; }
+    const bi = avail.indexOf(' ');
+    if (bi === -1) return false;
+    avail.splice(bi, 1);
+  }
+  return true;
+}
+
+function findAIMove() {
+  const rack = aiRack;
+  const rackLetters = rack;
+  const candidates = []; // collect all valid moves; pick a middling one at the end
+
+  const firstMove = isEmpty();
+
+  const tryPlace = (word, startR, startC, dr, dc) => {
+    if (startR < 0 || startC < 0) return;
+    const placements = [];
+    const usedFlags = new Array(rack.length).fill(false);
+    let valid = true;
+    let touchesExisting = false;
+
+    for (let i = 0; i < word.length; i++) {
+      const r = startR + i*dr, c = startC + i*dc;
+      if (r >= BS || c >= BS) { valid = false; break; }
+      const ch = word[i];
+      if (board[r][c]) {
+        if (board[r][c].toUpperCase() !== ch) { valid = false; break; }
+        touchesExisting = true;
+      } else {
+        let foundIdx = -1;
+        for (let j = 0; j < rack.length; j++) {
+          if (!usedFlags[j] && rack[j] === ch) { foundIdx = j; usedFlags[j] = true; break; }
+        }
+        if (foundIdx !== -1) {
+          placements.push({row:r, col:c, letter:ch, rackIdx: foundIdx});
+        } else {
+          let blankIdx = -1;
+          for (let j = 0; j < rack.length; j++) {
+            if (!usedFlags[j] && rack[j] === ' ') { blankIdx = j; usedFlags[j] = true; break; }
+          }
+          if (blankIdx === -1) { valid = false; break; }
+          placements.push({row:r, col:c, letter:ch.toLowerCase(), rackIdx: blankIdx});
+        }
+      }
+    }
+    if (!valid) return;
+    if (placements.length === 0) return; // all tiles on board already
+
+    // First move: must cover center
+    if (firstMove) {
+      if (!placements.some(p => p.row===7 && p.col===7)) return;
+    } else {
+      // Must touch existing
+      if (!touchesExisting) {
+        // Check adjacency
+        const touches = placements.some(p => hasAdjacentTile(board, p.row, p.col, null));
+        if (!touches) return;
+      }
+    }
+
+    // Build temp board and validate
+    const tb = board.map(r=>[...r]);
+    const pMap = {};
+    for (const p of placements) { tb[p.row][p.col] = p.letter; pMap[`${p.row},${p.col}`] = p; }
+    const words = getWordsFormed(pMap, tb);
+    if (words.length === 0) return;
+    for (const {word:w} of words) if (!WORDS.has(w.toUpperCase())) return;
+
+    const newKeys = new Set(Object.keys(pMap));
+    const score = scoreWords(words, newKeys);
+    candidates.push({score, word, placements, words});
+  };
+
+  const maxLen = aiSkill === 'easy' ? 6 : aiSkill === 'medium' ? 12 : 15;
+
+  const reachable = [];
+  for (const w of AI_WORDS) {
+    if (w.length < 2 || w.length > maxLen) continue;
+    if (canSpell(w, rackLetters)) reachable.push(w);
+  }
+
+  if (firstMove) {
+    for (const word of reachable) {
+      for (let c = Math.max(0, 7 - word.length + 1); c <= 7 && c + word.length - 1 < BS; c++)
+        tryPlace(word, 7, c, 0, 1);
+      for (let r = Math.max(0, 7 - word.length + 1); r <= 7 && r + word.length - 1 < BS; r++)
+        tryPlace(word, r, 7, 1, 0);
+    }
+  } else {
+    const anchors = [];
+    for (let r = 0; r < BS; r++)
+      for (let c = 0; c < BS; c++)
+        if (!board[r][c] && hasAdjacentTile(board, r, c, null))
+          anchors.push([r, c]);
+
+    for (const word of reachable) {
+      for (const [ar, ac] of anchors) {
+        for (let s = Math.max(0, ac - word.length + 1); s <= ac && s + word.length - 1 < BS; s++)
+          tryPlace(word, ar, s, 0, 1);
+        for (let s = Math.max(0, ar - word.length + 1); s <= ar && s + word.length - 1 < BS; s++)
+          tryPlace(word, s, ac, 1, 0);
+      }
+    }
+
+    // Medium + Hard: extend off existing board letters for stronger plays
+    if (aiSkill === 'medium' || aiSkill === 'hard') {
+      for (let r = 0; r < BS; r++) {
+        for (let c = 0; c < BS; c++) {
+          if (!board[r][c]) continue;
+          const letter = board[r][c];
+          const withBoard = [...rackLetters, letter];
+          for (const w of AI_WORDS) {
+            if (w.length < 2 || w.length > maxLen) continue;
+            if (!w.includes(letter)) continue;
+            if (!canSpell(w, withBoard)) continue;
+            const pos = w.indexOf(letter);
+            const sc = c - pos;
+            if (sc >= 0 && sc + w.length - 1 < BS) tryPlace(w, r, sc, 0, 1);
+            const sr = r - pos;
+            if (sr >= 0 && sr + w.length - 1 < BS) tryPlace(w, sr, c, 1, 0);
+          }
+        }
+      }
+    }
+  }
+
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => a.score - b.score);
+  // Easy: bottom 60%  Medium: bottom 35%  Hard: top 25% (still some variance)
+  let pool;
+  if (aiSkill === 'easy')        pool = candidates.slice(0, Math.max(1, Math.floor(candidates.length * 0.3)));
+  else if (aiSkill === 'medium') pool = candidates.slice(Math.max(0, Math.floor(candidates.length * 0.78)));
+  else                           pool = candidates.slice(Math.max(0, Math.floor(candidates.length * 0.95)));
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ═══════════════════════════════════════════════════════
+//  AI SWAP HELPERS
+// ═══════════════════════════════════════════════════════
+
+// Find best play given an arbitrary rack on an arbitrary board state.
+// Used by the swap move finder so it can evaluate plays after a hypothetical swap.
+function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS) {
+  const candidates = [];
+  const maxLen = aiSkill === 'hard' ? 15 : 12;
+
+  const tryPlace = (word, startR, startC, dr, dc) => {
+    if (startR < 0 || startC < 0) return;
+    const placements = [];
+    const usedFlags = new Array(rack.length).fill(false);
+    let valid = true, touchesExisting = false;
+
+    for (let i = 0; i < word.length; i++) {
+      const r = startR + i*dr, c = startC + i*dc;
+      if (r >= BS || c >= BS) { valid = false; break; }
+      const ch = word[i];
+      if (boardState[r][c]) {
+        if (boardState[r][c].toUpperCase() !== ch) { valid = false; break; }
+        touchesExisting = true;
+      } else {
+        let foundIdx = -1;
+        for (let j = 0; j < rack.length; j++) {
+          if (!usedFlags[j] && rack[j] === ch) { foundIdx = j; usedFlags[j] = true; break; }
+        }
+        if (foundIdx !== -1) {
+          placements.push({row:r, col:c, letter:ch, rackIdx: foundIdx});
+        } else {
+          let blankIdx = -1;
+          for (let j = 0; j < rack.length; j++) {
+            if (!usedFlags[j] && rack[j] === ' ') { blankIdx = j; usedFlags[j] = true; break; }
+          }
+          if (blankIdx === -1) { valid = false; break; }
+          placements.push({row:r, col:c, letter:ch.toLowerCase(), rackIdx: blankIdx});
+        }
+      }
+    }
+    if (!valid || placements.length === 0) return;
+    if (!touchesExisting && !placements.some(p => hasAdjacentTile(boardState, p.row, p.col, null))) return;
+
+    const tb = boardState.map(row => [...row]);
+    const pMap = {};
+    for (const p of placements) { tb[p.row][p.col] = p.letter; pMap[`${p.row},${p.col}`] = p; }
+    const words = getWordsFormed(pMap, tb);
+    if (words.length === 0) return;
+    for (const {word:w} of words) if (!WORDS.has(w.toUpperCase())) return;
+    const score = scoreWords(words, new Set(Object.keys(pMap)));
+    candidates.push({score, word, placements});
+  };
+
+  // Anchor squares on the provided board state
+  const anchors = [];
+  for (let r = 0; r < BS; r++)
+    for (let c = 0; c < BS; c++)
+      if (!boardState[r][c] && hasAdjacentTile(boardState, r, c, null))
+        anchors.push([r, c]);
+
+  for (const w of wordSource) {
+    if (w.length < 2 || w.length > maxLen) continue;
+    if (!canSpell(w, rack)) continue;
+    for (const [ar, ac] of anchors) {
+      for (let s = Math.max(0, ac - w.length + 1); s <= ac && s + w.length - 1 < BS; s++)
+        tryPlace(w, ar, s, 0, 1);
+      for (let s = Math.max(0, ar - w.length + 1); s <= ar && s + w.length - 1 < BS; s++)
+        tryPlace(w, s, ac, 1, 0);
+    }
+    // Extend off existing board letters
+    for (let r = 0; r < BS; r++) {
+      for (let c = 0; c < BS; c++) {
+        if (!boardState[r][c] || !w.includes(boardState[r][c].toUpperCase())) continue;
+        const letter = boardState[r][c].toUpperCase();
+        const withBoard = [...rack, letter];
+        if (!canSpell(w, withBoard)) continue;
+        const pos = w.indexOf(letter);
+        const sc = c - pos;
+        if (sc >= 0 && sc + w.length - 1 < BS) tryPlace(w, r, sc, 0, 1);
+        const sr = r - pos;
+        if (sr >= 0 && sr + w.length - 1 < BS) tryPlace(w, sr, c, 1, 0);
+      }
+    }
+  }
+
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0];
+}
+
+// Evaluate all possible 1-tile swaps for the AI.
+// Returns the best swap+play combo, or null if nothing beats a normal play.
+function findAISwapMove() {
+  if (isEmpty() || aiSkill === 'easy') return null;
+
+  const best = { score: -1 };
+
+  for (let ri = 0; ri < aiRack.length; ri++) {
+    const rackLetter = aiRack[ri];
+
+    for (let r = 0; r < BS; r++) {
+      for (let c = 0; c < BS; c++) {
+        if (!board[r][c]) continue;
+        const boardLetter = board[r][c];
+
+        // No point swapping same letter, raw blank, or committed blank (lowercase — AI can't re-assign)
+        if (boardLetter.toUpperCase() === rackLetter || boardLetter === ' ' || boardLetter !== boardLetter.toUpperCase()) continue;
+
+        // Only try stealing tiles with meaningful value (≥2) on Medium; any on Hard
+        const tileVal = VAL[boardLetter.toUpperCase()] ?? 0;
+        if (aiSkill === 'medium' && tileVal < 2) continue;
+
+        // Simulate placing rackLetter at (r,c) and check all words stay valid
+        const tempBoard = board.map(row => [...row]);
+        tempBoard[r][c] = rackLetter;
+
+        let swapValid = true;
+        for (const [dr, dc] of [[0,1],[1,0]]) {
+          const w = getWordAt(tempBoard, r, c, dr, dc);
+          if (!w) continue;
+          if (!WORDS.has(w.word.toUpperCase())) { swapValid = false; break; }
+        }
+        if (!swapValid) continue;
+
+        // Valid swap — find best play with new rack on temp board
+        const newRack = [...aiRack];
+        newRack[ri] = boardLetter; // stolen tile replaces rack tile at ri
+        const play = findBestPlayWithRack(newRack, tempBoard);
+        if (!play || play.score <= 0) continue;
+        // The stolen tile must be used in the subsequent play (same rule as for the player)
+        if (!play.placements.some(p => p.rackIdx === ri)) continue;
+
+        // Swap positions don't score — only the subsequent play counts
+        if (play.score > best.score) {
+          Object.assign(best, {
+            score: play.score,
+            swapRackIdx: ri,
+            swapRow: r, swapCol: c,
+            swapRackLetter: rackLetter,
+            swapBoardLetter: boardLetter,
+            play
+          });
+        }
+      }
+    }
+  }
+
+  return best.score > 0 ? best : null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDERING
+// ═══════════════════════════════════════════════════════
+function renderBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  const shouldAnim = !lastMoveAnimated;
+  lastMoveAnimated = true;
+
+  for (let r = 0; r < BS; r++) {
+    for (let c = 0; c < BS; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      const key = `${r},${c}`;
+      const prem = PREMIUM[key];
+
+      if (prem) cell.classList.add(prem.toLowerCase());
+
+      const pending = pendingPlacements[key];
+      if (pending) {
+        const tile = document.createElement('div');
+        tile.className = 'tile-on-board ' + (pending.isSwap || swappedRackIndices.has(pending.rackIdx) ? 'is-swap' : 'is-new');
+        const pendingIsBlank = pending.isBlank || pending.letter !== pending.letter.toUpperCase();
+        if (pendingIsBlank) tile.classList.add('is-blank');
+        tile.innerHTML = `<span class="tile-letter">${pending.letter.toUpperCase()}</span><span class="tile-val">${pendingIsBlank ? 0 : (VAL[pending.letter.toUpperCase()] ?? 0)}</span>`;
+        cell.appendChild(tile);
+        cell.draggable = true;
+        cell.addEventListener('dragstart', e => {
+          dragPendingKey = key;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', 'pending:' + key);
+          // Use a detached clone as the drag image so only this tile appears (not the whole board)
+          const ghost = tile.cloneNode(true);
+          // .tile-on-board styles only apply inside .cell, so manually apply them here
+          if (pending.isSwap) {
+            ghost.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:44px;height:50px;border-radius:3px;background:#7b2ff7;box-shadow:inset 0 -2px 0 #4a1a9a,0 0 6px rgba(123,47,247,0.7);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;';
+          } else {
+            ghost.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:44px;height:50px;border-radius:3px;background:#e8c870;box-shadow:inset 0 -2px 0 #a07010,0 0 6px rgba(255,200,0,0.7);display:flex;flex-direction:column;align-items:center;justify-content:center;';
+          }
+          document.body.appendChild(ghost);
+          e.dataTransfer.setDragImage(ghost, 22, 25);
+          setTimeout(() => { ghost.remove(); tile.style.opacity = '0.4'; }, 0);
+        });
+        cell.addEventListener('dragend', () => { tile.style.opacity = ''; dragPendingKey = null; });
+        tile.addEventListener('touchstart', e => onPendingTouchStart(e, key), {passive: false});
+      } else if (board[r][c]) {
+        const tile = document.createElement('div');
+        const moveIdx = lastMoveKeys.indexOf(key);
+        const swapIdx = lastSwapKeys.indexOf(key);
+        const isLastSwap = swapIdx >= 0;
+        let cls = 'tile-on-board';
+        if (isLastSwap)        cls += ` is-last-swap swap-shade-${swapIdx % 4}`;
+        else if (moveIdx >= 0) cls += ' is-last-move';
+        tile.className = cls;
+        if ((moveIdx >= 0 || isLastSwap) && shouldAnim) {
+          tile.style.animationDelay = isLastSwap
+            ? `${lastMoveKeys.length * 80 + 80}ms`
+            : `${moveIdx * 80}ms`;
+          tile.classList.add('pop');
+        }
+        const committedIsBlank = board[r][c] !== board[r][c].toUpperCase();
+        if (committedIsBlank) tile.classList.add('is-blank');
+        if (boardSwapPositions.has(key) && !isLastSwap) tile.classList.add('swap-shade-0');
+        tile.innerHTML = `<span class="tile-letter">${board[r][c].toUpperCase()}</span><span class="tile-val">${committedIsBlank ? 0 : VAL[board[r][c]]??0}</span>`;
+        cell.appendChild(tile);
+      } else {
+        // Show premium label
+        if (prem && prem !== 'CENTER') {
+          const lbl = document.createElement('div');
+          lbl.className = 'cell-label';
+          lbl.textContent = prem === 'TW' ? 'TW' : prem === 'DW' ? 'DW' : prem === 'TL' ? 'TL' : 'DL';
+          cell.appendChild(lbl);
+        } else if (prem === 'CENTER') {
+          cell.textContent = '★';
+          cell.style.fontSize = 'clamp(8px, 2vw, 14px)';
+          cell.style.color = '#fff';
+        }
+      }
+
+      cell.addEventListener('click', () => onCellClick(r, c));
+
+      // Drag-and-drop drop target
+      cell.addEventListener('dragover', e => {
+        if (dragRackIdx == null && dragPendingKey == null) return;
+        if (dragPendingKey != null) {
+          const dragMoving = pendingPlacements[dragPendingKey];
+          if (dragMoving?.isSwap) {
+            // Swap tile can only re-target to committed squares with no pending placement
+            if (!board[r][c] || pendingPlacements[key]) return;
+          } else {
+            if (board[r][c] || pendingPlacements[key]?.isSwap) return;
+          }
+        }
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        cell.classList.add('drop-target');
+      });
+      cell.addEventListener('dragleave', () => cell.classList.remove('drop-target'));
+      cell.addEventListener('drop', e => {
+        e.preventDefault();
+        cell.classList.remove('drop-target');
+        if (dragPendingKey != null) { onPendingTileDrop(r, c, dragPendingKey); dragPendingKey = null; }
+        else if (dragRackIdx != null) { onCellDrop(r, c, dragRackIdx); dragRackIdx = null; }
+      });
+
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function renderRack() {
+  const rackEl = document.getElementById('rack');
+  rackEl.innerHTML = '';
+  // isSwap placements don't "use up" their slot — the slot now holds the board tile (purple)
+  const usedIdxs = new Set(
+    Object.values(pendingPlacements).filter(p => !p.isSwap).map(p=>p.rackIdx).filter(i=>i!=null)
+  );
+
+  for (let i = 0; i < 7; i++) {
+    const tile = document.createElement('div');
+    tile.dataset.idx = i;
+    if (i >= playerRack.length || usedIdxs.has(i)) {
+      tile.className = 'rack-tile empty-slot';
+    } else {
+      const letter = playerRack[i];
+      const isBlankTile = letter === ' ' || (letter !== ' ' && letter === letter.toLowerCase());
+      tile.className = 'rack-tile';
+      if (swappedRackIndices.has(i)) tile.classList.add('swapped-tile');
+      if (isBlankTile) tile.classList.add('blank-tile');
+      tile.innerHTML = isBlankTile
+        ? `<span class="tile-letter"></span><span class="tile-val"></span>`
+        : `<span class="tile-letter">${letter}</span><span class="tile-val">${VAL[letter] ?? 0}</span>`;
+      if (exchangeMode && exchangeSelectedIdxs.has(i)) tile.classList.add('exchange-selected');
+      tile.addEventListener('click', () => onRackTileClick(i));
+
+      // Mouse drag (to board or to reorder within rack)
+      tile.draggable = true;
+      tile.addEventListener('dragstart', e => {
+        dragRackIdx = i;
+        rackInsertIdx = i;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(i));
+        playPickup();
+        const ghost = tile.cloneNode(true);
+        ghost.style.cssText = 'position:fixed;top:-9999px;left:-9999px;transform:none;';
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 23, 26);
+        setTimeout(() => {
+          ghost.remove();
+          tile.style.opacity = '0.4';
+          // Capture original rects now (after browser processes dragstart)
+          const rEl = document.getElementById('rack');
+          rackDragOrigRects = rEl ? [...rEl.querySelectorAll('.rack-tile')].map(t => t.getBoundingClientRect()) : null;
+        }, 0);
+      });
+      tile.addEventListener('dragend', e => {
+        tile.style.opacity = '';
+        if (dragRackIdx !== null) {
+          const rEl = document.getElementById('rack');
+          const rr  = rEl?.getBoundingClientRect();
+          const nearRackY = rr && e.clientY >= rr.top - 40 && e.clientY <= rr.bottom + 40;
+          if (rackDragOrigRects && nearRackY) {
+            // Cursor released within rack row — compute exact insert position
+            const insertTo = computeRackInsertIdx(e.clientX);
+            const from = dragRackIdx;
+            clearRackSlide();
+            dragRackIdx = null;
+            if (from !== insertTo) reorderRackTile(from, insertTo);
+            return;
+          }
+          if (rackDragOrigRects && rackInsertIdx !== null) {
+            // Cursor released off-screen or outside rack — use exit-side position
+            const boardEl = document.getElementById('board');
+            const br = boardEl?.getBoundingClientRect();
+            const onBoard = br && e.clientX >= br.left - 80 && e.clientX <= br.right + 80
+                            && e.clientY >= br.top - 80 && e.clientY <= br.bottom;
+            if (!onBoard) {
+              const insertTo = rackInsertIdx;
+              const from = dragRackIdx;
+              clearRackSlide();
+              dragRackIdx = null;
+              if (from !== insertTo) reorderRackTile(from, insertTo);
+              return;
+            }
+          }
+          clearRackSlide();
+          if (blankPickerCallback === null)
+            snapToNearestBoardCell(dragRackIdx, e.clientX, e.clientY);
+          dragRackIdx = null;
+        } else {
+          clearRackSlide();
+        }
+      });
+
+      // Touch drag
+      tile.addEventListener('touchstart', e => onTouchStart(e, i), {passive: false});
+    }
+    rackEl.appendChild(tile);
+  }
+
+  // Rack as drop target — returns pending board tiles, handles live-sliding rack reorder
+  rackEl.addEventListener('dragover', e => {
+    if (dragPendingKey != null) {
+      const p = pendingPlacements[dragPendingKey];
+      if (!p || p.isSwap) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      rackEl.classList.add('rack-drop-target');
+      return;
+    }
+    if (dragRackIdx == null) return;
+    e.preventDefault();
+    const newInsert = computeRackInsertIdx(e.clientX);
+    if (newInsert !== rackInsertIdx) {
+      rackInsertIdx = newInsert;
+      applyRackSlide();
+    }
+  });
+  rackEl.addEventListener('dragleave', e => {
+    if (!rackEl.contains(e.relatedTarget)) {
+      rackEl.classList.remove('rack-drop-target');
+      if (dragRackIdx != null) {
+        // Record exit side so dragend can snap to 0 or n-1 for off-screen releases
+        const rr = rackEl.getBoundingClientRect();
+        rackInsertIdx = (e.clientX < rr.left + rr.width / 2) ? 0 : playerRack.length - 1;
+        [...document.querySelectorAll('#rack .rack-tile')].forEach(t => {
+          t.style.transition = 'transform 0.13s ease';
+          t.style.transform = '';
+        });
+      }
+    }
+  });
+  rackEl.addEventListener('drop', e => {
+    e.preventDefault();
+    rackEl.classList.remove('rack-drop-target');
+    const savedInsert = rackInsertIdx;  // save before clearRackSlide nulls it
+    clearRackSlide();
+    if (dragPendingKey != null) {
+      const p = pendingPlacements[dragPendingKey];
+      if (p && !p.isSwap) { recallPendingTile(dragPendingKey); dragPendingKey = null; }
+      return;
+    }
+    if (dragRackIdx != null) {
+      const from = dragRackIdx;
+      const to   = savedInsert ?? from;
+      dragRackIdx  = null;
+      if (from !== to) reorderRackTile(from, to);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SOUND
+// ═══════════════════════════════════════════════════════
+let _ac = null;
+
+// iOS requires AudioContext to be created & resumed inside a user gesture.
+// Play a silent buffer on the very first touch to unlock it for all future sounds.
+document.addEventListener('touchstart', function unlockAudio() {
+  document.removeEventListener('touchstart', unlockAudio);
+  try {
+    if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = _ac.createBuffer(1, 1, _ac.sampleRate);
+    const src = _ac.createBufferSource();
+    src.buffer = buf; src.connect(_ac.destination); src.start(0);
+    _ac.resume().catch(() => {});
+  } catch(e) {}
+}, { passive: true });
+
+async function getAC() {
+  if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (_ac.state !== 'running') await _ac.resume();
+  return _ac;
+}
+
+async function playPickup() {
+  try {
+    const ctx = await getAC();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1100, now);
+    osc.frequency.exponentialRampToValueAtTime(700, now + 0.055);
+    g.gain.setValueAtTime(0.18, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    osc.start(now); osc.stop(now + 0.07);
+  } catch(e) {}
+}
+
+async function playDrop() {
+  try {
+    const ctx = await getAC();
+    const now = ctx.currentTime;
+    const len = Math.floor(ctx.sampleRate * 0.11);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d   = buf.getChannelData(0);
+    for (let i = 0; i < len; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const flt = ctx.createBiquadFilter();
+    flt.type = 'bandpass'; flt.frequency.value = 380; flt.Q.value = 0.6;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.55, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+    src.connect(flt); flt.connect(g); g.connect(ctx.destination);
+    src.start(now);
+  } catch(e) {}
+}
+
+async function playRecall() {
+  try {
+    const ctx = await getAC();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.06);
+    g.gain.setValueAtTime(0.1, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    osc.start(now); osc.stop(now + 0.07);
+  } catch(e) {}
+}
+
+function updateTurnBadge() {
+  const badge = document.getElementById('turn-badge');
+  const opName = isOnlineMode ? opponentOnlineName : 'AI';
+  badge.textContent = currentPlayer === 'player' ? 'Your Turn' : `${opName}'s Turn`;
+  badge.style.background = currentPlayer === 'player' ? 'var(--btn-primary)' : '#555';
+  document.getElementById('panel-player').classList.toggle('active', currentPlayer === 'player');
+  document.getElementById('panel-ai').classList.toggle('active', currentPlayer === 'ai');
+}
+
+function renderScorePreview() {
+  const boardEl = document.getElementById('board');
+  document.querySelectorAll('.board-score-preview').forEach(e => e.remove());
+  document.querySelectorAll('.last-score-badge').forEach(e => e.remove());
+
+  const keys = Object.keys(pendingPlacements);
+  const primaryKeys = keys.filter(k => !pendingPlacements[k].isSwap);
+  if (primaryKeys.length === 0) {
+    // Show last-play badge when idle
+    if (lastPlayScore != null && lastMoveKeys.length > 0) {
+      const badgeRows = lastMoveKeys.map(k => +k.split(',')[0]);
+      const isH  = new Set(badgeRows).size === 1;
+      const anchorKey = isH
+        ? lastMoveKeys.reduce((b, k) => +k.split(',')[1] > +b.split(',')[1] ? k : b)
+        : lastMoveKeys.reduce((b, k) => +k.split(',')[0] > +b.split(',')[0] ? k : b);
+      const [ar, ac] = anchorKey.split(',').map(Number);
+      const anchorCell = boardEl.querySelector(`[data-r="${ar}"][data-c="${ac}"]`);
+      if (anchorCell) {
+        const boardRect = boardEl.getBoundingClientRect();
+        const cellRect  = anchorCell.getBoundingClientRect();
+        const scale = boardRect.width / boardEl.offsetWidth || 1;
+        const badge = document.createElement('div');
+        badge.className = 'last-score-badge';
+        badge.innerHTML = `<span class="bsp-pts">${lastPlayScore}</span>`;
+        badge.style.left = `${(cellRect.right  - boardRect.left) / scale}px`;
+        badge.style.top  = `${(isH ? cellRect.top - boardRect.top : cellRect.bottom - boardRect.top) / scale}px`;
+        boardEl.appendChild(badge);
+      }
+    }
+    return;
+  }
+
+  // Structural checks only — no dictionary lookup so the preview stays visible
+  // while the player is still building a word (partial words aren't in the dict).
+  const rows = primaryKeys.map(k => +k.split(',')[0]);
+  const cols = primaryKeys.map(k => +k.split(',')[1]);
+  if (new Set(rows).size > 1 && new Set(cols).size > 1) return; // not in one line
+  if (hasGaps(primaryKeys)) return;                              // gap in placement
+
+  const tb = boardWithPending();
+  const words = getWordsFormed(pendingPlacements, tb);
+  if (words.length === 0) return;
+
+  const pts = scoreWords(words, new Set(keys), new Set(swapPendingPositions));
+  const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
+  const bonus = usedIdx.size === 7 ? 35 : 0;
+
+  // Find the primary word (most overlap with non-swap new tiles)
+  const primaryKeySet = new Set(primaryKeys);
+  const primaryWord = words.reduce((best, w) => {
+    const hits = w.cells.filter(c => primaryKeySet.has(`${c.row},${c.col}`)).length;
+    const bHits = best.cells.filter(c => primaryKeySet.has(`${c.row},${c.col}`)).length;
+    return hits > bHits ? w : best;
+  }, words[0]);
+
+  // Detect orientation to pick the right corner
+  const isHorizontal = new Set(rows).size === 1;
+
+  // Rightmost tile for horizontal, bottommost for vertical
+  const anchorKey = isHorizontal
+    ? primaryKeys.reduce((b, k) => +k.split(',')[1] > +b.split(',')[1] ? k : b)
+    : primaryKeys.reduce((b, k) => +k.split(',')[0] > +b.split(',')[0] ? k : b);
+
+  const [ar, ac] = anchorKey.split(',').map(Number);
+  const anchorCell = boardEl.querySelector(`[data-r="${ar}"][data-c="${ac}"]`);
+  if (!anchorCell) return;
+
+  const boardRect = boardEl.getBoundingClientRect();
+  const cellRect  = anchorCell.getBoundingClientRect();
+  const scale = boardRect.width / boardEl.offsetWidth || 1;
+
+  const x = (cellRect.right  - boardRect.left) / scale;
+  const y = isHorizontal
+    ? (cellRect.top    - boardRect.top) / scale
+    : (cellRect.bottom - boardRect.top) / scale;
+
+  const preview = document.createElement('div');
+  preview.className = 'board-score-preview';
+  preview.innerHTML = `<span class="bsp-pts">${pts + bonus}</span>`;
+  preview.style.left = `${x}px`;
+  preview.style.top  = `${y}px`;
+  boardEl.appendChild(preview);
+}
+
+function showBlankPicker(callback) {
+  blankPickerCallback = callback;
+  const lettersDiv = document.getElementById('blank-picker-letters');
+  lettersDiv.innerHTML = '';
+  for (let i = 0; i < 26; i++) {
+    const ch = String.fromCharCode(65 + i);
+    const btn = document.createElement('button');
+    btn.className = 'blank-letter-btn';
+    btn.textContent = ch;
+    btn.addEventListener('click', () => {
+      document.getElementById('blank-picker').classList.remove('show');
+      blankPickerCallback(ch);
+      blankPickerCallback = null;
+    });
+    lettersDiv.appendChild(btn);
+  }
+  document.getElementById('blank-picker').classList.add('show');
+  // Briefly disable pointer events so a drag-release mouseup can't accidentally click a letter
+  lettersDiv.style.pointerEvents = 'none';
+  setTimeout(() => { lettersDiv.style.pointerEvents = ''; }, 200);
+}
+
+function setSkill(level) {
+  aiSkill = level;
+  document.querySelectorAll('.btn-skill').forEach(b => b.classList.remove('active'));
+  document.getElementById(`skill-${level}`).classList.add('active');
+}
+
+let remainingVisible = false;
+function toggleRemaining() {
+  remainingVisible = !remainingVisible;
+  document.getElementById('remaining-modal').classList.toggle('show', remainingVisible);
+  if (remainingVisible) updateRemainingPanel();
+}
+function updateRemainingPanel() {
+  if (!remainingVisible) return;
+  const counts = {};
+  for (const l of bag) counts[l] = (counts[l] || 0) + 1;
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').concat([' ']);
+  document.getElementById('rem-grid').innerHTML =
+    letters.map(l => {
+      const n = counts[l] || 0;
+      return `<div class="rem-tile${n === 0 ? ' zero' : ''}"><span class="rem-letter">${l === ' ' ? '★' : l}</span><span class="rem-count">${n}</span></div>`;
+    }).join('');
+}
+
+function computeBestScore() {
+  bestPossibleScore = null;
+  updateStrengthBar();
+  clearTimeout(_bestScoreTimer);
+  _bestScoreTimer = setTimeout(() => {
+    const rack = [...playerRack];
+
+    // Pre-filter WORDS to what the current rack can spell — shrinks 191K → ~500, keeping search fast
+    const searchWords = [];
+    for (const w of WORDS) {
+      if (w.length >= 2 && w.length <= rack.length && canSpell(w, rack)) searchWords.push(w);
+    }
+
+    let bestScore = 0;
+
+    if (isEmpty()) {
+      // First move: try every rack-spellable word through the center square in both directions
+      const center = Math.floor(BS / 2);
+      for (const w of searchWords) {
+        for (let pos = 0; pos < w.length; pos++) {
+          // Horizontal
+          const sc = center - pos;
+          if (sc >= 0 && sc + w.length <= BS) {
+            const pMap = {}, tb = board.map(r => [...r]);
+            for (let i = 0; i < w.length; i++) {
+              pMap[`${center},${sc+i}`] = { letter: w[i], row: center, col: sc+i };
+              tb[center][sc+i] = w[i];
+            }
+            if (pMap[`${center},${center}`]) {
+              const wds = getWordsFormed(pMap, tb);
+              if (wds.length && wds.every(({word:ww}) => WORDS.has(ww.toUpperCase())))
+                bestScore = Math.max(bestScore, scoreWords(wds, new Set(Object.keys(pMap))));
+            }
+          }
+          // Vertical
+          const sr = center - pos;
+          if (sr >= 0 && sr + w.length <= BS) {
+            const pMap = {}, tb = board.map(r => [...r]);
+            for (let i = 0; i < w.length; i++) {
+              pMap[`${sr+i},${center}`] = { letter: w[i], row: sr+i, col: center };
+              tb[sr+i][center] = w[i];
+            }
+            if (pMap[`${center},${center}`]) {
+              const wds = getWordsFormed(pMap, tb);
+              if (wds.length && wds.every(({word:ww}) => WORDS.has(ww.toUpperCase())))
+                bestScore = Math.max(bestScore, scoreWords(wds, new Set(Object.keys(pMap))));
+            }
+          }
+        }
+      }
+    } else {
+      const best = findBestPlayWithRack(rack, board.map(r => [...r]), searchWords);
+      bestScore = best ? best.score : 0;
+    }
+
+    bestPossibleScore = bestScore;
+    updateStrengthBar();
+  }, 50);
+}
+
+function updateStrengthBar() {
+  const fill = document.getElementById('strength-fill');
+  const pct  = document.getElementById('strength-pct');
+  if (!fill || !pct) return;
+
+  let currentScore = 0;
+  const keys = Object.keys(pendingPlacements);
+  const primaryKeys = keys.filter(k => !pendingPlacements[k].isSwap);
+  if (primaryKeys.length > 0) {
+    const result = validatePlay(pendingPlacements, new Set(swapPendingPositions));
+    if (result.ok) {
+      const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
+      const bonus = usedIdx.size === 7 ? 35 : 0;
+      currentScore = scoreWords(result.words, new Set(keys), new Set(swapPendingPositions)) + bonus;
+    }
+  }
+
+  if (bestPossibleScore == null) {
+    fill.style.width = '0%';
+    fill.style.backgroundColor = 'rgba(255,255,255,0.15)';
+    pct.textContent = '…';
+    return;
+  }
+  if (!bestPossibleScore) {
+    fill.style.width = '0%';
+    fill.style.backgroundColor = '#555';
+    pct.textContent = '—';
+    return;
+  }
+  const ratio = Math.min(1, currentScore / bestPossibleScore);
+  const pctVal = Math.round(ratio * 100);
+  fill.style.width = pctVal + '%';
+  fill.style.backgroundColor = `hsl(${Math.round(ratio * 120)},75%,48%)`;
+  pct.textContent = currentScore > 0 ? pctVal + '%' : '—';
+}
+
+function updateUI() {
+  document.getElementById('score-player').textContent = playerScore;
+  document.getElementById('score-ai').textContent = aiScore;
+  document.getElementById('bag-num').textContent = bag.length;
+  updateTurnBadge();
+  renderBoard();
+  renderRack();
+  renderScorePreview();
+  updateStrengthBar();
+  updateResignButton();
+}
+
+function showMsg(text, type = 'info') {
+  const bar = document.getElementById('msg-bar');
+  bar.textContent = text;
+  bar.className = type;
+}
+
+function showModal(title, body) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('overlay').classList.add('show');
+}
+
+function showScorePopup(pts) {
+  const boardEl = document.getElementById('board');
+  const pop = document.createElement('div');
+  pop.className = 'score-popup';
+  pop.textContent = `+${pts}`;
+  boardEl.style.position = 'relative';
+  boardEl.appendChild(pop);
+  setTimeout(() => pop.remove(), 1400);
+}
+
+// ═══════════════════════════════════════════════════════
+//  MORE MENU
+// ═══════════════════════════════════════════════════════
+let moreMenuOpen = false;
+function toggleMoreMenu(e) {
+  e?.stopPropagation();
+  moreMenuOpen = !moreMenuOpen;
+  const menu = document.getElementById('more-menu');
+  const btn  = document.getElementById('btn-more');
+  if (moreMenuOpen && btn) {
+    const r = btn.getBoundingClientRect();
+    menu.style.bottom = (window.innerHeight - r.top + 6) + 'px';
+    menu.style.right  = (window.innerWidth  - r.right) + 'px';
+    menu.style.left   = 'auto';
+    menu.style.top    = 'auto';
+  }
+  menu.classList.toggle('show', moreMenuOpen);
+  btn.classList.toggle('active', moreMenuOpen);
+}
+function closeMoreMenu() {
+  moreMenuOpen = false;
+  const menu = document.getElementById('more-menu');
+  const btn  = document.getElementById('btn-more');
+  if (menu) menu.classList.remove('show');
+  if (btn)  btn.classList.remove('active');
+}
+document.addEventListener('click', e => {
+  if (!moreMenuOpen) return;
+  const menu = document.getElementById('more-menu');
+  const btn  = document.getElementById('btn-more');
+  if (menu && !menu.contains(e.target) && e.target !== btn) closeMoreMenu();
+});
+
+// ── Player name ──
+let playerName = localStorage.getItem('playerName') || 'You';
+function applyPlayerName() {
+  const el = document.getElementById('player-name-text');
+  if (el) el.textContent = playerName;
+}
+function startEditName() {
+  const display = document.getElementById('player-name-display');
+  if (!display || display.querySelector('.name-input')) return;
+  display.innerHTML = '';
+  const input = document.createElement('input');
+  input.className = 'name-input';
+  input.maxLength = 12;
+  input.value = playerName === 'You' ? '' : playerName;
+  input.placeholder = 'Your name';
+  display.appendChild(input);
+  input.focus();
+  input.select();
+  function commit() {
+    const val = input.value.trim();
+    playerName = val || 'You';
+    localStorage.setItem('playerName', playerName);
+    display.innerHTML = `<span id="player-name-text">${playerName}</span> <span style="font-size:0.55rem;opacity:0.5">✎</span>`;
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = ''; input.blur(); } });
+}
+applyPlayerName();
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+function startGame() {
+  document.getElementById('overlay').classList.remove('show');
+  board = Array.from({length:BS}, ()=>Array(BS).fill(null));
+  boardSwapPositions = new Set();
+  bag = buildBag();
+  playerRack = [];
+  aiRack = [];
+  drawTiles(playerRack);
+  drawTiles(aiRack);
+  playerScore = 0;
+  aiScore = 0;
+  passCount = 0;
+  lastPlayScore = null;
+  currentPlayer = 'player';
+  gameOver = false;
+  resetPending();
+  showMsg('Select a tile, then click the board to place it. Have fun!', 'info');
+  updateUI();
+  computeBestScore();
+}
+
+// ── Firebase init (must run before startGame) ──────────
+firebase.initializeApp({
+  apiKey: "AIzaSyBtJ4A1gERGUUfQtI6XD75Kwxn4kuOU598",
+  authDomain: "reword-66c5c.firebaseapp.com",
+  projectId: "reword-66c5c",
+  storageBucket: "reword-66c5c.firebasestorage.app",
+  messagingSenderId: "312643880404",
+  appId: "1:312643880404:web:8aa6d562e45d5b985e4241"
+});
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// ── Anonymous auth — persists across reinstalls ────────
+let firebaseUid = null;
+let _authReadyResolve;
+const authReady = new Promise(res => { _authReadyResolve = res; });
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    firebaseUid = user.uid;
+    // Mirror to localStorage as fallback
+    localStorage.setItem('reword_pid', user.uid);
+    _authReadyResolve(user.uid);
+  } else {
+    auth.signInAnonymously().catch(err => {
+      console.warn('[Auth] anonymous sign-in failed:', err);
+      // Fall back to localStorage ID so the app still works
+      _authReadyResolve(getPlayerId());
+    });
+  }
+});
+
+// ── Online state (must be defined before startGame) ────
+let isOnlineMode = false;
+let onlineGameId = null;
+let myOnlineRole = null;
+let onlineUnsubscribe = null;
+let opponentOnlineName = 'Opponent';
+let _nameModalCallback = null;
+
+// ── Push subscription state ────────────────────────────
+const VAPID_PUBLIC_KEY = 'BCPydWdFOzyiKbc479MEYryoCq2mLrSaMon0qCR4eq3WCM31D8I64AMWvosysGOg81JaqocIxbYUHdKtNgt-gNU';
+let myPushSub = null;       // this device's push subscription (serialised JSON)
+let opponentPushSub = null; // opponent's push subscription (read from Firestore)
+
+// ── Start or join game ─────────────────────────────────
+const _urlGame = new URLSearchParams(window.location.search).get('game');
+if (_urlGame) {
+  startGame();
+  showNameModal('Join the Game', 'Your opponent will see this', 'Join Game', () => joinOnlineGame(_urlGame));
+} else {
+  startGame();
+  // Migrate legacy single-game storage to new multi-game array
+  const _legacy = JSON.parse(localStorage.getItem('reword_active_game') || 'null');
+  if (_legacy?.gameId) {
+    addStoredGame(_legacy.gameId, _legacy.myRole || 'p1');
+    localStorage.removeItem('reword_active_game');
+  }
+  const _storedGames = getStoredGames();
+  if (_storedGames.length === 1) {
+    // Single game — auto-resume silently
+    loadOnlineGame(_storedGames[0].gameId, _storedGames[0].myRole);
+  } else if (_storedGames.length > 1) {
+    // Multiple games — show picker
+    showGamesModal();
+  }
+  updateGamesBadge();
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'load-game' && e.data.gameId) {
+      const stored = getStoredGames().find(g => g.gameId === e.data.gameId);
+      if (stored) loadOnlineGame(stored.gameId, stored.myRole);
+    }
+  });
+}
+
+// Re-attach Firestore listener if app comes back to foreground after being killed
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && isOnlineMode && onlineGameId && !onlineUnsubscribe) {
+    startOnlineListener(onlineGameId);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  FIREBASE / ONLINE MULTIPLAYER  (functions only below)
+// ═══════════════════════════════════════════════════════
+
+// ── Utilities ──────────────────────────────────────────
+function getPlayerId() {
+  // Prefer Firebase UID; fall back to localStorage for the brief window before auth resolves
+  if (firebaseUid) return firebaseUid;
+  let id = localStorage.getItem('reword_pid');
+  if (!id) { id = Date.now().toString(36) + Math.random().toString(36).slice(2); localStorage.setItem('reword_pid', id); }
+  return id;
+}
+
+function generateGameId() {
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6}, ()=>c[Math.floor(Math.random()*c.length)]).join('');
+}
+
+// ── Serialize current game state for Firestore ─────────
+function buildOnlinePayload(nextTurn) {
+  const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
+  return {
+    // Firestore doesn't support nested arrays — store board as flat 225-element array
+    board:  board.flat().map(c => c === null ? '' : c),
+    bag:    [...bag],
+    racks:  {
+      [myOnlineRole]: [...playerRack],
+      [opRole]:       [...aiRack]
+    },
+    scores: {
+      [myOnlineRole]: playerScore,
+      [opRole]:       aiScore
+    },
+    currentTurn: nextTurn,
+    passCount,
+    gameOver,
+    lastPlayScore: lastPlayScore ?? null,
+    boardSwapPositions: [...boardSwapPositions],
+    lastMoveKeys: [...lastMoveKeys],
+    lastSwapKeys: [...lastSwapKeys],
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+  };
+}
+
+// ── Load Firestore state into local variables ──────────
+function applyOnlineState(data) {
+  if (!isOnlineMode) return;
+  const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
+  const wasGameOver = gameOver;
+
+  // Board stored as flat 225-element array; reconstruct into 15×15
+  const flat = data.board || [];
+  board = Array.from({length:15}, (_, r) =>
+    Array.from({length:15}, (__, c) => { const v = flat[r*15+c]; return (v === '' || v == null) ? null : v; })
+  );
+  bag   = [...(data.bag || [])];
+  playerRack = [...(data.racks?.[myOnlineRole] || [])];
+  aiRack     = [...(data.racks?.[opRole]       || [])];
+  playerScore = data.scores?.[myOnlineRole] ?? 0;
+  aiScore     = data.scores?.[opRole]       ?? 0;
+  passCount   = data.passCount || 0;
+  gameOver    = data.gameOver  || false;
+  boardSwapPositions = new Set(data.boardSwapPositions || []);
+  lastMoveKeys  = data.lastMoveKeys || [];
+  lastSwapKeys  = data.lastSwapKeys || [];
+  lastPlayScore = data.lastPlayScore ?? null;
+  lastMoveAnimated = false;
+  currentPlayer = data.currentTurn === myOnlineRole ? 'player' : 'ai';
+
+  resetPending();
+  auditTiles('applyOnlineState');
+  updateUI();
+
+  if (data.gameOver && !wasGameOver) {
+    // Opponent triggered the game end — show modal for us
+    if (onlineGameId) removeStoredGame(onlineGameId);
+    updateGamesBadge();
+    let title, body;
+    const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
+    if (data.resignedBy === opRole) {
+      // Opponent resigned
+      title = 'You Win! 🎉';
+      body = `<p style="color:#aaa;margin:12px 0">${opponentOnlineName} resigned.</p>`;
+    } else {
+      const playerWins = playerScore > aiScore;
+      const oppWins    = aiScore > playerScore;
+      title = playerWins ? 'You Win! 🎉' : oppWins ? `${opponentOnlineName} Wins!` : "It's a Tie!";
+      body = `
+        <div class="go-scores">
+          <div class="go-score${playerWins?' winner':''}"><div class="go-label">You</div><div class="go-pts">${playerScore}</div></div>
+          <div class="go-vs">vs</div>
+          <div class="go-score${oppWins?' winner':''}"><div class="go-label">${opponentOnlineName}</div><div class="go-pts">${aiScore}</div></div>
+        </div>`;
+    }
+    showModal(title, body);
+  } else if (!data.gameOver) {
+    if (data.currentTurn === myOnlineRole) {
+      const opName = opponentOnlineName || 'Opponent';
+      const scoreNote = (lastPlayScore != null) ? ` ${opName} scored ${lastPlayScore} pts.` : '';
+      showMsg(`Your turn!${scoreNote}`, 'good');
+      notifyYourTurn(opName);
+      document.title = '🔔 Your Turn — Reword';
+    } else {
+      const scoreNote = (lastPlayScore != null) ? ` You scored ${lastPlayScore} pts.` : '';
+      showMsg(`Waiting for ${opponentOnlineName || 'opponent'} to play…${scoreNote}`, 'info');
+      document.title = 'Reword';
+    }
+    updateGamesBadge();
+  }
+}
+
+// ── Save state after a move ────────────────────────────
+async function saveOnlineState() {
+  if (!isOnlineMode || !onlineGameId) return;
+  // Immediately lock the UI (don't wait for Firestore round-trip)
+  currentPlayer = 'ai';
+  document.title = 'Reword';
+  updateUI();
+  const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
+  const payload = buildOnlinePayload(gameOver ? null : opRole);
+  try {
+    await db.collection('games').doc(onlineGameId).update(payload);
+    sendPushToOpponent(); // fire-and-forget push to opponent's device
+  } catch(e) {
+    showMsg('Save error — your move may not have reached your opponent.', 'bad');
+    currentPlayer = 'player';
+    updateUI();
+  }
+}
+
+// ── Real-time listener ─────────────────────────────────
+function startOnlineListener(gameId) {
+  if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+  onlineUnsubscribe = db.collection('games').doc(gameId).onSnapshot(snap => {
+    if (!snap.exists) return;
+    const data = snap.data();
+
+    // Update opponent name panel + cache their push subscription
+    const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
+    const opInfo = data.players?.[opRole];
+    if (opInfo?.name) {
+      opponentOnlineName = opInfo.name;
+      const el = document.getElementById('ai-name-display');
+      if (el) el.textContent = opponentOnlineName;
+    }
+    if (opInfo?.pushSub?.endpoint) {
+      opponentPushSub = opInfo.pushSub;
+    }
+
+    // While waiting for p2 to join, just update invite modal
+    if (data.status === 'waiting') {
+      const st = document.getElementById('online-modal-status');
+      if (st) st.textContent = 'Waiting for opponent to join…';
+      return;
+    }
+
+    hideInviteModal();
+    applyOnlineState(data);
+  }, err => {
+    showMsg('Connection lost. Retrying…', 'bad');
+  });
+}
+
+// ── Create a new online game ───────────────────────────
+async function createOnlineGame() {
+  await authReady;
+  const gameId = generateGameId();
+  const myId   = getPlayerId();
+
+  // Fresh board/bag/racks
+  board = Array.from({length:BS}, ()=>Array(BS).fill(null));
+  boardSwapPositions = new Set();
+  bag = buildBag();
+  playerRack = []; aiRack = [];
+  drawTiles(playerRack); drawTiles(aiRack);
+  playerScore = 0; aiScore = 0; passCount = 0;
+  lastPlayScore = null; currentPlayer = 'player'; gameOver = false;
+  resetPending(); updateUI();
+
+  isOnlineMode = true; myOnlineRole = 'p1'; onlineGameId = gameId;
+  opponentOnlineName = 'Opponent';
+  addStoredGame(gameId, 'p1');
+  updateResignButton();
+
+  const el = document.getElementById('ai-name-display');
+  if (el) el.textContent = '?';
+
+  const payload = {
+    status: 'waiting',
+    created: firebase.firestore.FieldValue.serverTimestamp(),
+    players: { p1: { id: myId, name: playerName } },
+    ...buildOnlinePayload('p2')   // p2 (joiner) always goes first
+  };
+
+  try {
+    await db.collection('games').doc(gameId).set(payload);
+    showInviteModal(gameId);
+    startOnlineListener(gameId);
+    // Save our push subscription so the opponent can notify us
+    subscribeToPush().then(() => savePushSubToGame(gameId, 'p1'));
+  } catch(e) {
+    showMsg('Error creating game. Check your connection.', 'bad');
+    isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+  }
+}
+
+// ── Join an existing game ──────────────────────────────
+async function joinOnlineGame(gameId) {
+  await authReady;
+  const myId = getPlayerId();
+  try {
+    const snap = await db.collection('games').doc(gameId.toUpperCase()).get();
+    if (!snap.exists) { showMsg('Game not found. Check the link.', 'bad'); return; }
+    const data = snap.data();
+
+    // Resume as p1?
+    if (data.players?.p1?.id === myId) {
+      isOnlineMode = true; myOnlineRole = 'p1'; onlineGameId = gameId.toUpperCase();
+      updateResignButton();
+      opponentOnlineName = data.players?.p2?.name || 'Opponent';
+      const el = document.getElementById('ai-name-display');
+      if (el) el.textContent = opponentOnlineName;
+      applyOnlineState(data);
+      startOnlineListener(gameId.toUpperCase());
+      if (data.status === 'waiting') showInviteModal(gameId.toUpperCase());
+      return;
+    }
+    // Resume as p2?
+    if (data.players?.p2?.id === myId) {
+      isOnlineMode = true; myOnlineRole = 'p2'; onlineGameId = gameId.toUpperCase();
+      updateResignButton();
+      opponentOnlineName = data.players?.p1?.name || 'Opponent';
+      const el = document.getElementById('ai-name-display');
+      if (el) el.textContent = opponentOnlineName;
+      applyOnlineState(data);
+      startOnlineListener(gameId.toUpperCase());
+      return;
+    }
+    // New join as p2
+    if (data.status !== 'waiting') { showMsg('This game already has two players.', 'bad'); return; }
+
+    isOnlineMode = true; myOnlineRole = 'p2'; onlineGameId = gameId.toUpperCase();
+    updateResignButton();
+    opponentOnlineName = data.players?.p1?.name || 'Opponent';
+    const el = document.getElementById('ai-name-display');
+    if (el) el.textContent = opponentOnlineName;
+    addStoredGame(gameId.toUpperCase(), 'p2');
+
+    await db.collection('games').doc(gameId.toUpperCase()).update({
+      status: 'active',
+      'players.p2': { id: myId, name: playerName }
+    });
+
+    applyOnlineState(data);
+    startOnlineListener(gameId.toUpperCase());
+    // Save our push subscription so the opponent can notify us
+    subscribeToPush().then(() => savePushSubToGame(gameId.toUpperCase(), 'p2'));
+  } catch(e) {
+    showMsg('Error joining game. Check your connection.', 'bad');
+  }
+}
+
+// ── Invite modal helpers ───────────────────────────────
+function showInviteModal(gameId) {
+  const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
+  const link = `${base}?game=${gameId}`;
+  document.getElementById('online-modal-link').value = link;
+  document.getElementById('online-modal-code').textContent = gameId;
+  document.getElementById('online-modal-status').textContent = 'Waiting for opponent to join…';
+  document.getElementById('online-modal').classList.remove('hidden');
+}
+function hideInviteModal() {
+  document.getElementById('online-modal').classList.add('hidden');
+}
+async function copyOnlineLink() {
+  const link = document.getElementById('online-modal-link').value;
+  const btn   = document.getElementById('online-modal-copy-btn');
+  try { await navigator.clipboard.writeText(link); }
+  catch { document.getElementById('online-modal-link').select(); }
+  btn.textContent = 'Copied!'; btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copy Link'; btn.classList.remove('copied'); }, 2000);
+}
+function cancelOnlineGame() {
+  if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+  if (onlineGameId) {
+    db.collection('games').doc(onlineGameId).update({status:'cancelled'}).catch(()=>{});
+    removeStoredGame(onlineGameId);
+  }
+  isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+  opponentOnlineName = 'Opponent';
+  hideInviteModal();
+  const el = document.getElementById('ai-name-display');
+  if (el) el.textContent = 'AI';
+  startGame();
+  updateGamesBadge();
+}
+
+// ── Show/hide resign button ────────────────────────────
+function updateResignButton() {
+  const btn = document.getElementById('menu-resign');
+  if (btn) btn.style.display = (isOnlineMode && !gameOver) ? 'block' : 'none';
+}
+
+// ── Resign current online game ─────────────────────────
+async function resignOnlineGame() {
+  if (!isOnlineMode || !onlineGameId) return;
+  if (!confirm('Resign this game? Your opponent will win.')) return;
+  const gid = onlineGameId;
+  // Stop listening before we write so we don't re-process our own update
+  if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+  try {
+    await db.collection('games').doc(gid).update({
+      gameOver: true,
+      resignedBy: myOnlineRole,
+      currentTurn: null,
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) { /* best-effort */ }
+  removeStoredGame(gid);
+  isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+  opponentOnlineName = 'Opponent';
+  document.title = 'Reword';
+  const el = document.getElementById('ai-name-display');
+  if (el) el.textContent = 'AI';
+  updateGamesBadge();
+  startGame();
+  showMsg('You resigned.', 'info');
+}
+
+// ── Multi-game storage helpers ─────────────────────────
+function getStoredGames() {
+  return JSON.parse(localStorage.getItem('reword_games') || '[]');
+}
+function addStoredGame(gameId, myRole) {
+  const games = getStoredGames().filter(g => g.gameId !== gameId);
+  games.unshift({gameId, myRole});
+  localStorage.setItem('reword_games', JSON.stringify(games));
+  updateGamesBadge();
+}
+function removeStoredGame(gameId) {
+  const games = getStoredGames().filter(g => g.gameId !== gameId);
+  localStorage.setItem('reword_games', JSON.stringify(games));
+  updateGamesBadge();
+}
+
+// ── Games badge (shows count of games with your turn) ──
+async function updateGamesBadge() {
+  const badge = document.getElementById('games-modal-badge');
+  if (!badge) return;
+  const stored = getStoredGames();
+  if (stored.length === 0) { badge.style.display = 'none'; return; }
+  try {
+    const snaps = await Promise.all(stored.map(({gameId}) => db.collection('games').doc(gameId).get()));
+    let yourTurnCount = 0;
+    snaps.forEach((snap, i) => {
+      if (!snap.exists) return;
+      const d = snap.data();
+      if (!d.gameOver && d.currentTurn === stored[i].myRole) yourTurnCount++;
+    });
+    if (yourTurnCount > 0) {
+      badge.textContent = yourTurnCount;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch(e) { badge.style.display = 'none'; }
+}
+
+// ── Load a specific game (switch to it) ────────────────
+async function loadOnlineGame(gameId, myRole) {
+  if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+  startGame(); // reset board/scores to clean slate
+  isOnlineMode = true; myOnlineRole = myRole; onlineGameId = gameId;
+  updateResignButton();
+  try {
+    const snap = await db.collection('games').doc(gameId).get();
+    if (!snap.exists) {
+      showMsg('Game not found — it may have been cancelled.', 'bad');
+      removeStoredGame(gameId);
+      isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+      return;
+    }
+    const data = snap.data();
+    const opRole = myRole === 'p1' ? 'p2' : 'p1';
+    opponentOnlineName = data.players?.[opRole]?.name || 'Opponent';
+    if (data.players?.[opRole]?.pushSub?.endpoint) opponentPushSub = data.players[opRole].pushSub;
+    const el = document.getElementById('ai-name-display');
+    if (el) el.textContent = opponentOnlineName;
+    // Refresh our own subscription in case it changed since last session
+    subscribeToPush().then(() => savePushSubToGame(gameId, myRole));
+    if (data.gameOver) {
+      applyOnlineState(data);
+      removeStoredGame(gameId);
+    } else {
+      applyOnlineState(data);
+      startOnlineListener(gameId);
+      if (data.status === 'waiting') showInviteModal(gameId);
+    }
+  } catch(e) {
+    showMsg('Error loading game. Check your connection.', 'bad');
+    isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+  }
+}
+
+// ── My Games modal ─────────────────────────────────────
+async function showGamesModal() {
+  const modal = document.getElementById('games-modal');
+  const list  = document.getElementById('games-list');
+  list.innerHTML = '<div style="color:#aaa;font-size:0.85rem;padding:16px 0">Loading…</div>';
+  modal.classList.remove('hidden');
+
+  const stored = getStoredGames();
+  if (stored.length === 0) {
+    list.innerHTML = '<div style="color:#aaa;font-size:0.85rem;padding:16px 0">No active games</div>';
+    return;
+  }
+
+  const rows = await Promise.all(stored.map(async ({gameId, myRole}) => {
+    try {
+      const snap = await db.collection('games').doc(gameId).get();
+      if (!snap.exists) { removeStoredGame(gameId); return null; }
+      const data = snap.data();
+      if (data.status === 'cancelled') { removeStoredGame(gameId); return null; }
+      const opRole = myRole === 'p1' ? 'p2' : 'p1';
+      const opName = data.players?.[opRole]?.name || null;
+      const isMyTurn = !data.gameOver && data.currentTurn === myRole;
+      const isWaiting = data.status === 'waiting';
+      const isOver = !!data.gameOver;
+      return {gameId, myRole, opName, isMyTurn, isWaiting, isOver};
+    } catch(e) { return null; }
+  }));
+
+  const valid = rows.filter(Boolean);
+  if (valid.length === 0) {
+    list.innerHTML = '<div style="color:#aaa;font-size:0.85rem;padding:16px 0">No active games</div>';
+    return;
+  }
+
+  list.innerHTML = valid.map(({gameId, myRole, opName, isMyTurn, isWaiting, isOver}) => {
+    const label = isOver ? 'Game Over'
+                : isWaiting ? 'Waiting…'
+                : isMyTurn  ? 'Your Turn'
+                              : 'Their Turn';
+    const cls = isMyTurn ? 'turn-yes' : isWaiting || isOver ? 'turn-waiting' : 'turn-no';
+    const rowCls = isMyTurn ? 'game-row your-turn' : 'game-row';
+    const vsText = opName ? `vs <strong>${opName}</strong>` : '<em style="color:#777">Waiting for opponent…</em>';
+    return `<div class="${rowCls}" onclick="loadOnlineGame('${gameId}','${myRole}');hideGamesModal()">
+      <div class="game-row-vs">${vsText}</div>
+      <div class="game-row-status ${cls}">${label}</div>
+    </div>`;
+  }).join('');
+}
+function hideGamesModal() {
+  document.getElementById('games-modal').classList.add('hidden');
+}
+
+function showJoinByCodeUI() {
+  hideGamesModal();
+  document.getElementById('join-code-input').value = '';
+  document.getElementById('join-code-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('join-code-input').focus(), 100);
+}
+
+function hideJoinByCodeUI() {
+  document.getElementById('join-code-modal').classList.add('hidden');
+}
+
+function confirmJoinByCode() {
+  let raw = document.getElementById('join-code-input').value.trim();
+  // Accept full invite URL or bare code
+  let gameId = raw;
+  try {
+    const url = new URL(raw);
+    const param = url.searchParams.get('game');
+    if (param) gameId = param;
+  } catch {}
+  gameId = gameId.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!gameId) { document.getElementById('join-code-input').focus(); return; }
+  hideJoinByCodeUI();
+  showNameModal('Join the Game', 'Your opponent will see this', 'Join Game', () => joinOnlineGame(gameId));
+}
+
+// ── Name entry modal ───────────────────────────────────
+function showNameModal(title, subtitle, confirmLabel, callback) {
+  _nameModalCallback = callback;
+  document.getElementById('name-modal-title').textContent = title;
+  document.getElementById('name-modal-subtitle').textContent = subtitle;
+  document.getElementById('name-modal-confirm-btn').textContent = confirmLabel;
+  const input = document.getElementById('name-modal-input');
+  const stored = localStorage.getItem('playerName');
+  input.value = (stored && stored !== 'You') ? stored : '';
+  input.classList.remove('error');
+  document.getElementById('name-modal').classList.remove('hidden');
+  setTimeout(() => input.focus(), 80);
+  input.onkeydown = e => { if (e.key === 'Enter') confirmNameModal(); };
+}
+function confirmNameModal() {
+  const input = document.getElementById('name-modal-input');
+  const val = input.value.trim();
+  if (!val) { input.classList.add('error'); return; }
+  input.classList.remove('error');
+  // Save and apply as playerName
+  playerName = val;
+  localStorage.setItem('playerName', playerName);
+  // Also update the in-game name display
+  const nt = document.getElementById('player-name-text');
+  if (nt) nt.textContent = playerName;
+  const nd = document.getElementById('player-name-display');
+  if (nd) nd.innerHTML = `<span id="player-name-text">${playerName}</span> <span style="font-size:0.55rem;opacity:0.5">✎</span>`;
+  // Request notification permission HERE while we're still in a user-gesture context.
+  // Calling it after an await breaks the gesture chain on iOS.
+  // After subscribing, also save the subscription to the current game if one exists —
+  // the game may already be created by the time the permission dialog is answered.
+  const _saveSubWhenReady = () =>
+    subscribeToPush().then(() => {
+      if (onlineGameId && myOnlineRole) savePushSubToGame(onlineGameId, myOnlineRole);
+    });
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().then(p => { if (p === 'granted') _saveSubWhenReady(); });
+  } else if ('Notification' in window && Notification.permission === 'granted') {
+    _saveSubWhenReady();
+  }
+  document.getElementById('name-modal').classList.add('hidden');
+  if (_nameModalCallback) { const cb = _nameModalCallback; _nameModalCallback = null; cb(); }
+}
+function cancelNameModal() {
+  document.getElementById('name-modal').classList.add('hidden');
+  _nameModalCallback = null;
+}
+
+// ── Turn alert (in-app + push) ─────────────────────────
+function notifyYourTurn(opName) {
+  document.title = '🔔 Your Turn — Reword';
+
+  // Pulse the turn badge (visible whether app is fore- or backgrounded)
+  const badge = document.getElementById('turn-badge');
+  if (badge) {
+    badge.classList.remove('pulse');
+    // Force reflow so re-adding the class restarts the animation
+    void badge.offsetWidth;
+    badge.classList.add('pulse');
+    badge.addEventListener('animationend', () => badge.classList.remove('pulse'), { once: true });
+  }
+
+  // Play a sound and vibrate — works even when no push permission
+  playDrop();
+  if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+
+  // Push notification — only when app is backgrounded and permission granted
+  if (!document.hidden) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const notifOpts = {
+      body: `${opName} has played. Your move!`,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: `reword-turn-${onlineGameId}`,
+      renotify: true,
+      data: { gameId: onlineGameId, myRole: myOnlineRole }
+    };
+    if (navigator.serviceWorker?.controller) {
+      navigator.serviceWorker.ready.then(reg => reg.showNotification('Your turn in Reword!', notifOpts));
+    } else {
+      new Notification('Your turn in Reword!', notifOpts);
+    }
+  } catch(e) {}
+}
+
+// ── Web Push subscription helpers ─────────────────────
+function urlBase64ToUint8Array(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function subscribeToPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  if (Notification.permission !== 'granted') return null;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    myPushSub = sub.toJSON ? sub.toJSON() : JSON.parse(JSON.stringify(sub));
+    return myPushSub;
+  } catch(e) {
+    console.warn('Push subscribe failed:', e);
+    return null;
+  }
+}
+
+async function savePushSubToGame(gameId, role) {
+  if (!myPushSub || !gameId) return;
+  try {
+    await db.collection('games').doc(gameId).update({
+      [`players.${role}.pushSub`]: myPushSub
+    });
+  } catch(e) {}
+}
+
+async function sendPushToOpponent() {
+  if (!opponentPushSub?.endpoint) {
+    console.log('[Push] skipped — no opponent subscription');
+    return;
+  }
+  const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
+  try {
+    const res = await fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subscription:   opponentPushSub,
+        title:          'Your turn in Reword!',
+        message:        `${playerName} has played. Your move!`,
+        gameId:         onlineGameId,
+        recipientRole:  opRole
+      })
+    });
+    if (res.status === 410) {
+      console.log('[Push] subscription expired (410) — clearing');
+      opponentPushSub = null;
+    } else if (!res.ok) {
+      console.warn('[Push] notify function returned', res.status, await res.text());
+    } else {
+      console.log('[Push] sent OK');
+    }
+  } catch(e) {
+    console.warn('[Push] fetch error:', e);
+  }
+}
+
+// ── Start new online game (menu entry) ─────────────────
+function newOnlineGame() {
+  if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+  showNameModal('What\'s your name?', 'Your friend will see this', 'Continue', createOnlineGame);
+}
+
+// ── Play Again — clean up online state first ───────────
+function playAgain() {
+  if (isOnlineMode) {
+    if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+    if (onlineGameId) removeStoredGame(onlineGameId);
+    isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+    opponentOnlineName = 'Opponent';
+    const el = document.getElementById('ai-name-display');
+    if (el) el.textContent = 'AI';
+  }
+  startGame();
+}
+
+// ── Pan state (shared with capture listener + double-tap guard) ──
+let panActive = false, panMoved = false;
+let panStartX = 0, panStartY = 0, panStartTx = 0, panStartTy = 0, panStartS = 1;
+
+function onPanMove(e) {
+  if (!panActive) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  const dx = t.clientX - panStartX, dy = t.clientY - panStartY;
+  if (Math.abs(dx) > 5 || Math.abs(dy) > 5) panMoved = true;
+  const boardEl = document.getElementById('board');
+  const W = boardEl.offsetWidth, H = boardEl.offsetHeight;
+  const S = panStartS;
+  const Tx = Math.max(W * (1 - S), Math.min(0, panStartTx + dx));
+  const Ty = Math.max(H * (1 - S), Math.min(0, panStartTy + dy));
+  boardEl.style.transition = 'none'; // kill animation lag while finger is down
+  boardEl.style.transform = `translate(${Tx}px,${Ty}px) scale(${S})`;
+}
+
+function onPanEnd() {
+  if (!panActive) return;
+  panActive = false;
+  document.removeEventListener('touchmove', onPanMove);
+  document.removeEventListener('touchend',  onPanEnd);
+  const boardEl = document.getElementById('board');
+  boardEl.style.transition = ''; // restore smooth transition for zoom in/out
+}
+
+// ── Board double-tap to zoom ──────────────────────────────
+let lastTap = 0;
+document.getElementById('board-wrapper').addEventListener('touchend', e => {
+  // If the finger moved (pan gesture), suppress double-tap
+  if (panMoved) { panMoved = false; lastTap = 0; return; }
+  const now = Date.now();
+  if (now - lastTap < 300) {
+    e.preventDefault();
+    if (boardZoomed) {
+      zoomBoardOut();
+    } else {
+      const touch = e.changedTouches[0];
+      const boardEl = document.getElementById('board');
+      const br = boardEl.getBoundingClientRect();
+      const cellPx = br.width / 15;
+      const c = Math.max(0, Math.min(14, Math.floor((touch.clientX - br.left) / cellPx)));
+      const r = Math.max(0, Math.min(14, Math.floor((touch.clientY - br.top)  / cellPx)));
+      zoomToCell(r, c);
+    }
+    lastTap = 0;
+  } else {
+    lastTap = now;
+  }
+}, { passive: false });
+
+// ── Capture touchstart: handle pending-tile drag + pan when zoomed ──
+// (Fixes iOS Safari CSS-transform touch hit-test bug; also enables panning)
+document.getElementById('board-wrapper').addEventListener('touchstart', e => {
+  if (!boardZoomed) return;
+  const t = e.touches[0];
+  const boardEl = document.getElementById('board');
+  const m = boardEl.style.transform.match(/translate\(([^,]+)px,\s*([^p]+)px\)\s*scale\(([^)]+)\)/);
+  if (!m) return;
+  const Tx = parseFloat(m[1]), Ty = parseFloat(m[2]), S = parseFloat(m[3]);
+
+  // Use getBoundingClientRect to get the visual top-left of the zoomed board.
+  // With transform-origin:0 0, inverse transform simplifies to: bx = (clientX - br.left) / S
+  const br = boardEl.getBoundingClientRect();
+  const bx = (t.clientX - br.left) / S;
+  const by = (t.clientY - br.top)  / S;
+  const cellW = boardEl.offsetWidth / 15;
+  const c = Math.floor(bx / cellW);
+  const r = Math.floor(by / cellW);
+
+  // If the touch lands on a pending (non-swap) tile, hand off to tile-drag handler
+  if (currentPlayer === 'player' && !gameOver && r >= 0 && r < 15 && c >= 0 && c < 15) {
+    const key = `${r},${c}`;
+    const pending = pendingPlacements[key];
+    if (pending && !pending.isSwap) {
+      onPendingTouchStart(e, key);
+      e.stopPropagation();
+      return;
+    }
+  }
+
+  // Otherwise start a pan gesture
+  panActive = true;
+  panMoved  = false;
+  panStartX  = t.clientX;
+  panStartY  = t.clientY;
+  panStartTx = Tx;
+  panStartTy = Ty;
+  panStartS  = S;
+  e.preventDefault(); // prevent browser scroll from stealing the touch
+  document.addEventListener('touchmove', onPanMove, { passive: false });
+  document.addEventListener('touchend',  onPanEnd,  { passive: false });
+  e.stopPropagation();
+}, { capture: true, passive: false });
+</script>
+</body>
+</html>

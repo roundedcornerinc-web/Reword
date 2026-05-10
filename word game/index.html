@@ -756,6 +756,16 @@ body {
 #name-modal-input{width:100%;box-sizing:border-box;background:#110b2e;border:2px solid #7b2ff7;border-radius:10px;color:#fff;font-size:1.1rem;padding:10px 14px;text-align:center;margin-bottom:18px;outline:none;font-family:inherit;}
 #name-modal-input::placeholder{color:#555}
 #name-modal-input.error{border-color:#f72585}
+/* Notification permission prompt */
+#notif-modal{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
+#notif-modal.hidden{display:none}
+#notif-modal-inner{background:#1a1040;border:1px solid #4a2fa0;border-radius:20px;padding:32px 24px 24px;width:90%;max-width:320px;text-align:center;}
+#notif-modal-inner .notif-icon{font-size:2.8rem;margin-bottom:12px;display:block;}
+#notif-modal-inner h2{font-size:1.15rem;font-weight:800;margin:0 0 8px;color:#fff;}
+#notif-modal-inner p{font-size:0.82rem;color:#bbb;margin:0 0 24px;line-height:1.5;}
+#notif-enable-btn{width:100%;margin-bottom:10px;background:linear-gradient(135deg,#7b2ff7,#f72585);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:700;padding:13px;cursor:pointer;font-family:inherit;}
+#notif-enable-btn:active{opacity:0.85;}
+#notif-skip-btn{background:none;border:none;color:#888;font-size:0.82rem;cursor:pointer;padding:4px;font-family:inherit;text-decoration:underline;}
 /* My Games modal */
 #games-modal{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
 #games-modal.hidden{display:none}
@@ -889,6 +899,17 @@ body {
     <input id="name-modal-input" type="text" maxlength="20" placeholder="Your name" autocomplete="off" />
     <button id="name-modal-confirm-btn" class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="confirmNameModal()">Continue</button>
     <button class="btn btn-recall" style="width:100%" onclick="cancelNameModal()">Cancel</button>
+  </div>
+</div>
+
+<div id="notif-modal" class="hidden">
+  <div id="notif-modal-inner">
+    <span class="notif-icon">🔔</span>
+    <h2>Stay in the loop</h2>
+    <p>Get notified the moment your opponent plays — even when Reword is closed.</p>
+    <button id="notif-enable-btn" onclick="enableNotifications()">Enable Notifications</button>
+    <br>
+    <button id="notif-skip-btn" onclick="skipNotifications()">Not now</button>
   </div>
 </div>
 
@@ -3398,8 +3419,7 @@ async function createOnlineGame() {
     await db.collection('games').doc(gameId).set(payload);
     showInviteModal(gameId);
     startOnlineListener(gameId);
-    // Save our push subscription so the opponent can notify us
-    subscribeToPush().then(() => savePushSubToGame(gameId, 'p1'));
+    showNotifPrompt();
   } catch(e) {
     showMsg('Error creating game. Check your connection.', 'bad');
     isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
@@ -3455,8 +3475,7 @@ async function joinOnlineGame(gameId) {
 
     applyOnlineState(data);
     startOnlineListener(gameId.toUpperCase());
-    // Save our push subscription so the opponent can notify us
-    subscribeToPush().then(() => savePushSubToGame(gameId.toUpperCase(), 'p2'));
+    showNotifPrompt();
   } catch(e) {
     showMsg('Error joining game. Check your connection.', 'bad');
   }
@@ -3638,8 +3657,11 @@ async function loadOnlineGame(gameId, myRole) {
     if (data.players?.[opRole]?.pushSub?.endpoint) opponentPushSub = data.players[opRole].pushSub;
     const el = document.getElementById('ai-name-display');
     if (el) el.textContent = opponentOnlineName;
-    // Refresh our own subscription in case it changed since last session
-    subscribeToPush().then(() => savePushSubToGame(gameId, myRole));
+    if ('Notification' in window && Notification.permission === 'default') {
+      showNotifPrompt();
+    } else {
+      subscribeToPush().then(() => savePushSubToGame(gameId, myRole));
+    }
     if (data.gameOver) {
       applyOnlineState(data);
       removeStoredGame(gameId);
@@ -3759,19 +3781,6 @@ function confirmNameModal() {
   if (nt) nt.textContent = playerName;
   const nd = document.getElementById('player-name-display');
   if (nd) nd.innerHTML = `<span id="player-name-text">${playerName}</span> <span style="font-size:0.55rem;opacity:0.5">✎</span>`;
-  // Request notification permission HERE while we're still in a user-gesture context.
-  // Calling it after an await breaks the gesture chain on iOS.
-  // After subscribing, also save the subscription to the current game if one exists —
-  // the game may already be created by the time the permission dialog is answered.
-  const _saveSubWhenReady = () =>
-    subscribeToPush().then(() => {
-      if (onlineGameId && myOnlineRole) savePushSubToGame(onlineGameId, myOnlineRole);
-    });
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission().then(p => { if (p === 'granted') _saveSubWhenReady(); });
-  } else if ('Notification' in window && Notification.permission === 'granted') {
-    _saveSubWhenReady();
-  }
   document.getElementById('name-modal').classList.add('hidden');
   if (_nameModalCallback) { const cb = _nameModalCallback; _nameModalCallback = null; cb(); }
 }
@@ -3852,6 +3861,34 @@ async function savePushSubToGame(gameId, role) {
       [`players.${role}.pushSub`]: myPushSub
     });
   } catch(e) {}
+}
+
+// ── Notification permission prompt ────────────────────
+function showNotifPrompt() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    subscribeToPush().then(() => {
+      if (onlineGameId && myOnlineRole) savePushSubToGame(onlineGameId, myOnlineRole);
+    });
+    return;
+  }
+  if (Notification.permission === 'denied') return;
+  document.getElementById('notif-modal').classList.remove('hidden');
+}
+
+function enableNotifications() {
+  document.getElementById('notif-modal').classList.add('hidden');
+  Notification.requestPermission().then(permission => {
+    if (permission === 'granted') {
+      subscribeToPush().then(() => {
+        if (onlineGameId && myOnlineRole) savePushSubToGame(onlineGameId, myOnlineRole);
+      });
+    }
+  });
+}
+
+function skipNotifications() {
+  document.getElementById('notif-modal').classList.add('hidden');
 }
 
 async function sendPushToOpponent() {

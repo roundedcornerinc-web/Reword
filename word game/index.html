@@ -1872,6 +1872,12 @@ function onTouchStart(e, idx) {
   const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === idx);
   if (alreadyUsed) return;
 
+  // In exchange mode, a tap selects/deselects the tile — no drag needed
+  if (exchangeMode) {
+    onRackTileClick(idx);
+    return;
+  }
+
   e.preventDefault();
   touchDragIdx = idx;
   playPickup();

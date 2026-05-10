@@ -3373,6 +3373,8 @@ async function saveOnlineState() {
   const payload = buildOnlinePayload(gameOver ? null : opRole);
   try {
     await db.collection('games').doc(onlineGameId).update(payload);
+    // Refresh our own push subscription so the opponent always has our latest endpoint
+    subscribeToPush().then(sub => { if (sub) savePushSubToGame(onlineGameId, myOnlineRole); });
     sendPushToOpponent(); // fire-and-forget push to opponent's device
     if (!gameOver) checkAndShowNextGamePrompt(); // prompt if other games await
   } catch(e) {
@@ -3867,11 +3869,27 @@ function urlBase64ToUint8Array(b64) {
 }
 
 async function subscribeToPush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    // iOS Safari in a browser tab doesn't support web push — only installed PWA does
+    console.warn('[Push] PushManager not available in this browser context');
+    return null;
+  }
   if (Notification.permission !== 'granted') return null;
   try {
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      // Unsubscribe and resubscribe to ensure the key matches our current VAPID key
+      const existingKey = sub.options?.applicationServerKey;
+      const ourKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      const existingB64 = existingKey ? btoa(String.fromCharCode(...new Uint8Array(existingKey))) : null;
+      const ourB64 = btoa(String.fromCharCode(...ourKey));
+      if (existingB64 !== ourB64) {
+        console.log('[Push] VAPID key mismatch — resubscribing');
+        await sub.unsubscribe();
+        sub = null;
+      }
+    }
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -3879,9 +3897,10 @@ async function subscribeToPush() {
       });
     }
     myPushSub = sub.toJSON ? sub.toJSON() : JSON.parse(JSON.stringify(sub));
+    console.log('[Push] subscribed OK, endpoint:', myPushSub.endpoint?.slice(0, 60) + '…');
     return myPushSub;
   } catch(e) {
-    console.warn('Push subscribe failed:', e);
+    console.warn('[Push] subscribe failed:', e.message);
     return null;
   }
 }
@@ -3912,8 +3931,13 @@ function enableNotifications() {
   document.getElementById('notif-modal').classList.add('hidden');
   Notification.requestPermission().then(permission => {
     if (permission === 'granted') {
-      subscribeToPush().then(() => {
-        if (onlineGameId && myOnlineRole) savePushSubToGame(onlineGameId, myOnlineRole);
+      subscribeToPush().then(sub => {
+        if (sub) {
+          if (onlineGameId && myOnlineRole) savePushSubToGame(onlineGameId, myOnlineRole);
+        } else if (!('PushManager' in window)) {
+          // iOS Safari browser tab — push not supported; suggest installing the PWA
+          showMsg('For notifications on iPhone, tap Share → "Add to Home Screen" to install the app.', 'info');
+        }
       });
     }
   });
@@ -3924,9 +3948,16 @@ function skipNotifications() {
 }
 
 async function sendPushToOpponent() {
+  // If we don't have a cached subscription, do a fresh Firestore read —
+  // the browser player may have saved theirs after we last loaded the game.
   if (!opponentPushSub?.endpoint) {
-    console.log('[Push] skipped — no opponent subscription');
-    return;
+    try {
+      const snap = await db.collection('games').doc(onlineGameId).get();
+      const opRole2 = myOnlineRole === 'p1' ? 'p2' : 'p1';
+      const freshSub = snap.data()?.players?.[opRole2]?.pushSub;
+      if (freshSub?.endpoint) opponentPushSub = freshSub;
+      else { console.log('[Push] skipped — no opponent subscription in Firestore'); return; }
+    } catch { console.log('[Push] skipped — could not fetch opponent subscription'); return; }
   }
   const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
   try {

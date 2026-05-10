@@ -5,8 +5,8 @@ module.exports = async function handler(req, res) {
     return res.status(405).send('Method Not Allowed');
   }
 
-  const vapidPublic  = process.env.VAPID_PUBLIC_KEY;
-  const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+  const vapidPublic  = (process.env.VAPID_PUBLIC_KEY  || '').replace(/=/g, '').trim();
+  const vapidPrivate = (process.env.VAPID_PRIVATE_KEY || '').replace(/=/g, '').trim();
   if (!vapidPublic || !vapidPrivate) {
     console.error('Missing VAPID env vars');
     return res.status(500).send('Server misconfigured: missing VAPID keys');

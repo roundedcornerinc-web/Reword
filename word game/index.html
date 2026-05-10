@@ -1011,6 +1011,7 @@ let dragPendingKey  = null; // board key of pending tile being dragged (mouse)
 let rackDragOrigRects = null; // tile rects captured on dragstart, used for slide calculation
 let rackInsertIdx   = null;   // live insertion position during rack reorder drag
 let touchPendingKey = null; // board key of pending tile being dragged (touch)
+let _suppressClick  = false; // true for 50ms after any drag/touch-drag ends, to block post-drag click
 let blankPickerCallback = null;
 let exchangeMode    = false;
 let exchangeSelectedIdxs = new Set();
@@ -1666,6 +1667,7 @@ function endGame(reason) {
 //  BOARD CLICK
 // ═══════════════════════════════════════════════════════
 function onCellClick(r, c) {
+  if (_suppressClick) return;
   if (currentPlayer !== 'player' || gameOver) return;
   const key = `${r},${c}`;
 
@@ -1991,6 +1993,8 @@ function onTouchEnd(e) {
   }
   touchDragIdx    = null;
   touchPendingKey = null;
+  _suppressClick = true;
+  setTimeout(() => { _suppressClick = false; }, 50);
 }
 
 function onPendingTouchStart(e, key) {
@@ -2465,7 +2469,12 @@ function renderBoard() {
           e.dataTransfer.setDragImage(ghost, 22, 25);
           setTimeout(() => { ghost.remove(); tile.style.opacity = '0.4'; }, 0);
         });
-        cell.addEventListener('dragend', () => { tile.style.opacity = ''; dragPendingKey = null; });
+        cell.addEventListener('dragend', () => {
+          tile.style.opacity = '';
+          dragPendingKey = null;
+          _suppressClick = true;
+          setTimeout(() => { _suppressClick = false; }, 50);
+        });
         tile.addEventListener('touchstart', e => onPendingTouchStart(e, key), {passive: false});
       } else if (board[r][c]) {
         const tile = document.createElement('div');

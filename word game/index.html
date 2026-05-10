@@ -4009,9 +4009,9 @@ function dismissNextGamePrompt() {
 }
 
 function goToNextPendingGame() {
-  dismissNextGamePrompt();
-  if (_nextGameQueue.length === 0) return;
+  if (_nextGameQueue.length === 0) { dismissNextGamePrompt(); return; }
   const {gameId, myRole} = _nextGameQueue[0];
+  dismissNextGamePrompt();
   loadOnlineGame(gameId, myRole);
 }
 

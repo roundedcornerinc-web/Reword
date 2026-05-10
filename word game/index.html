@@ -3104,15 +3104,15 @@ const authReady = new Promise(res => { _authReadyResolve = res; });
 auth.onAuthStateChanged(user => {
   if (user) {
     firebaseUid = user.uid;
-    // Mirror to localStorage as fallback
-    localStorage.setItem('reword_pid', user.uid);
-    _authReadyResolve(user.uid);
-    // Pull game list from Firestore so it survives domain/device changes
+    // Do NOT override reword_pid with Firebase UID.
+    // The localStorage reword_pid is the stable player identity that
+    // doesn't change when Firebase creates a new anonymous UID per domain.
+    _authReadyResolve(getPlayerId());
+    // Pull game list from Firestore so it survives refreshes
     syncGamesFromFirestore();
   } else {
     auth.signInAnonymously().catch(err => {
       console.warn('[Auth] anonymous sign-in failed:', err);
-      // Fall back to localStorage ID so the app still works
       _authReadyResolve(getPlayerId());
     });
   }
@@ -3178,8 +3178,9 @@ document.addEventListener('visibilitychange', () => {
 
 // ── Utilities ──────────────────────────────────────────
 function getPlayerId() {
-  // Prefer Firebase UID; fall back to localStorage for the brief window before auth resolves
-  if (firebaseUid) return firebaseUid;
+  // Always use the stable localStorage ID — never the Firebase UID.
+  // Firebase Auth is only used for Firestore security rules, not as player identity.
+  // This ID stays constant for the life of the browser profile on this domain.
   let id = localStorage.getItem('reword_pid');
   if (!id) { id = Date.now().toString(36) + Math.random().toString(36).slice(2); localStorage.setItem('reword_pid', id); }
   return id;
@@ -3534,18 +3535,35 @@ async function syncGamesFromFirestore() {
   const uid = getPlayerId();
   if (!uid) return;
   try {
+    // 1. Check the users/{uid} saved list
     const doc = await db.collection('users').doc(uid).get();
-    if (doc.exists) {
-      const remote = doc.data().games || [];
-      if (remote.length > 0) {
-        const local = getStoredGames();
-        const merged = [...local];
-        remote.forEach(rg => {
-          if (!merged.find(g => g.gameId === rg.gameId)) merged.push(rg);
-        });
-        localStorage.setItem('reword_games', JSON.stringify(merged));
-        updateGamesBadge();
-      }
+    let remote = doc.exists ? (doc.data().games || []) : [];
+
+    // 2. Also query games collection directly — finds games the user is in
+    //    even if they were created before the users/{uid} doc existed
+    try {
+      const [snap1, snap2] = await Promise.all([
+        db.collection('games').where('players.p1.id', '==', uid).get(),
+        db.collection('games').where('players.p2.id', '==', uid).get()
+      ]);
+      snap1.forEach(d => {
+        if (!d.data().gameOver && !remote.find(g => g.gameId === d.id))
+          remote.push({ gameId: d.id, myRole: 'p1' });
+      });
+      snap2.forEach(d => {
+        if (!d.data().gameOver && !remote.find(g => g.gameId === d.id))
+          remote.push({ gameId: d.id, myRole: 'p2' });
+      });
+    } catch(e2) { /* index may not exist yet — silently skip */ }
+
+    if (remote.length > 0) {
+      const local = getStoredGames();
+      const merged = [...local];
+      remote.forEach(rg => {
+        if (!merged.find(g => g.gameId === rg.gameId)) merged.push(rg);
+      });
+      localStorage.setItem('reword_games', JSON.stringify(merged));
+      updateGamesBadge();
     }
   } catch(e) { console.warn('[Sync] could not load games from Firestore:', e); }
 }

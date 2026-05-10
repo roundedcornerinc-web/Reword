@@ -1,15 +1,18 @@
 const webpush = require('web-push');
 
-webpush.setVapidDetails(
-  'mailto:noreply@reword.app',
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
-
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).send('Method Not Allowed');
   }
+
+  const vapidPublic  = process.env.VAPID_PUBLIC_KEY;
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+  if (!vapidPublic || !vapidPrivate) {
+    console.error('Missing VAPID env vars');
+    return res.status(500).send('Server misconfigured: missing VAPID keys');
+  }
+
+  webpush.setVapidDetails('mailto:noreply@reword.app', vapidPublic, vapidPrivate);
 
   const { subscription, title, message, gameId, recipientRole } = req.body;
 
@@ -18,10 +21,10 @@ module.exports = async function handler(req, res) {
   }
 
   const payload = JSON.stringify({
-    title: title || 'Your turn in Reword!',
-    body: message || 'Your opponent has played. Your move!',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    title:   title   || 'Your turn in Reword!',
+    body:    message || 'Your opponent has played. Your move!',
+    icon:    '/icon-192.png',
+    badge:   '/icon-192.png',
     gameId,
     recipientRole
   });

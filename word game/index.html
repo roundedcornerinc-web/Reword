@@ -3135,7 +3135,34 @@ let opponentPushSub = null; // opponent's push subscription (read from Firestore
 const _urlGame = new URLSearchParams(window.location.search).get('game');
 if (_urlGame) {
   startGame();
-  showNameModal('Join the Game', 'Your opponent will see this', 'Join Game', () => joinOnlineGame(_urlGame));
+  // Check localStorage first — if we already have this game, we're the creator
+  const _existingGame = getStoredGames().find(g => g.gameId === _urlGame);
+  if (_existingGame) {
+    loadOnlineGame(_existingGame.gameId, _existingGame.myRole);
+  } else {
+    // Not in localStorage — check Firestore in case we're already a player
+    // (covers creator whose localStorage was cleared, or pre-fix games)
+    authReady.then(async () => {
+      try {
+        const _gsnap = await db.collection('games').doc(_urlGame).get();
+        if (_gsnap.exists) {
+          const _gd = _gsnap.data();
+          const _myId = getPlayerId();
+          if (_gd.players?.p1?.id === _myId) {
+            addStoredGame(_urlGame, 'p1');
+            loadOnlineGame(_urlGame, 'p1');
+            return;
+          }
+          if (_gd.players?.p2?.id === _myId) {
+            addStoredGame(_urlGame, 'p2');
+            loadOnlineGame(_urlGame, 'p2');
+            return;
+          }
+        }
+      } catch(e) {}
+      showNameModal('Join the Game', 'Your opponent will see this', 'Join Game', () => joinOnlineGame(_urlGame));
+    });
+  }
 } else {
   startGame();
   // Migrate legacy single-game storage to new multi-game array

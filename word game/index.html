@@ -3491,8 +3491,32 @@ async function joinOnlineGame(gameId) {
       startOnlineListener(gameId.toUpperCase());
       return;
     }
-    // New join as p2
-    if (data.status !== 'waiting') { showMsg('This game already has two players.', 'bad'); return; }
+    // Both slots filled but IDs don't match — check if this is the same player on a new device
+    // (e.g. switched from Safari to PWA on iOS where localStorage is isolated)
+    if (data.status !== 'waiting') {
+      const p1Name = data.players?.p1?.name;
+      const p2Name = data.players?.p2?.name;
+      const matchRole = p1Name === playerName ? 'p1' : p2Name === playerName ? 'p2' : null;
+      if (matchRole) {
+        // Re-claim this slot under the new device's player ID
+        const opRole = matchRole === 'p1' ? 'p2' : 'p1';
+        await db.collection('games').doc(gameId.toUpperCase()).update({
+          [`players.${matchRole}.id`]: myId
+        });
+        isOnlineMode = true; myOnlineRole = matchRole; onlineGameId = gameId.toUpperCase();
+        updateResignButton();
+        opponentOnlineName = data.players?.[opRole]?.name || 'Opponent';
+        const elR = document.getElementById('ai-name-display');
+        if (elR) elR.textContent = opponentOnlineName;
+        addStoredGame(gameId.toUpperCase(), matchRole);
+        applyOnlineState(data);
+        startOnlineListener(gameId.toUpperCase());
+        showNotifPrompt();
+        showMsg(`Resumed as ${playerName} — welcome back!`, 'good');
+        return;
+      }
+      showMsg('This game already has two players.', 'bad'); return;
+    }
 
     isOnlineMode = true; myOnlineRole = 'p2'; onlineGameId = gameId.toUpperCase();
     updateResignButton();
@@ -3719,7 +3743,11 @@ async function showGamesModal() {
 
   const stored = getStoredGames();
   if (stored.length === 0) {
-    list.innerHTML = '<div style="color:#aaa;font-size:0.85rem;padding:16px 0">No active games</div>';
+    list.innerHTML = `<div style="color:#aaa;font-size:0.85rem;padding:12px 0 4px">No active games</div>
+      <div style="color:#888;font-size:0.78rem;line-height:1.5;padding:8px 0 12px;border-top:1px solid #2a1f5a;margin-top:8px">
+        Playing on another device or browser?<br>
+        Use <strong style="color:#ccc">Join with Code</strong> below to restore your games.
+      </div>`;
     return;
   }
 

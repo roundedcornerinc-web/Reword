@@ -756,6 +756,15 @@ body {
 #name-modal-input{width:100%;box-sizing:border-box;background:#110b2e;border:2px solid #7b2ff7;border-radius:10px;color:#fff;font-size:1.1rem;padding:10px 14px;text-align:center;margin-bottom:18px;outline:none;font-family:inherit;}
 #name-modal-input::placeholder{color:#555}
 #name-modal-input.error{border-color:#f72585}
+/* Claim-slot modal (cross-device game recovery) */
+#claim-modal{position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
+#claim-modal.hidden{display:none}
+#claim-modal-inner{background:#1a1040;border:1px solid #4a2fa0;border-radius:20px;padding:28px 22px 20px;width:90%;max-width:320px;text-align:center;}
+#claim-modal-inner h2{font-size:1.05rem;font-weight:800;margin:0 0 6px;color:#fff;}
+#claim-modal-inner p{font-size:0.82rem;color:#bbb;margin:0 0 18px;line-height:1.5;}
+.claim-btn{display:block;width:100%;margin-bottom:10px;background:#1f1060;border:1px solid #7b2ff7;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:700;padding:12px;cursor:pointer;font-family:inherit;transition:background 0.15s;}
+.claim-btn:active{background:#2d1a80;}
+#claim-cancel-btn{background:none;border:none;color:#888;font-size:0.82rem;cursor:pointer;padding:4px;font-family:inherit;text-decoration:underline;}
 /* Notification permission prompt */
 #notif-modal{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
 #notif-modal.hidden{display:none}
@@ -913,6 +922,17 @@ body {
     <input id="name-modal-input" type="text" maxlength="20" placeholder="Your name" autocomplete="off" />
     <button id="name-modal-confirm-btn" class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="confirmNameModal()">Continue</button>
     <button class="btn btn-recall" style="width:100%" onclick="cancelNameModal()">Cancel</button>
+  </div>
+</div>
+
+<div id="claim-modal" class="hidden">
+  <div id="claim-modal-inner">
+    <h2>Which player are you?</h2>
+    <p id="claim-modal-subtitle">This game is already in progress. Choose your slot to resume.</p>
+    <button class="claim-btn" id="claim-p1-btn" onclick="claimSlot('p1')"></button>
+    <button class="claim-btn" id="claim-p2-btn" onclick="claimSlot('p2')"></button>
+    <br>
+    <button id="claim-cancel-btn" onclick="dismissClaimModal()">Cancel</button>
   </div>
 </div>
 
@@ -3491,31 +3511,15 @@ async function joinOnlineGame(gameId) {
       startOnlineListener(gameId.toUpperCase());
       return;
     }
-    // Both slots filled but IDs don't match — check if this is the same player on a new device
-    // (e.g. switched from Safari to PWA on iOS where localStorage is isolated)
+    // Both slots filled but IDs don't match — ask the user which player they are
+    // (handles cross-device recovery, e.g. Safari → PWA on iOS)
     if (data.status !== 'waiting') {
-      const p1Name = data.players?.p1?.name;
-      const p2Name = data.players?.p2?.name;
-      const matchRole = p1Name === playerName ? 'p1' : p2Name === playerName ? 'p2' : null;
-      if (matchRole) {
-        // Re-claim this slot under the new device's player ID
-        const opRole = matchRole === 'p1' ? 'p2' : 'p1';
-        await db.collection('games').doc(gameId.toUpperCase()).update({
-          [`players.${matchRole}.id`]: myId
-        });
-        isOnlineMode = true; myOnlineRole = matchRole; onlineGameId = gameId.toUpperCase();
-        updateResignButton();
-        opponentOnlineName = data.players?.[opRole]?.name || 'Opponent';
-        const elR = document.getElementById('ai-name-display');
-        if (elR) elR.textContent = opponentOnlineName;
-        addStoredGame(gameId.toUpperCase(), matchRole);
-        applyOnlineState(data);
-        startOnlineListener(gameId.toUpperCase());
-        showNotifPrompt();
-        showMsg(`Resumed as ${playerName} — welcome back!`, 'good');
-        return;
+      if (!data.gameOver) {
+        showClaimModal(gameId.toUpperCase(), data);
+      } else {
+        showMsg('This game is already finished.', 'bad');
       }
-      showMsg('This game already has two players.', 'bad'); return;
+      return;
     }
 
     isOnlineMode = true; myOnlineRole = 'p2'; onlineGameId = gameId.toUpperCase();
@@ -3799,6 +3803,52 @@ function showJoinByCodeUI() {
 
 function hideJoinByCodeUI() {
   document.getElementById('join-code-modal').classList.add('hidden');
+}
+
+// ── Cross-device game recovery modal ──────────────────
+let _claimGameId = null;
+let _claimData   = null;
+
+function showClaimModal(gameId, data) {
+  _claimGameId = gameId;
+  _claimData   = data;
+  const p1Name = data.players?.p1?.name || 'Player 1';
+  const p2Name = data.players?.p2?.name || 'Player 2';
+  document.getElementById('claim-p1-btn').textContent = p1Name;
+  document.getElementById('claim-p2-btn').textContent = p2Name;
+  document.getElementById('claim-modal').classList.remove('hidden');
+}
+
+function dismissClaimModal() {
+  document.getElementById('claim-modal').classList.add('hidden');
+  _claimGameId = null;
+  _claimData   = null;
+}
+
+async function claimSlot(role) {
+  // Capture before dismissing (dismiss clears the module-level vars)
+  const gameId = _claimGameId;
+  const data   = _claimData;
+  dismissClaimModal();
+  if (!gameId || !data) return;
+
+  const myId   = getPlayerId();
+  const opRole = role === 'p1' ? 'p2' : 'p1';
+  try {
+    await db.collection('games').doc(gameId).update({ [`players.${role}.id`]: myId });
+    isOnlineMode = true; myOnlineRole = role; onlineGameId = gameId;
+    updateResignButton();
+    opponentOnlineName = data.players?.[opRole]?.name || 'Opponent';
+    const el = document.getElementById('ai-name-display');
+    if (el) el.textContent = opponentOnlineName;
+    addStoredGame(gameId, role);
+    applyOnlineState(data);
+    startOnlineListener(gameId);
+    showNotifPrompt();
+    showMsg('Game restored — welcome back!', 'good');
+  } catch(e) {
+    showMsg('Could not restore game. Check your connection.', 'bad');
+  }
 }
 
 function confirmJoinByCode() {

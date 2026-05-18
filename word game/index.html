@@ -1352,6 +1352,7 @@ function submitPlay() {
   auditTiles('commitPlay');
   checkGameOver();
   if (isOnlineMode) { saveOnlineState(); return; }
+  saveAiGameState();
   if (!gameOver) setTimeout(doAiTurn, 1200);
 }
 
@@ -1363,6 +1364,7 @@ function passTurn() {
     updateUI();
     checkGameOver();
     if (isOnlineMode) { saveOnlineState(); return; }
+    saveAiGameState();
     if (!gameOver) setTimeout(doAiTurn, 800);
   });
 }
@@ -1636,6 +1638,7 @@ function confirmExchange() {
   updateUI();
   checkGameOver();
   if (isOnlineMode) { saveOnlineState(); return; }
+  saveAiGameState();
   if (!gameOver) setTimeout(doAiTurn, 800);
 }
 
@@ -2167,6 +2170,7 @@ function doAiTurn() {
     checkGameOver();
     updateUI();
     computeBestScore();
+    saveAiGameState();
   }, 800);
 }
 
@@ -3155,6 +3159,63 @@ function startGame() {
   computeBestScore();
 }
 
+// ── AI game persistence ────────────────────────────────
+const AI_SAVE_KEY = 'reword_ai_game';
+
+function saveAiGameState() {
+  if (isOnlineMode || gameOver) return;
+  try {
+    localStorage.setItem(AI_SAVE_KEY, JSON.stringify({
+      board: board.flat().map(c => c === null ? '' : c),
+      bag: [...bag],
+      playerRack: [...playerRack],
+      aiRack: [...aiRack],
+      playerScore,
+      aiScore,
+      passCount,
+      currentPlayer,
+      gameOver,
+      lastPlayScore: lastPlayScore ?? null,
+      boardSwapPositions: [...boardSwapPositions],
+      lastMoveKeys: [...lastMoveKeys],
+      lastSwapKeys: [...lastSwapKeys],
+      aiSkill,
+    }));
+  } catch {}
+}
+
+function loadAiGameState() {
+  try {
+    const raw = localStorage.getItem(AI_SAVE_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    board = Array.from({length: BS}, (_, r) =>
+      Array.from({length: BS}, (__, c) => s.board[r * BS + c] || null)
+    );
+    bag = s.bag;
+    playerRack = s.playerRack;
+    aiRack = s.aiRack;
+    playerScore = s.playerScore;
+    aiScore = s.aiScore;
+    passCount = s.passCount;
+    currentPlayer = s.currentPlayer;
+    gameOver = s.gameOver;
+    lastPlayScore = s.lastPlayScore;
+    boardSwapPositions = new Set(s.boardSwapPositions || []);
+    lastMoveKeys = s.lastMoveKeys || [];
+    lastSwapKeys = s.lastSwapKeys || [];
+    if (s.aiSkill) aiSkill = s.aiSkill;
+    resetPending();
+    updateUI();
+    computeBestScore();
+    return true;
+  } catch { return false; }
+}
+
+function clearAiGameState() {
+  localStorage.removeItem(AI_SAVE_KEY);
+}
+
 // ── Firebase init (must run before startGame) ──────────
 firebase.initializeApp({
   apiKey: "AIzaSyBtJ4A1gERGUUfQtI6XD75Kwxn4kuOU598",
@@ -3249,6 +3310,9 @@ if (_urlGame) {
   } else if (_storedGames.length > 1) {
     // Multiple games — show picker
     showGamesModal();
+  } else {
+    // No online games — restore AI game if one was in progress
+    loadAiGameState();
   }
   updateGamesBadge();
 }
@@ -4079,7 +4143,9 @@ function startAiGame() {
   if (el) el.textContent = 'AI';
   const resign = document.getElementById('menu-resign');
   if (resign) resign.style.display = 'none';
+  clearAiGameState();
   startGame();
+  saveAiGameState();
 }
 
 // ── Next-game prompt (shown after finishing a turn) ────────

@@ -3792,6 +3792,7 @@ async function showGamesModal() {
 }
 function hideGamesModal() {
   document.getElementById('games-modal').classList.add('hidden');
+  if (!isOnlineMode) loadAiGameState();
 }
 
 function showJoinByCodeUI() {

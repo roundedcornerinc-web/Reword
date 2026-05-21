@@ -3644,12 +3644,25 @@ function cancelOnlineGame() {
 // ── Show/hide resign button ────────────────────────────
 function updateResignButton() {
   const btn = document.getElementById('menu-resign');
-  if (btn) btn.style.display = (isOnlineMode && !gameOver) ? 'block' : 'none';
+  if (!btn) return;
+  const inAiGame = !isOnlineMode && !gameOver && localStorage.getItem(AI_SAVE_KEY);
+  const inOnlineGame = isOnlineMode && !gameOver;
+  btn.style.display = (inAiGame || inOnlineGame) ? 'block' : 'none';
+  btn.textContent = inOnlineGame ? 'Resign Game' : 'End AI Game';
 }
 
 // ── Resign current online game ─────────────────────────
 async function resignOnlineGame() {
-  if (!isOnlineMode || !onlineGameId) return;
+  if (!isOnlineMode && !localStorage.getItem(AI_SAVE_KEY)) return;
+  // AI game resign
+  if (!isOnlineMode) {
+    if (!confirm('End this AI game and start fresh?')) return;
+    clearAiGameState();
+    startGame();
+    updateResignButton();
+    showMsg('AI game ended.', 'info');
+    return;
+  }
   if (!confirm('Resign this game? Your opponent will win.')) return;
   const gid = onlineGameId;
   // Stop listening before we write so we don't re-process our own update

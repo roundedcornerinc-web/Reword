@@ -479,6 +479,24 @@ body {
 .tile-on-board.swap-shade-1 { background: #7c44ef; box-shadow: inset 0 -2px 0 #3a1080, 0 0 0 2px rgba(58,16,128,0.5); }
 .tile-on-board.swap-shade-2 { background: #e060c0; box-shadow: inset 0 -2px 0 #8a1a6a, 0 0 0 2px rgba(138,26,106,0.5); }
 .tile-on-board.swap-shade-3 { background: #5533cc; box-shadow: inset 0 -2px 0 #1e0e70, 0 0 0 2px rgba(30,14,112,0.5); }
+.tile-on-board.is-removal {
+  background: #888;
+  box-shadow: inset 0 -2px 0 #555;
+  opacity: 0.45;
+  cursor: pointer;
+  position: relative;
+}
+.tile-on-board.is-removal::after {
+  content: '✕';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: rgba(255,0,0,0.7);
+}
 
 /* ── AI SKILL ── */
 #skill-row {
@@ -542,6 +560,7 @@ body {
   outline: 2px solid #ffd050;
   transform: translateY(-4px);
 }
+.rack-tile.tut-locked { opacity: 0.28; cursor: not-allowed !important; filter: grayscale(0.4); pointer-events: none; }
 .btn.active { outline: 3px solid #fff; }
 
 /* ── MORE BUTTON ── */
@@ -800,6 +819,16 @@ body {
 #next-game-prompt .ngp-text strong{color:#fff;display:block;font-size:0.92rem}
 #next-game-btn{background:linear-gradient(135deg,#7b2ff7,#f72585);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:700;padding:9px 14px;cursor:pointer;font-family:inherit;white-space:nowrap;}
 #next-game-dismiss{background:none;border:none;color:#666;font-size:1.3rem;cursor:pointer;padding:4px;line-height:1;}
+#tut-ring { box-shadow: 0 0 0 3px #f72585, 0 0 18px rgba(247,37,133,0.6); animation: tut-ring-pulse 0.9s ease infinite alternate; }
+#tut-ring.blue { box-shadow: 0 0 0 3px #4cc9f0, 0 0 18px rgba(76,201,240,0.5); animation: tut-ring-pulse-blue 0.9s ease infinite alternate; }
+@keyframes tut-ring-pulse { from { box-shadow:0 0 0 3px #f72585,0 0 12px rgba(247,37,133,0.5);} to { box-shadow:0 0 0 4px #f72585,0 0 22px rgba(247,37,133,0.8);} }
+@keyframes tut-ring-pulse-blue { from { box-shadow:0 0 0 3px #4cc9f0,0 0 12px rgba(76,201,240,0.4);} to { box-shadow:0 0 0 4px #4cc9f0,0 0 22px rgba(76,201,240,0.7);} }
+#tut-bubble-inner { background:#1a1040; border:1px solid #7b2ff7; border-radius:10px; padding:8px 11px; font-size:0.78rem; color:#fff; line-height:1.4; box-shadow:0 4px 16px rgba(0,0,0,0.6); text-align:center; }
+#tut-bubble-arrow { width:0; height:0; margin: 0 auto; }
+#tut-bubble-arrow.down { border-left:7px solid transparent; border-right:7px solid transparent; border-top:8px solid #7b2ff7; }
+#tut-bubble-arrow.up { border-left:7px solid transparent; border-right:7px solid transparent; border-bottom:8px solid #7b2ff7; }
+.tut-cell-outline { pointer-events:none; border-radius:5px; border:2.5px dashed #fff; animation:tut-outline-pulse 1s ease infinite alternate; }
+@keyframes tut-outline-pulse { from { box-shadow:0 0 6px rgba(255,255,255,0.4); } to { box-shadow:0 0 16px rgba(255,255,255,0.75); } }
 </style>
 </head>
 <body>
@@ -834,6 +863,9 @@ body {
     <span id="strength-pct">—</span>
   </div>
   <div id="rack"></div>
+  <div id="tut-exit-row" style="display:none;text-align:center;padding:6px 0 2px;">
+    <button onclick="closeTutorial()" style="background:none;border:none;color:#888;font-size:0.75rem;cursor:pointer;text-decoration:underline;font-family:inherit;letter-spacing:0.02em;">Exit tutorial</button>
+  </div>
 </div>
 
 <div id="controls">
@@ -843,6 +875,7 @@ body {
   <button class="btn btn-shuffle"  id="btn-shuffle"   onclick="shuffleRack()">Shuffle</button>
   <button class="btn btn-more"     id="btn-more"      onclick="toggleMoreMenu(event)">☰</button>
   <div id="more-menu">
+    <button class="more-item" onclick="showTutorial();closeMoreMenu()">How to Play</button>
     <button class="more-item" onclick="toggleRemaining();closeMoreMenu()">Tile Bag</button>
     <button class="more-item pass-item" onclick="passTurn();closeMoreMenu()">Pass</button>
     <div class="more-divider"></div>
@@ -850,6 +883,7 @@ body {
     <button class="more-item" onclick="newOnlineGame();closeMoreMenu()">New vs Friend</button>
     <button class="more-item" onclick="showJoinByCodeUI();closeMoreMenu()">Join with Code</button>
     <button class="more-item" onclick="startAiGame();closeMoreMenu()">New vs AI</button>
+    <button class="more-item" onclick="startAiVsAiGame();closeMoreMenu()">Watch AI vs AI</button>
     <button class="more-item" id="menu-resign" style="display:none;color:#f72585" onclick="resignOnlineGame();closeMoreMenu()">Resign Game</button>
     <div class="more-divider"></div>
     <div class="more-section-label">AI Level</div>
@@ -863,6 +897,16 @@ body {
 
 <div id="bag-count">Tiles in bag: <span id="bag-num">100</span></div>
 <div id="ai-indicator">AI is thinking</div>
+<div id="aivai-controls" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:#1a1a2e;border-top:1px solid #333;padding:10px 16px;align-items:center;justify-content:space-between;gap:10px;">
+  <span style="color:#aaa;font-size:0.8rem;font-weight:600;letter-spacing:0.05em;">AI VS AI</span>
+  <div style="display:flex;gap:6px;align-items:center;">
+    <span style="color:#aaa;font-size:0.75rem;">Speed:</span>
+    <button class="btn-skill" id="aivai-slow"   onclick="setAiVsAiSpeed('slow')">Slow</button>
+    <button class="btn-skill active" id="aivai-normal" onclick="setAiVsAiSpeed('normal')">Normal</button>
+    <button class="btn-skill" id="aivai-fast"   onclick="setAiVsAiSpeed('fast')">Fast</button>
+  </div>
+  <button class="btn btn-swap" style="padding:6px 14px;font-size:0.8rem;" onclick="stopAiVsAiGame()">Stop</button>
+</div>
 
 <div id="blank-picker">
   <div id="blank-picker-inner">
@@ -871,6 +915,16 @@ body {
   </div>
 </div>
 
+<!-- Tutorial on-board overlay -->
+<div id="tut-ring" style="display:none;position:fixed;pointer-events:none;z-index:180;border-radius:6px;transition:all 0.38s cubic-bezier(.4,0,.2,1);"></div>
+<div id="tut-bubble" style="display:none;position:fixed;pointer-events:none;z-index:181;max-width:230px;"></div>
+<div id="tut-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:182;background:#0e0825;border-top:2px solid #7b2ff7;padding:10px 14px calc(12px + env(safe-area-inset-bottom, 0px));align-items:center;gap:10px;">
+  <div id="tut-bar-text" style="flex:1;font-size:0.84rem;color:#ccc;line-height:1.4;"></div>
+  <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+    <button id="tut-skip-btn" onclick="closeTutorial()" style="background:none;border:none;color:#666;font-size:0.75rem;cursor:pointer;text-decoration:underline;font-family:inherit;">Skip</button>
+    <button id="tut-next-btn" onclick="tutorialAdvance()" style="background:linear-gradient(135deg,#7b2ff7,#f72585);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Next →</button>
+  </div>
+</div>
 <div id="remaining-modal" onclick="if(event.target===this)toggleRemaining()">
   <div id="remaining-modal-inner">
     <div id="remaining-modal-title">Tiles Remaining in Bag</div>
@@ -1035,7 +1089,11 @@ let swapMode = false;     // kept for legacy reset calls — always false now
 let swapPendingPositions; // Set of board keys where rack tiles replaced board tiles
 let swappedRackIndices;   // Set of playerRack indices that came from the board (must all be played)
 let swapCount;            // number of swaps done this turn (max 4)
+let pendingRemovals = new Set();   // Set of board keys of committed tiles being removed (no replacement placed)
+let pendingRemovalInfo = {};       // key → { letter, rackIdx, isBlank } for undo
 let passCount;
+let aiVsAiMode  = false;
+let aiVsAiSpeed = 'normal'; // 'slow' | 'normal' | 'fast'
 let currentPlayer;     // 'player' | 'ai'
 let gameOver;
 let bestPossibleScore = null;
@@ -1045,6 +1103,8 @@ let dragPendingKey  = null; // board key of pending tile being dragged (mouse)
 let rackDragOrigRects = null; // tile rects captured on dragstart, used for slide calculation
 let rackInsertIdx   = null;   // live insertion position during rack reorder drag
 let touchPendingKey = null; // board key of pending tile being dragged (touch)
+let touchPendingStartX = 0; // finger position when pending-tile touch started
+let touchPendingStartY = 0;
 let _suppressClick  = false; // true for 50ms after any drag/touch-drag ends, to block post-drag click
 let blankPickerCallback = null;
 let exchangeMode    = false;
@@ -1134,6 +1194,8 @@ function isEmpty() { return board.every(row => row.every(c => !c)); }
 
 function boardWithPending() {
   const b = board.map(r => [...r]);
+  for (const key of pendingRemovals)
+    b[+key.split(',')[0]][+key.split(',')[1]] = null;
   for (const [key, {letter}] of Object.entries(pendingPlacements))
     b[+key.split(',')[0]][+key.split(',')[1]] = letter;
   return b;
@@ -1195,6 +1257,115 @@ function hasGaps(keys) {
   return false;
 }
 
+function isBoardConnected(b) {
+  // Find all occupied cells, then BFS to verify they're all reachable from the first one.
+  const occupied = [];
+  for (let r = 0; r < BS; r++)
+    for (let c = 0; c < BS; c++)
+      if (b[r][c]) occupied.push([r, c]);
+  if (occupied.length <= 1) return true;
+  const visited = new Set();
+  const queue = [[occupied[0][0], occupied[0][1]]];
+  visited.add(`${occupied[0][0]},${occupied[0][1]}`);
+  while (queue.length) {
+    const [cr, cc] = queue.shift();
+    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      const nr = cr+dr, nc = cc+dc;
+      const k = `${nr},${nc}`;
+      if (!visited.has(k) && nr>=0 && nr<BS && nc>=0 && nc<BS && b[nr][nc]) {
+        visited.add(k);
+        queue.push([nr, nc]);
+      }
+    }
+  }
+  return visited.size === occupied.length;
+}
+
+function getRemovableInfo(r, c) {
+  if (!board[r][c]) return {removable: false, reason: 'No committed tile here.'};
+  const key = `${r},${c}`;
+  if (pendingRemovals.has(key)) return {removable: false, reason: 'Already pending removal.'};
+  if (pendingPlacements[key]) return {removable: false, reason: 'A tile is being placed here.'};
+
+  // Build effective board with existing pending removals cleared (but this tile still present)
+  const effectiveBoard = board.map(row => [...row]);
+  for (const k of pendingRemovals)
+    effectiveBoard[+k.split(',')[0]][+k.split(',')[1]] = null;
+
+  let wasAtEnd = false;
+  for (const [dr, dc] of [[0,1],[1,0]]) {
+    const w = getWordAt(effectiveBoard, r, c, dr, dc);
+    if (!w) continue;
+    const cells = w.cells;
+    const idx = cells.findIndex(cell => cell.row === r && cell.col === c);
+    if (idx > 0 && idx < cells.length - 1)
+      return {removable: false, reason: `"${w.word.toUpperCase()}" would be broken.`};
+    if (idx === 0 || idx === cells.length - 1) {
+      wasAtEnd = true;
+      const remaining = cells.filter((_, i) => i !== idx);
+      if (remaining.length < 2)
+        return {removable: false, reason: `Removing this tile leaves too few letters.`};
+      const remainingWord = remaining.map(c => c.letter).join('');
+      if (!WORDS.has(remainingWord.toUpperCase()))
+        return {removable: false, reason: `"${remainingWord.toUpperCase()}" is not a valid word.`};
+    }
+  }
+  if (!wasAtEnd) return {removable: false, reason: 'Tile must be at the start or end of a word.'};
+
+  // Connectivity check: removing this tile must not split the board into disconnected pieces.
+  const boardAfter = effectiveBoard.map(row => [...row]);
+  boardAfter[r][c] = null;
+  if (!isBoardConnected(boardAfter))
+    return {removable: false, reason: 'Removing this tile would leave tiles disconnected.'};
+
+  return {removable: true, letter: board[r][c]};
+}
+
+function tryRemoveTile(r, c) {
+  if (swapCount >= 4) { showMsg('Maximum 4 swaps per turn.', 'bad'); return; }
+  const info = getRemovableInfo(r, c);
+  if (!info.removable) { showMsg(info.reason || 'That tile cannot be removed.', 'bad'); return; }
+
+  const key = `${r},${c}`;
+  const letter = board[r][c];
+  const isBlank = letter !== letter.toUpperCase();
+  const rackLetter = isBlank ? ' ' : letter;
+
+  const rackIdx = playerRack.length;
+  playerRack.push(rackLetter);
+  swappedRackIndices.add(rackIdx);
+  pendingRemovals.add(key);
+  pendingRemovalInfo[key] = { letter, rackIdx, isBlank };
+  swapCount++;
+
+  const remaining = 4 - swapCount;
+  showMsg(`"${letter.toUpperCase()}" removed — place it this turn. ${remaining > 0 ? `${remaining} swap${remaining===1?'':'s'} left.` : 'No more swaps this turn.'}`, 'info');
+  playDrop();
+  updateUI();
+}
+
+function recallRemoval(key) {
+  const info = pendingRemovalInfo[key];
+  if (!info) return;
+  playRecall();
+  swappedRackIndices.delete(info.rackIdx);
+  playerRack.splice(info.rackIdx, 1);
+  // Shift indices in pendingPlacements
+  for (const p of Object.values(pendingPlacements)) {
+    if (p.rackIdx != null && p.rackIdx > info.rackIdx) p.rackIdx--;
+  }
+  const newSwapped = new Set();
+  for (const idx of swappedRackIndices) newSwapped.add(idx > info.rackIdx ? idx - 1 : idx);
+  swappedRackIndices = newSwapped;
+  for (const [k, inf] of Object.entries(pendingRemovalInfo)) {
+    if (k !== key && inf.rackIdx > info.rackIdx) inf.rackIdx--;
+  }
+  pendingRemovals.delete(key);
+  delete pendingRemovalInfo[key];
+  swapCount = Math.max(0, swapCount - 1);
+  updateUI();
+}
+
 // ═══════════════════════════════════════════════════════
 //  SCORING
 // ═══════════════════════════════════════════════════════
@@ -1243,6 +1414,23 @@ function validatePlay(placements, swapKeys = new Set()) {
   if (hasGaps(checkKeys)) return {ok:false, err:'No gaps allowed between tiles.'};
 
   const tb = boardWithPending();
+
+  // Verify each pending removal still leaves valid words in the final board state
+  for (const remKey of pendingRemovals) {
+    const [rr, rc] = remKey.split(',').map(Number);
+    for (const [dr, dc] of [[0,1],[1,0]]) {
+      const wordBefore = getWordAt(board.map(row=>[...row]), rr, rc, dr, dc);
+      if (!wordBefore) continue;
+      const cells = wordBefore.cells;
+      const remainingCells = cells.filter(cell => !pendingRemovals.has(`${cell.row},${cell.col}`));
+      if (remainingCells.length === 0) continue;
+      if (remainingCells.length === 1)
+        return {ok:false, err:'Removal leaves an isolated tile.'};
+      const remainingWord = remainingCells.map(c=>c.letter).join('');
+      if (!WORDS.has(remainingWord.toUpperCase()))
+        return {ok:false, err:`"${remainingWord.toUpperCase()}" is not a valid word.`};
+    }
+  }
 
   // First move must cover center
   if (isEmpty()) {
@@ -1323,6 +1511,10 @@ function submitPlay() {
   // Commit to board
   for (const [key, {letter}] of Object.entries(allPlacements))
     board[+key.split(',')[0]][+key.split(',')[1]] = letter;
+
+  // Clear pending-removal tiles from the board
+  for (const key of pendingRemovals)
+    board[+key.split(',')[0]][+key.split(',')[1]] = null;
 
   // Remove used tiles from rack
   const rackSizeBeforePlay = playerRack.length;
@@ -1517,6 +1709,11 @@ function reorderRackTile(from, to) {
     else remapped.add(idx);
   }
   swappedRackIndices = remapped;
+  for (const info of Object.values(pendingRemovalInfo)) {
+    if (info.rackIdx === from) info.rackIdx = to;
+    else if (from < to && info.rackIdx > from && info.rackIdx <= to) info.rackIdx--;
+    else if (from > to && info.rackIdx >= to && info.rackIdx < from) info.rackIdx++;
+  }
   const moved = playerRack.splice(from, 1)[0];
   playerRack.splice(to, 0, moved);
   renderRack();
@@ -1583,6 +1780,13 @@ function resetPending() {
       restoredIdx.add(p.rackIdx);
     }
   }
+  // Remove any tiles added to the rack by pending removals (in reverse index order)
+  const removalEntries = Object.values(pendingRemovalInfo || {}).sort((a,b) => b.rackIdx - a.rackIdx);
+  for (const info of removalEntries) {
+    playerRack.splice(info.rackIdx, 1);
+  }
+  pendingRemovals = new Set();
+  pendingRemovalInfo = {};
   pendingPlacements = {};
   swapMode = false;
   swapPendingPositions = new Set();
@@ -1652,6 +1856,13 @@ function recallPendingTile(key) {
     // If the player used a blank for this swap, restore blank; otherwise restore original letter
     playerRack[p.rackIdx] = p.isBlank ? ' ' : p.letter;
     swappedRackIndices.delete(p.rackIdx);
+    // Also remove any placement of the stolen tile (same rackIdx, non-swap) so we
+    // don't end up with both the restored tile in the rack AND its placement on the board.
+    for (const [otherKey, op] of Object.entries(pendingPlacements)) {
+      if (otherKey !== key && !op.isSwap && op.rackIdx === p.rackIdx) {
+        delete pendingPlacements[otherKey];
+      }
+    }
   }
   delete pendingPlacements[key];
   updateUI();
@@ -1704,6 +1915,26 @@ function endGame(reason) {
 //  BOARD CLICK
 // ═══════════════════════════════════════════════════════
 function onCellClick(r, c) {
+  // Tutorial step 3: only allow tapping S at (7,9) to remove it
+  if (window.tutorialMode && window._tutStep === 4) {
+    const key = `${r},${c}`;
+    if (r === 7 && c === 9) {
+      if (pendingRemovals.has(key)) { recallRemoval(key); updateUI(); return; }
+      tryRemoveTile(r, c);
+      tutorialAdvance();
+    }
+    return;
+  }
+  // Tutorial step 7: allow tapping a pending tile in col 10 to recall it
+  if (window.tutorialMode && window._tutStep === 7) {
+    const key = `${r},${c}`;
+    if (pendingPlacements[key] && !pendingPlacements[key].isSwap) {
+      recallPendingTile(key);
+      updateUI();
+    }
+    return;
+  }
+  if (window.tutorialMode) return;
   if (_suppressClick) return;
   if (currentPlayer !== 'player' || gameOver) return;
   const key = `${r},${c}`;
@@ -1721,7 +1952,12 @@ function onCellClick(r, c) {
     return;
   }
 
-  if (selIdx === -1) { showMsg('Select a tile from your rack first.', 'info'); return; }
+  if (selIdx === -1) {
+    if (pendingRemovals.has(key)) { recallRemoval(key); return; }
+    if (board[r][c] && !pendingPlacements[key]) { tryRemoveTile(r, c); return; }
+    showMsg('Select a tile from your rack first.', 'info');
+    return;
+  }
 
   // SWAP: rack tile selected + clicking a committed board square
   if (board[r][c]) {
@@ -1794,6 +2030,35 @@ function onRackTileClick(idx) {
 //  DRAG-AND-DROP PLACEMENT
 // ═══════════════════════════════════════════════════════
 function onCellDrop(r, c, rackIdx) {
+  // Tutorial step 1: user drags S onto E → auto-advance
+  if (window.tutorialMode && window._tutStep === 2 && r === 7 && c === 9) {
+    tutorialAdvance();
+    return;
+  }
+  if (window.tutorialMode && window._tutStep === 2) return;
+  // Tutorial step 3 (RETAIL): only allow drops in col 7, rows 4–9 (excluding row 7 = committed A)
+  if (window.tutorialMode && window._tutStep === 3) {
+    if (c !== 7 || r < 4 || r > 9 || r === 7) return;
+  }
+  // Tutorial step 6: any rack tile dropped on R at (7,8) → advance
+  if (window.tutorialMode && window._tutStep === 6) {
+    if (r === 7 && c === 8) {
+      tutorialAdvance();
+    }
+    return;
+  }
+  // Tutorial step 7 (SPRING): allow placement in col 10 rows 0-3,5 only
+  if (window.tutorialMode && window._tutStep === 7) {
+    var validSpring = (c === 10 && (r === 0 || r === 1 || r === 2 || r === 3 || r === 5));
+    if (!validSpring) return;
+    var spKey = r + ',' + c;
+    if (pendingPlacements[spKey] || board[r][c]) return;
+    var spLetter = playerRack[rackIdx];
+    if (!spLetter || spLetter === ' ') return;
+    pendingPlacements[spKey] = { letter: spLetter, rackIdx: rackIdx, row: r, col: c };
+    updateUI();
+    return;
+  }
   if (currentPlayer !== 'player' || gameOver) return;
   const key = `${r},${c}`;
   const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === rackIdx);
@@ -1825,7 +2090,7 @@ function onCellDrop(r, c, rackIdx) {
       showMsg(`${tileDesc} is now in your rack (purple). Place it this turn. ${remaining > 0 ? `${remaining} swap${remaining===1?'':'s'} left.` : 'No more swaps this turn.'}`, 'info');
       playDrop();
       updateUI();
-      zoomToCell(r, c);
+      if (!window.tutorialMode) zoomToCell(r, c);
     };
     if (rackLetter === ' ') { showBlankPicker(chosen => finishDragSwap(chosen.toLowerCase(), true)); }
     else { finishDragSwap(rackLetter, false); }
@@ -1844,7 +2109,7 @@ function onCellDrop(r, c, rackIdx) {
       showMsg('', 'info');
       playDrop();
       updateUI();
-      zoomToCell(r, c);
+      if (!window.tutorialMode) zoomToCell(r, c);
     });
     return;
   }
@@ -1852,12 +2117,20 @@ function onCellDrop(r, c, rackIdx) {
   showMsg('', 'info');
   playDrop();
   updateUI();
-  zoomToCell(r, c);
+  if (!window.tutorialMode) zoomToCell(r, c);
 }
 
 // Move or swap a pending (not-yet-committed) tile to another board cell
 function onPendingTileDrop(r, c, fromKey) {
   if (currentPlayer !== 'player' || gameOver) return;
+  // Tutorial step 3 (RETAIL): only allow re-drops in col 7, rows 4–9 (excl. row 7)
+  if (window.tutorialMode && window._tutStep === 3) {
+    if (c !== 7 || r < 4 || r > 9 || r === 7) return;
+  }
+  // Tutorial step 7 (SPRING): only allow re-drops in col 10, rows 0-3,5
+  if (window.tutorialMode && window._tutStep === 7) {
+    if (c !== 10 || !(r === 0 || r === 1 || r === 2 || r === 3 || r === 5)) return;
+  }
   const toKey = `${r},${c}`;
   if (toKey === fromKey) return;
   const moving = pendingPlacements[fromKey];
@@ -1905,6 +2178,7 @@ let touchDragIdx  = null; // rack tile index for touch drag
 let touchGhost    = null;
 
 function onTouchStart(e, idx) {
+  if (window.tutorialMode && window._tutDraggableIdx != null && idx !== window._tutDraggableIdx) return;
   if (currentPlayer !== 'player' || gameOver) return;
   const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === idx);
   if (alreadyUsed) return;
@@ -1987,6 +2261,13 @@ function onTouchMove(e) {
       } else {
         if (!board[r][c] && !(pendingPlacements[key]?.isSwap)) cell.classList.add('drop-target');
       }
+    } else if (window.tutorialMode && window._tutStep === 2 && r === 7 && c === 9) {
+      // Tutorial: highlight and auto-advance when S hovers over E
+      cell.classList.add('drop-target');
+      if (touchDragIdx != null) { tutorialAdvance(); touchDragIdx = null; dragRackIdx = null; }
+    } else if (window.tutorialMode && window._tutStep === 6 && r === 7 && c === 8) {
+      // Tutorial step 6: highlight R cell as valid drop target
+      cell.classList.add('drop-target');
     } else if (!cell.querySelector('.tile-on-board')) {
       cell.classList.add('drop-target');
     }
@@ -2032,8 +2313,19 @@ function onTouchEnd(e) {
   const cell = el?.closest?.('.cell');
   if (cell) {
     const r = +cell.dataset.r, c = +cell.dataset.c;
-    if (touchPendingKey != null) onPendingTileDrop(r, c, touchPendingKey);
-    else if (touchDragIdx != null) onCellDrop(r, c, touchDragIdx);
+    if (touchPendingKey != null) {
+      const dx = t.clientX - touchPendingStartX;
+      const dy = t.clientY - touchPendingStartY;
+      const wasTap = Math.sqrt(dx * dx + dy * dy) < 10;
+      const p = pendingPlacements[touchPendingKey];
+      if (wasTap && p && !p.isSwap) {
+        recallPendingTile(touchPendingKey);
+      } else {
+        onPendingTileDrop(r, c, touchPendingKey);
+      }
+    } else if (touchDragIdx != null) {
+      onCellDrop(r, c, touchDragIdx);
+    }
   }
   touchDragIdx    = null;
   touchPendingKey = null;
@@ -2049,13 +2341,16 @@ function onPendingTouchStart(e, key) {
   e.preventDefault();
   touchPendingKey = key;
 
+  const t = e.touches[0];
+  touchPendingStartX = t.clientX;
+  touchPendingStartY = t.clientY;
+
   touchGhost = document.createElement('div');
   touchGhost.className = 'tile-on-board ' + (pending.isSwap ? 'is-swap' : 'is-new');
   touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;transform:translate(-50%,-50%);transition:none;`;
   touchGhost.innerHTML = `<span class="tile-letter">${pending.letter}</span><span class="tile-val">${VAL[pending.letter]??0}</span>`;
   document.body.appendChild(touchGhost);
 
-  const t = e.touches[0];
   touchGhost.style.left = t.clientX + 'px';
   touchGhost.style.top  = t.clientY + 'px';
 
@@ -2066,6 +2361,82 @@ function onPendingTouchStart(e, key) {
 // ═══════════════════════════════════════════════════════
 //  AI TURN
 // ═══════════════════════════════════════════════════════
+function aiVsAiDelay() {
+  return aiVsAiSpeed === 'slow' ? 1800 : aiVsAiSpeed === 'fast' ? 150 : 700;
+}
+
+function doPlayerAiTurn() {
+  if (gameOver || !aiVsAiMode) return;
+  currentPlayer = 'player';
+  updateTurnBadge();
+  document.getElementById('ai-indicator').classList.add('show');
+
+  setTimeout(() => {
+    const normalMove = findAIMove(playerRack);
+    const swapMove   = findAISwapMove(playerRack);
+    document.getElementById('ai-indicator').classList.remove('show');
+
+    const useSwap = swapMove && (!normalMove || swapMove.score > normalMove.score);
+
+    if (useSwap) {
+      const { swapRackIdx, swapRow, swapCol, swapRackLetter, swapBoardLetter, play } = swapMove;
+      board[swapRow][swapCol] = swapRackLetter;
+      playerRack[swapRackIdx] = swapBoardLetter;
+      const usedIdx = new Set();
+      for (const { row, col, letter, rackIdx } of play.placements) {
+        board[row][col] = letter;
+        if (rackIdx != null) usedIdx.add(rackIdx);
+      }
+      if (play.placements.some(p => p.rackIdx === swapRackIdx)) usedIdx.add(swapRackIdx);
+      [...usedIdx].sort((a,b)=>b-a).forEach(i => playerRack.splice(i,1));
+      drawTiles(playerRack);
+      lastSwapKeys = [`${swapRow},${swapCol}`];
+      lastMoveKeys = [...play.placements]
+        .sort((a,b)=>a.row!==b.row?a.row-b.row:a.col-b.col)
+        .map(p=>`${p.row},${p.col}`);
+      lastMoveAnimated = false;
+      boardSwapPositions = new Set([`${swapRow},${swapCol}`]);
+      const stolenP = play.placements.find(p=>p.rackIdx===swapRackIdx);
+      if (stolenP) boardSwapPositions.add(`${stolenP.row},${stolenP.col}`);
+      const bonus = play.placements.length === 7 ? 35 : 0;
+      playerScore += play.score + bonus;
+      lastPlayScore = play.score + bonus;
+      passCount = 0;
+      showMsg(`AI-1 swapped "${swapBoardLetter.toUpperCase()}" → played "${play.word}" for ${play.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
+    } else if (normalMove) {
+      boardSwapPositions = new Set();
+      const usedIdx = new Set();
+      for (const {row,col,letter,rackIdx} of normalMove.placements) {
+        board[row][col] = letter;
+        if (rackIdx!=null) usedIdx.add(rackIdx);
+      }
+      [...usedIdx].sort((a,b)=>b-a).forEach(i=>playerRack.splice(i,1));
+      drawTiles(playerRack);
+      lastSwapKeys = [];
+      lastMoveKeys = [...normalMove.placements]
+        .sort((a,b)=>a.row!==b.row?a.row-b.row:a.col-b.col)
+        .map(p=>`${p.row},${p.col}`);
+      lastMoveAnimated = false;
+      const bonus = normalMove.placements.length === 7 ? 35 : 0;
+      playerScore += normalMove.score + bonus;
+      lastPlayScore = normalMove.score + bonus;
+      passCount = 0;
+      const primaryWord = normalMove.words
+        ? (normalMove.words.find(w=>normalMove.placements.every(p=>w.cells.some(c=>c.row===p.row&&c.col===p.col)))||normalMove.words[0]).word
+        : normalMove.word;
+      showMsg(`AI-1 played "${primaryWord}" for ${normalMove.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
+    } else {
+      boardSwapPositions = new Set();
+      passCount++;
+      showMsg('AI-1 passed.', 'info');
+    }
+
+    checkGameOver();
+    updateUI();
+    if (!gameOver && aiVsAiMode) setTimeout(doAiTurn, aiVsAiDelay());
+  }, aiVsAiDelay());
+}
+
 function doAiTurn() {
   if (gameOver) return;
   zoomBoardOut();
@@ -2165,12 +2536,18 @@ function doAiTurn() {
       showMsg('AI passed.', 'info');
     }
 
-    currentPlayer = 'player';
-    updateTurnBadge();
-    checkGameOver();
-    updateUI();
-    computeBestScore();
-    saveAiGameState();
+    if (aiVsAiMode) {
+      checkGameOver();
+      updateUI();
+      if (!gameOver) setTimeout(doPlayerAiTurn, aiVsAiDelay());
+    } else {
+      currentPlayer = 'player';
+      updateTurnBadge();
+      checkGameOver();
+      updateUI();
+      computeBestScore();
+      saveAiGameState();
+    }
   }, 800);
 }
 
@@ -2189,8 +2566,8 @@ function canSpell(word, letters) {
   return true;
 }
 
-function findAIMove() {
-  const rack = aiRack;
+function findAIMove(rackOverride = null) {
+  const rack = rackOverride ?? aiRack;
   const rackLetters = rack;
   const candidates = []; // collect all valid moves; pick a middling one at the end
 
@@ -2379,9 +2756,16 @@ function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS) {
       if (!boardState[r][c] && hasAdjacentTile(boardState, r, c, null))
         anchors.push([r, c]);
 
+  // One copy of each distinct letter already on the board — tryPlace uses these for free,
+  // so any word spellable from (rack + boardPool) is a valid candidate.
+  const boardPool = [...new Set(
+    boardState.flat().filter(Boolean).map(l => l === l.toLowerCase() ? ' ' : l.toUpperCase())
+  )];
+  const rackPlusBoardPool = [...rack, ...boardPool];
+
   for (const w of wordSource) {
     if (w.length < 2 || w.length > maxLen) continue;
-    if (!canSpell(w, rack)) continue;
+    if (!canSpell(w, rackPlusBoardPool)) continue;
     for (const [ar, ac] of anchors) {
       for (let s = Math.max(0, ac - w.length + 1); s <= ac && s + w.length - 1 < BS; s++)
         tryPlace(w, ar, s, 0, 1);
@@ -2411,13 +2795,14 @@ function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS) {
 
 // Evaluate all possible 1-tile swaps for the AI.
 // Returns the best swap+play combo, or null if nothing beats a normal play.
-function findAISwapMove() {
+function findAISwapMove(rackOverride = null) {
   if (isEmpty() || aiSkill === 'easy') return null;
 
   const best = { score: -1 };
+  const rack = rackOverride ?? aiRack;
 
-  for (let ri = 0; ri < aiRack.length; ri++) {
-    const rackLetter = aiRack[ri];
+  for (let ri = 0; ri < rack.length; ri++) {
+    const rackLetter = rack[ri];
 
     for (let r = 0; r < BS; r++) {
       for (let c = 0; c < BS; c++) {
@@ -2444,7 +2829,7 @@ function findAISwapMove() {
         if (!swapValid) continue;
 
         // Valid swap — find best play with new rack on temp board
-        const newRack = [...aiRack];
+        const newRack = [...rack];
         newRack[ri] = boardLetter; // stolen tile replaces rack tile at ri
         const play = findBestPlayWithRack(newRack, tempBoard);
         if (!play || play.score <= 0) continue;
@@ -2521,6 +2906,13 @@ function renderBoard() {
           setTimeout(() => { _suppressClick = false; }, 50);
         });
         tile.addEventListener('touchstart', e => onPendingTouchStart(e, key), {passive: false});
+      } else if (pendingRemovals.has(key)) {
+        const tile = document.createElement('div');
+        tile.className = 'tile-on-board is-removal';
+        const letter = board[r][c];
+        const isBlank = letter !== letter.toUpperCase();
+        tile.innerHTML = `<span class="tile-letter">${letter.toUpperCase()}</span><span class="tile-val">${isBlank ? 0 : (VAL[letter] ?? 0)}</span>`;
+        cell.appendChild(tile);
       } else if (board[r][c]) {
         const tile = document.createElement('div');
         const moveIdx = lastMoveKeys.indexOf(key);
@@ -2541,6 +2933,51 @@ function renderBoard() {
         if (boardSwapPositions.has(key) && !isLastSwap) tile.classList.add('swap-shade-0');
         tile.innerHTML = `<span class="tile-letter">${board[r][c].toUpperCase()}</span><span class="tile-val">${committedIsBlank ? 0 : VAL[board[r][c]]??0}</span>`;
         cell.appendChild(tile);
+        // Tutorial step 4: make the S at (7,9) draggable so user can drag it off
+        if (window.tutorialMode && window._tutStep === 4 && r === 7 && c === 9) {
+          cell.draggable = true;
+          cell.addEventListener('dragstart', e => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', 'tut-remove:7,9');
+            const ghost = tile.cloneNode(true);
+            ghost.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:44px;height:50px;border-radius:3px;background:#e8c870;box-shadow:inset 0 -2px 0 #a07010;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+            document.body.appendChild(ghost);
+            e.dataTransfer.setDragImage(ghost, 22, 25);
+            setTimeout(() => { ghost.remove(); tile.style.opacity = '0.4'; }, 0);
+          });
+          cell.addEventListener('dragend', () => {
+            tile.style.opacity = '';
+            // Treat any drag-end as a removal (same as clicking)
+            if (window.tutorialMode && window._tutStep === 4) {
+              tryRemoveTile(7, 9);
+              tutorialAdvance();
+            }
+          });
+        } else if (!window.tutorialMode) {
+          // Normal play: make the tile draggable only if getRemovableInfo says it's removable
+          const removeInfo = getRemovableInfo(r, c);
+          if (removeInfo.removable) {
+            cell.draggable = true;
+            tile.style.cursor = 'grab';
+            cell.addEventListener('dragstart', e => {
+              window._dragBoardRemoveKey = key;
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', 'board-remove:' + key);
+              const ghost = tile.cloneNode(true);
+              ghost.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:44px;height:50px;border-radius:3px;background:#e8c870;box-shadow:inset 0 -2px 0 #a07010;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+              document.body.appendChild(ghost);
+              e.dataTransfer.setDragImage(ghost, 22, 25);
+              setTimeout(() => { ghost.remove(); tile.style.opacity = '0.4'; }, 0);
+            });
+            cell.addEventListener('dragend', e => {
+              tile.style.opacity = '';
+              window._dragBoardRemoveKey = null;
+            });
+          } else {
+            tile.style.cursor = 'not-allowed';
+            tile.title = removeInfo.reason || 'Cannot remove this tile';
+          }
+        }
       } else {
         // Show premium label
         if (prem && prem !== 'CENTER') {
@@ -2560,6 +2997,14 @@ function renderBoard() {
       // Drag-and-drop drop target
       cell.addEventListener('dragover', e => {
         if (dragRackIdx == null && dragPendingKey == null) return;
+        // Tutorial step 1: advancing as soon as S hovers over E
+        if (window.tutorialMode && window._tutStep === 2 && r === 7 && c === 9 && dragRackIdx != null) {
+          e.preventDefault();
+          cell.classList.add('drop-target');
+          tutorialAdvance(); dragRackIdx = null;
+          return;
+        }
+        if (window.tutorialMode && window._tutStep === 2) return;
         if (dragPendingKey != null) {
           const dragMoving = pendingPlacements[dragPendingKey];
           if (dragMoving?.isSwap) {
@@ -2594,7 +3039,7 @@ function renderRack() {
     Object.values(pendingPlacements).filter(p => !p.isSwap).map(p=>p.rackIdx).filter(i=>i!=null)
   );
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < Math.max(7, playerRack.length); i++) {
     const tile = document.createElement('div');
     tile.dataset.idx = i;
     if (i >= playerRack.length || usedIdxs.has(i)) {
@@ -2609,11 +3054,18 @@ function renderRack() {
         ? `<span class="tile-letter"></span><span class="tile-val"></span>`
         : `<span class="tile-letter">${letter}</span><span class="tile-val">${VAL[letter] ?? 0}</span>`;
       if (exchangeMode && exchangeSelectedIdxs.has(i)) tile.classList.add('exchange-selected');
+      // Tutorial: dim tiles that can't be dragged this step
+      if (window.tutorialMode && window._tutDraggableIdx != null) {
+        if (i !== window._tutDraggableIdx) tile.classList.add('tut-locked');
+      }
       tile.addEventListener('click', () => onRackTileClick(i));
 
       // Mouse drag (to board or to reorder within rack)
       tile.draggable = true;
       tile.addEventListener('dragstart', e => {
+        if (window.tutorialMode && window._tutDraggableIdx != null && i !== window._tutDraggableIdx) {
+          e.preventDefault(); return;
+        }
         dragRackIdx = i;
         rackInsertIdx = i;
         e.dataTransfer.effectAllowed = 'move';
@@ -2678,6 +3130,17 @@ function renderRack() {
 
   // Rack as drop target — returns pending board tiles, handles live-sliding rack reorder
   rackEl.addEventListener('dragover', e => {
+    // Accept board-tile-removal drags
+    const dt = e.dataTransfer;
+    if (dt && dt.types.includes('text/plain')) {
+      // We can't read the value during dragover, but we track it via dragBoardRemoveKey
+      if (window._dragBoardRemoveKey != null) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        rackEl.classList.add('rack-drop-target');
+        return;
+      }
+    }
     if (dragPendingKey != null) {
       const p = pendingPlacements[dragPendingKey];
       if (!p || p.isSwap) return;
@@ -2713,6 +3176,15 @@ function renderRack() {
     rackEl.classList.remove('rack-drop-target');
     const savedInsert = rackInsertIdx;  // save before clearRackSlide nulls it
     clearRackSlide();
+    // Board-tile removal drag dropped onto rack
+    if (window._dragBoardRemoveKey != null) {
+      const bkey = window._dragBoardRemoveKey;
+      window._dragBoardRemoveKey = null;
+      const [br, bc] = bkey.split(',').map(Number);
+      tryRemoveTile(br, bc);
+      updateUI();
+      return;
+    }
     if (dragPendingKey != null) {
       const p = pendingPlacements[dragPendingKey];
       if (p && !p.isSwap) { recallPendingTile(dragPendingKey); dragPendingKey = null; }
@@ -2807,10 +3279,18 @@ async function playRecall() {
 function updateTurnBadge() {
   const badge = document.getElementById('turn-badge');
   const opName = isOnlineMode ? opponentOnlineName : 'AI';
-  badge.textContent = currentPlayer === 'player' ? 'Your Turn' : `${opName}'s Turn`;
-  badge.style.background = currentPlayer === 'player' ? 'var(--btn-primary)' : '#555';
-  document.getElementById('panel-player').classList.toggle('active', currentPlayer === 'player');
-  document.getElementById('panel-ai').classList.toggle('active', currentPlayer === 'ai');
+  if (aiVsAiMode) {
+    const label = currentPlayer === 'player' ? 'AI-1' : 'AI-2';
+    badge.textContent = `${label}'s Turn`;
+    badge.style.background = currentPlayer === 'player' ? 'var(--btn-primary)' : '#555';
+    document.getElementById('panel-player').classList.toggle('active', currentPlayer === 'player');
+    document.getElementById('panel-ai').classList.toggle('active', currentPlayer === 'ai');
+  } else {
+    badge.textContent = currentPlayer === 'player' ? 'Your Turn' : `${opName}'s Turn`;
+    badge.style.background = currentPlayer === 'player' ? 'var(--btn-primary)' : '#555';
+    document.getElementById('panel-player').classList.toggle('active', currentPlayer === 'player');
+    document.getElementById('panel-ai').classList.toggle('active', currentPlayer === 'ai');
+  }
 }
 
 function renderScorePreview() {
@@ -2950,10 +3430,14 @@ function computeBestScore() {
   _bestScoreTimer = setTimeout(() => {
     const rack = [...playerRack];
 
-    // Pre-filter WORDS to what the current rack can spell — shrinks 191K → ~500, keeping search fast
-    const searchWords = [];
-    for (const w of WORDS) {
-      if (w.length >= 2 && w.length <= rack.length && canSpell(w, rack)) searchWords.push(w);
+    // Use the curated AI_WORDS list — findBestPlayWithRack now filters using rack+boardPool,
+    // so it correctly finds plays that leverage existing board tiles (e.g. adding S to CAT).
+    // For the first move (empty board) we still need rack-only spellable words.
+    const firstMoveWords = [];
+    if (isEmpty()) {
+      for (const w of AI_WORDS) {
+        if (w.length >= 2 && w.length <= rack.length && canSpell(w, rack)) firstMoveWords.push(w);
+      }
     }
 
     let bestScore = 0;
@@ -2961,7 +3445,7 @@ function computeBestScore() {
     if (isEmpty()) {
       // First move: try every rack-spellable word through the center square in both directions
       const center = Math.floor(BS / 2);
-      for (const w of searchWords) {
+      for (const w of firstMoveWords) {
         for (let pos = 0; pos < w.length; pos++) {
           // Horizontal
           const sc = center - pos;
@@ -2994,7 +3478,7 @@ function computeBestScore() {
         }
       }
     } else {
-      const best = findBestPlayWithRack(rack, board.map(r => [...r]), searchWords);
+      const best = findBestPlayWithRack(rack, board.map(r => [...r]), AI_WORDS);
       bestScore = best ? best.score : 0;
     }
 
@@ -3049,6 +3533,7 @@ function updateUI() {
   renderScorePreview();
   updateStrengthBar();
   updateResignButton();
+  if (window._tutPostRender) window._tutPostRender();
 }
 
 function showMsg(text, type = 'info') {
@@ -3184,11 +3669,44 @@ function saveAiGameState() {
   } catch {}
 }
 
+function validateSavedTileCounts(s) {
+  // Count every tile across board + both racks + bag
+  const counts = {};
+  const boardTiles = s.board || [];
+  for (const cell of boardTiles) {
+    if (!cell) continue;
+    const k = cell === cell.toUpperCase() ? cell : ' '; // lowercase = blank played as letter
+    counts[k] = (counts[k] || 0) + 1;
+  }
+  for (const l of (s.bag || []))        counts[l] = (counts[l] || 0) + 1;
+  for (const l of (s.playerRack || [])) counts[l] = (counts[l] || 0) + 1;
+  for (const l of (s.aiRack || []))     counts[l] = (counts[l] || 0) + 1;
+
+  const expected = { ...DIST, ' ': 2 };
+  for (const [letter, exp] of Object.entries(expected)) {
+    if ((counts[letter] || 0) !== exp) return false;
+  }
+  // No unexpected letters
+  for (const letter of Object.keys(counts)) {
+    if (!(letter in expected)) return false;
+  }
+  return true;
+}
+
 function loadAiGameState() {
   try {
     const raw = localStorage.getItem(AI_SAVE_KEY);
     if (!raw) return false;
     const s = JSON.parse(raw);
+
+    // Reject corrupt saves with wrong tile counts (e.g. 3 blanks) rather than
+    // loading bad state silently. Clears the save so a fresh game starts instead.
+    if (!validateSavedTileCounts(s)) {
+      console.warn('[TileAudit] Saved game has invalid tile counts — discarding corrupt save.');
+      clearAiGameState();
+      return false;
+    }
+
     board = Array.from({length: BS}, (_, r) =>
       Array.from({length: BS}, (__, c) => s.board[r * BS + c] || null)
     );
@@ -4161,6 +4679,43 @@ function startAiGame() {
   saveAiGameState();
 }
 
+function startAiVsAiGame() {
+  if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+  isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+  opponentOnlineName = 'Opponent';
+  const el = document.getElementById('ai-name-display');
+  if (el) el.textContent = 'AI-2';
+  const nameText = document.getElementById('player-name-text');
+  if (nameText) nameText.textContent = 'AI-1';
+  const resign = document.getElementById('menu-resign');
+  if (resign) resign.style.display = 'none';
+  aiVsAiMode = true;
+  clearAiGameState();
+  startGame();
+  document.getElementById('aivai-controls').style.display = 'flex';
+  document.getElementById('controls').style.display = 'none';
+  updateTurnBadge();
+  setTimeout(doPlayerAiTurn, aiVsAiDelay());
+}
+
+function stopAiVsAiGame() {
+  aiVsAiMode = false;
+  const nameText = document.getElementById('player-name-text');
+  if (nameText) nameText.textContent = localStorage.getItem('playerName') || 'You';
+  const el = document.getElementById('ai-name-display');
+  if (el) el.textContent = 'AI';
+  document.getElementById('aivai-controls').style.display = 'none';
+  document.getElementById('controls').style.display = '';
+  startAiGame();
+}
+
+function setAiVsAiSpeed(s) {
+  aiVsAiSpeed = s;
+  ['slow','normal','fast'].forEach(id => {
+    document.getElementById('aivai-'+id)?.classList.toggle('active', id === s);
+  });
+}
+
 // ── Next-game prompt (shown after finishing a turn) ────────
 let _nextGameQueue = []; // [{gameId, myRole, opName}]
 
@@ -4262,7 +4817,7 @@ document.getElementById('board-wrapper').addEventListener('touchend', e => {
       const cellPx = br.width / 15;
       const c = Math.max(0, Math.min(14, Math.floor((touch.clientX - br.left) / cellPx)));
       const r = Math.max(0, Math.min(14, Math.floor((touch.clientY - br.top)  / cellPx)));
-      zoomToCell(r, c);
+      if (!window.tutorialMode) zoomToCell(r, c);
     }
     lastTap = 0;
   } else {
@@ -4313,6 +4868,662 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   document.addEventListener('touchend',  onPanEnd,  { passive: false });
   e.stopPropagation();
 }, { capture: true, passive: false });
+
+// ── Tutorial system ────────────────────────────────────────────────────────
+(function() {
+  var _tutStep = 0;
+  window._tutStep = 0;
+  window._tutDraggableIdx = null;
+  var TOTAL_STEPS = 8;
+  var _tutTimers = [];
+
+  function clearAnims() {
+    _tutTimers.forEach(clearTimeout); _tutTimers = [];
+    document.querySelectorAll('.tut-cell-outline,.tut-step5-bubble,.tut-step6-bubble').forEach(function(e) { if (e.parentNode) e.parentNode.removeChild(e); });
+    document.querySelectorAll('.cell.drop-target').forEach(function(el) { el.classList.remove('drop-target'); });
+    document.getElementById('tut-ring').style.display = 'none';
+    document.getElementById('tut-bubble').style.display = 'none';
+    ['tut-ring2','tut-fly','tut-welcome'].forEach(function(id) {
+      var e = document.getElementById(id); if (e && e.parentNode) e.parentNode.removeChild(e);
+    });
+    window._tutPostRender = null;
+  }
+  function after(ms, fn) { _tutTimers.push(setTimeout(fn, ms)); }
+
+  function rackTile(idx) {
+    return document.querySelectorAll('#rack .rack-tile')[idx];
+  }
+
+  function boardCell(r, c) {
+    return document.querySelector('#board [data-r="' + r + '"][data-c="' + c + '"]');
+  }
+
+  function tutHighlight(el, blue) {
+    if (!el) return;
+    var r = el.getBoundingClientRect();
+    var ring = document.getElementById('tut-ring');
+    ring.style.display = 'block';
+    ring.style.left = (r.left - 3) + 'px';
+    ring.style.top = (r.top - 3) + 'px';
+    ring.style.width = (r.width + 6) + 'px';
+    ring.style.height = (r.height + 6) + 'px';
+    ring.className = blue ? 'blue' : '';
+  }
+
+  function tutBubble(el, text, above) {
+    if (!el) return;
+    var r = el.getBoundingClientRect();
+    var bub = document.getElementById('tut-bubble');
+    bub.style.display = 'block';
+    bub.innerHTML = (above ? '' : '<div id="tut-bubble-arrow" class="up"></div>') +
+      '<div id="tut-bubble-inner">' + text + '</div>' +
+      (above ? '<div id="tut-bubble-arrow" class="down"></div>' : '');
+    var bw = 190;
+    var left = r.left + r.width / 2 - bw / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - bw - 8));
+    bub.style.left = left + 'px';
+    bub.style.width = bw + 'px';
+    if (above) {
+      bub.style.top = (r.top - 10) + 'px';
+      setTimeout(function() {
+        var bh = bub.offsetHeight;
+        bub.style.top = (r.top - bh - 4) + 'px';
+      }, 0);
+    } else {
+      bub.style.top = (r.bottom + 4) + 'px';
+    }
+  }
+
+  function tutBar(text, nextLabel) {
+    document.getElementById('tut-bar').style.display = 'flex';
+    document.getElementById('tut-bar-text').innerHTML = text;
+    var btn = document.getElementById('tut-next-btn');
+    if (nextLabel) {
+      btn.textContent = nextLabel;
+      btn.style.display = '';
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+
+  function clearBoard15() {
+    for (var r = 0; r < 15; r++) {
+      for (var c = 0; c < 15; c++) {
+        board[r][c] = null;
+      }
+    }
+  }
+
+  // Step 1: Setup steal scenario – show CARE on board, S in rack
+  function tutFlyTile(fromEl, toEl, letter) {
+    // Animate a tile flying from fromEl to toEl, returns the temp element
+    if (!fromEl || !toEl) return;
+    var fr = fromEl.getBoundingClientRect();
+    var tr = toEl.getBoundingClientRect();
+    var fly = document.createElement('div');
+    fly.id = 'tut-fly';
+    fly.textContent = letter;
+    fly.style.cssText = 'position:fixed;z-index:185;pointer-events:none;' +
+      'background:#f5deb3;color:#2c1a00;font-weight:900;font-size:1rem;border-radius:5px;' +
+      'display:flex;align-items:center;justify-content:center;' +
+      'box-shadow:0 4px 12px rgba(0,0,0,0.5);' +
+      'width:' + fr.width + 'px;height:' + fr.height + 'px;' +
+      'left:' + fr.left + 'px;top:' + fr.top + 'px;' +
+      'transition:left 0.55s cubic-bezier(.4,0,.2,1),top 0.55s cubic-bezier(.4,0,.2,1),opacity 0.2s;';
+    document.body.appendChild(fly);
+    // Trigger transition to target on next frame
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        fly.style.left = (tr.left + (tr.width - fr.width) / 2) + 'px';
+        fly.style.top  = (tr.top  + (tr.height - fr.height) / 2) + 'px';
+        // Fade out near the end
+        _timers.push(setTimeout(function() {
+          fly.style.opacity = '0';
+          _timers.push(setTimeout(function() {
+            if (fly.parentNode) fly.parentNode.removeChild(fly);
+          }, 220));
+        }, 450));
+      });
+    });
+  }
+
+  var TUT_RACK_BASE = ['S','T','O','R','N','I','E'];
+
+  // Step 0: Welcome intro overlay
+  function tutStep0() {
+    clearAnims();
+    // Hide tut-bar for this step — the welcome card has its own button
+    document.getElementById('tut-bar').style.display = 'none';
+
+    var el = document.createElement('div');
+    el.id = 'tut-welcome';
+    el.style.cssText =
+      'position:fixed;inset:0;z-index:200;display:flex;align-items:center;' +
+      'justify-content:center;padding:20px;background:rgba(8,4,24,0.82);';
+    el.innerHTML =
+      '<div style="background:#16093a;border:1.5px solid #7b2ff7;border-radius:18px;' +
+        'padding:32px 26px;max-width:310px;width:100%;text-align:center;position:relative;' +
+        'box-shadow:0 8px 40px rgba(0,0,0,0.7);">' +
+        '<button onclick="closeTutorial()" style="' +
+          'position:absolute;top:10px;right:12px;background:none;border:none;' +
+          'color:#888;font-size:1.3rem;cursor:pointer;line-height:1;padding:2px 6px;' +
+          'font-family:inherit;" title="Exit tutorial">✕</button>' +
+        '<h2 style="margin:0 0 10px;font-size:1.25rem;color:#b794f4;font-family:inherit;">' +
+          'Welcome to Reword!' +
+        '</h2>' +
+        '<p style="margin:0 0 8px;font-size:0.85rem;line-height:1.55;color:#ccc;">' +
+          'Reword is like Scrabble — but you can <strong style="color:#f0c4ff;">swap or take</strong> ' +
+          'tiles from the board to build new words.' +
+        '</p>' +
+        '<p style="margin:0 0 22px;font-size:0.85rem;line-height:1.55;color:#ccc;">' +
+          'This quick tutorial shows you the basics.' +
+        '</p>' +
+        '<button onclick="tutorialAdvance()" style="' +
+          'background:linear-gradient(135deg,#7b2ff7,#f72585);color:#fff;border:none;' +
+          'border-radius:12px;padding:11px 28px;font-size:0.95rem;font-weight:700;' +
+          'cursor:pointer;font-family:inherit;width:100%;' +
+        '">Let\'s Go →</button>' +
+      '</div>';
+    document.body.appendChild(el);
+  }
+
+  function tutStep1() {
+    clearAnims();
+    var existing = document.getElementById('tut-fly');
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    clearBoard15();
+    board[7][6] = 'C'; board[7][7] = 'A'; board[7][8] = 'R'; board[7][9] = 'E';
+    pendingPlacements = {};
+    pendingRemovals = new Set();
+    pendingRemovalInfo = {};
+    playerRack = TUT_RACK_BASE.slice();
+    swappedRackIndices = new Set();
+    window._tutDraggableIdx = 0;
+    aiVsAiMode = false;
+    playerTurn = true;
+    currentPlayer = 'player';
+    renderBoard();
+    renderRack();
+    after(80, function() {
+      var rTile = rackTile(0);
+      var bCell = boardCell(7, 9);
+      // Highlight both S in rack and E on board
+      tutHighlight(rTile);
+      tutBubble(bCell, 'Drag the S onto<br>the E to steal it', true);
+      tutBar('Drag a rack tile onto a board tile to steal it — your tile takes its spot.', 'Next →');
+      // Also add a blue highlight ring on the target E
+      var ring2 = document.getElementById('tut-ring2');
+      if (!ring2) {
+        ring2 = document.createElement('div');
+        ring2.id = 'tut-ring2';
+        ring2.style.cssText = 'position:fixed;pointer-events:none;z-index:180;border-radius:6px;' +
+          'transition:all 0.38s;' +
+          'box-shadow:0 0 0 3px #4cc9f0,0 0 18px rgba(76,201,240,0.5);' +
+          'animation:tut-ring-pulse-blue 0.9s ease infinite alternate;';
+        document.body.appendChild(ring2);
+      }
+      var er = bCell.getBoundingClientRect();
+      ring2.style.left = (er.left - 3) + 'px';
+      ring2.style.top  = (er.top  - 3) + 'px';
+      ring2.style.width  = (er.width  + 6) + 'px';
+      ring2.style.height = (er.height + 6) + 'px';
+      ring2.style.display = 'block';
+      // Loop: animate S flying from rack to board every 2.2s
+      function flyLoop() {
+        var rT = rackTile(0), bC = boardCell(7, 9);
+        if (!rT || !bC || window._tutStep !== 2) {
+          var r2 = document.getElementById('tut-ring2');
+          if (r2 && r2.parentNode) r2.parentNode.removeChild(r2);
+          return;
+        }
+        tutFlyTile(rT, bC, 'S');
+        _timers.push(setTimeout(flyLoop, 2200));
+      }
+      _timers.push(setTimeout(flyLoop, 600));
+    });
+  }
+
+  // Step 2: Show the swap result — let user place RETAIL, then click Play
+  function tutStep3() {
+    clearAnims();
+    zoomBoardOut();
+    // S stays committed on the board (not a pending placement)
+    board[7][6] = 'C'; board[7][8] = 'R'; board[7][9] = 'S';
+    pendingPlacements = {};
+    pendingRemovals = new Set();
+    pendingRemovalInfo = {};
+    swappedRackIndices = new Set([0]); // E at index 0 is purple — taken from board
+    lastSwapKeys = [];
+    lastMoveKeys = [];
+    playerRack = ['E','R','T','I','L','N','D'];
+    window._tutDraggableIdx = null;
+    document.getElementById('tut-bar').style.display = 'none';
+    renderBoard();
+    renderRack();
+    // Wait for the user to release the drag before showing the overlay
+    function onRelease() {
+      document.removeEventListener('dragend',   onRelease);
+      document.removeEventListener('mouseup',   onRelease);
+      document.removeEventListener('touchend',  onRelease);
+      after(80, function() {
+        tutStep3DrawOverlay();
+        window._tutPostRender = tutStep3DrawOverlay;
+      });
+    }
+    document.addEventListener('dragend',  onRelease, { once: true });
+    document.addEventListener('mouseup',  onRelease, { once: true });
+    document.addEventListener('touchend', onRelease, { once: true });
+  }
+
+  function tutRetailComplete() {
+    // RETAIL vertical at col 7: R(4,7) E(5,7) T(6,7) A(7,7-on board) I(8,7) L(9,7)
+    var needed = [['4,7','R'],['5,7','E'],['6,7','T'],['8,7','I'],['9,7','L']];
+    return needed.every(function(pair) {
+      var p = pendingPlacements[pair[0]];
+      return p && p.letter && p.letter.toUpperCase() === pair[1];
+    });
+  }
+
+  function tutStep3DrawOverlay() {
+    // Remove old overlays
+    document.querySelectorAll('.tut-cell-outline').forEach(function(e) { if (e.parentNode) e.parentNode.removeChild(e); });
+
+    var boardEl2 = document.getElementById('board');
+    boardEl2.style.position = 'relative';
+    var topCell = boardCell(4, 7);
+    var botCell = boardCell(9, 7);
+    if (!topCell || !botCell) return;
+
+    var boardRect = boardEl2.getBoundingClientRect();
+    // Scale factor: board may be zoomed via CSS transform; divide viewport coords by S to get local coords
+    var S = (boardEl2.offsetWidth > 0) ? boardRect.width / boardEl2.offsetWidth : 1;
+    var tr = topCell.getBoundingClientRect();
+    var br = botCell.getBoundingClientRect();
+    var pad = 3;
+
+    // Convert viewport-relative offsets to board local coordinates
+    var localLeft   = (tr.left   - boardRect.left) / S;
+    var localTop    = (tr.top    - boardRect.top)  / S;
+    var localWidth  = tr.width  / S;
+    var localHeight = (br.bottom - tr.top) / S;
+
+    // Bounding box outline
+    var box = document.createElement('div');
+    box.className = 'tut-cell-outline';
+    box.style.position = 'absolute';
+    box.style.left   = (localLeft  - pad) + 'px';
+    box.style.top    = (localTop   - pad) + 'px';
+    box.style.width  = (localWidth + pad * 2) + 'px';
+    box.style.height = (localHeight + pad * 2) + 'px';
+    boardEl2.appendChild(box);
+
+    var complete = tutRetailComplete();
+    var colCenter = localLeft + localWidth / 2;
+    var arrowTop  = localTop  - pad - 12;
+
+    if (complete) {
+      // Show "Play" button floating above the outline
+      var playBtn = document.createElement('button');
+      playBtn.className = 'tut-cell-outline';
+      playBtn.style.cssText =
+        'position:absolute;border:none;animation:none;z-index:14;' +
+        'left:' + colCenter + 'px;' +
+        'top:' + arrowTop + 'px;' +
+        'transform:translateX(-50%) translateY(-100%);' +
+        'background:linear-gradient(135deg,#7b2ff7,#f72585);' +
+        'color:#fff;font-weight:700;font-size:0.85rem;font-family:inherit;' +
+        'border-radius:10px;padding:8px 20px;cursor:pointer;' +
+        'box-shadow:0 2px 12px rgba(0,0,0,0.5);pointer-events:auto;';
+      playBtn.textContent = 'Play →';
+      playBtn.onclick = function() { tutorialAdvance(); };
+      boardEl2.appendChild(playBtn);
+
+      // Arrow tail below button
+      var arr2 = document.createElement('div');
+      arr2.className = 'tut-cell-outline';
+      arr2.style.cssText =
+        'position:absolute;border:none;animation:none;' +
+        'left:' + colCenter + 'px;top:' + arrowTop + 'px;' +
+        'transform:translateX(-50%);' +
+        'color:#f72585;font-size:1.1rem;line-height:1;text-align:center;' +
+        'text-shadow:0 0 8px rgba(247,37,133,0.8);';
+      arr2.textContent = '▼';
+      boardEl2.appendChild(arr2);
+    } else {
+      // Callout bubble above outline
+      var lbl = document.createElement('div');
+      lbl.className = 'tut-cell-outline';
+      lbl.style.cssText =
+        'position:absolute;pointer-events:none;z-index:12;border:none;animation:none;' +
+        'left:' + colCenter + 'px;top:' + arrowTop + 'px;' +
+        'transform:translateX(-50%) translateY(-100%);' +
+        'max-width:220px;' +
+        'background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:8px;' +
+        'padding:8px 12px;color:#fff;font-size:0.75rem;line-height:1.5;' +
+        'text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.6);';
+      lbl.innerHTML = 'The E must be used this turn.<br>Try spelling <strong>RETAIL</strong> here ↓';
+      boardEl2.appendChild(lbl);
+
+      // Arrow tail
+      var arr = document.createElement('div');
+      arr.className = 'tut-cell-outline';
+      arr.style.cssText =
+        'position:absolute;border:none;animation:none;' +
+        'left:' + colCenter + 'px;top:' + arrowTop + 'px;' +
+        'transform:translateX(-50%);' +
+        'color:#b794f4;font-size:1.1rem;line-height:1;text-align:center;' +
+        'text-shadow:0 0 8px rgba(183,148,244,0.8);';
+      arr.textContent = '▼';
+      boardEl2.appendChild(arr);
+    }
+  }
+
+  // Full board state shared by steps 3 & 4: RETAIL + CARS + opponent's REIN
+  function tutSetFullBoard() {
+    clearBoard15();
+    // RETAIL vertical (col 7, rows 4–9)
+    board[4][7]='R'; board[5][7]='E'; board[6][7]='T';
+    board[7][7]='A'; board[8][7]='I'; board[9][7]='L';
+    // CARS horizontal (row 7) — A shared at (7,7)
+    board[7][6]='C'; board[7][8]='R'; board[7][9]='S';
+    // Opponent played REIN extending right from R at (4,7)
+    board[4][8]='E'; board[4][9]='I'; board[4][10]='N';
+  }
+
+  // Step 3: Trim — board shows full game state, player taps S to remove from CARS
+  function tutStep4() {
+    clearAnims();
+    zoomBoardOut();
+    tutSetFullBoard();
+    pendingPlacements = {};
+    pendingRemovals = new Set();
+    pendingRemovalInfo = {};
+    swappedRackIndices = new Set();
+    lastSwapKeys = [];
+    lastMoveKeys = [];
+    playerRack = ['V','D','W','P','F','G','Z'];
+    window._tutDraggableIdx = null;
+    renderBoard();
+    renderRack();
+    after(120, function() {
+      // Brief flash to signal AI turn
+      showMsg('AI played REIN', 'info');
+      after(1200, function() {
+        showMsg('', 'info');
+        var cell = boardCell(7, 9);
+        tutHighlight(cell);
+        tutBubble(cell, 'You can take letters from existing words as long as they remain valid.<br><br>Tap or drag the S to move it into your rack', true);
+        tutBar('Take a letter from an existing word — as long as it stays valid.', 'Remove it!');
+      });
+    });
+  }
+
+  // Step 4: Show trim result — instantly skip to step 6 (swap bubble)
+  function tutStep5() {
+    tutorialAdvance();
+  }
+
+  // Step 5: Suggest swapping D for R in CAR — on-board bubble with Next
+  function tutStep6() {
+    clearAnims();
+    zoomBoardOut();
+    clearBoard15();
+    board[4][7]='R'; board[5][7]='E'; board[6][7]='T';
+    board[7][7]='A'; board[8][7]='I'; board[9][7]='L';
+    board[7][6]='C'; board[7][8]='R'; // CAR without S
+    board[4][8]='E'; board[4][9]='I'; board[4][10]='N';
+    pendingPlacements = {};
+    pendingRemovals = new Set();
+    pendingRemovalInfo = {};
+    swappedRackIndices = new Set([0]); // S (index 0) is purple — taken from board
+    lastSwapKeys = [];
+    lastMoveKeys = [];
+    playerRack = ['S','V','D','W','P','F','G','Z'];
+    window._tutDraggableIdx = null;
+    document.getElementById('tut-bar').style.display = 'none';
+    renderBoard();
+    renderRack();
+    after(80, function() {
+      tutStep6DrawBubble();
+      window._tutPostRender = tutStep6DrawBubble;
+    });
+  }
+
+  function tutStep6DrawBubble() {
+    document.querySelectorAll('.tut-step6-bubble').forEach(function(e) { if (e.parentNode) e.parentNode.removeChild(e); });
+    var boardEl2 = document.getElementById('board');
+    boardEl2.style.position = 'relative';
+    // Anchor to the RIGHT of R in CAR at (7,8) — bubble floats right of the word
+    var rCell = boardCell(7, 8);
+    if (!rCell) return;
+    var boardRect = boardEl2.getBoundingClientRect();
+    var Sc = (boardEl2.offsetWidth > 0) ? boardRect.width / boardEl2.offsetWidth : 1;
+    var rr = rCell.getBoundingClientRect();
+    var localRight  = (rr.right  - boardRect.left) / Sc;
+    var localTop    = (rr.top    - boardRect.top)  / Sc + rr.height / Sc / 2;
+
+    // Bubble to the right of R, vertically centered
+    var bub = document.createElement('div');
+    bub.className = 'tut-step6-bubble';
+    bub.style.cssText =
+      'position:absolute;z-index:14;pointer-events:auto;' +
+      'left:' + (localRight + 8) + 'px;top:' + localTop + 'px;' +
+      'transform:translateY(-50%);' +
+      'max-width:175px;background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:10px;' +
+      'padding:10px 14px;color:#fff;font-size:0.78rem;line-height:1.5;' +
+      'text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.65);';
+    bub.innerHTML =
+      'Now you almost have what you need to use a triple word bonus.<br><br>' +
+      'Try swapping your <strong>D</strong> for the <strong>R</strong> in CAR.';
+    boardEl2.appendChild(bub);
+
+    // Arrow ◀ at the left edge of the bubble, pointing toward R
+    var arr = document.createElement('div');
+    arr.className = 'tut-step6-bubble';
+    arr.style.cssText =
+      'position:absolute;z-index:15;pointer-events:none;border:none;animation:none;' +
+      'left:' + (localRight + 8) + 'px;top:' + localTop + 'px;' +
+      'transform:translateX(-100%) translateY(-50%);' +
+      'color:#b794f4;font-size:1.3rem;line-height:1;' +
+      'text-shadow:0 0 10px rgba(183,148,244,0.9);';
+    arr.textContent = '◀';
+    boardEl2.appendChild(arr);
+
+    // Blue ring on the R cell
+    var ring2 = document.getElementById('tut-ring2');
+    if (!ring2) {
+      ring2 = document.createElement('div');
+      ring2.id = 'tut-ring2';
+      ring2.style.cssText = 'position:fixed;pointer-events:none;z-index:180;border-radius:6px;' +
+        'box-shadow:0 0 0 3px #4cc9f0,0 0 18px rgba(76,201,240,0.5);' +
+        'animation:tut-ring-pulse-blue 0.9s ease infinite alternate;';
+      document.body.appendChild(ring2);
+    }
+    ring2.style.left   = (rr.left   - 3) + 'px';
+    ring2.style.top    = (rr.top    - 3) + 'px';
+    ring2.style.width  = (rr.width  + 6) + 'px';
+    ring2.style.height = (rr.height + 6) + 'px';
+    ring2.style.display = 'block';
+  }
+
+  // Step 6: Show SPRING at triple word bonus
+  function tutStep7() {
+    clearAnims();
+    zoomBoardOut();
+    clearBoard15();
+    board[4][7]='R'; board[5][7]='E'; board[6][7]='T';
+    board[7][7]='A'; board[8][7]='I'; board[9][7]='L';
+    board[7][6]='C'; board[7][8]='D'; // CAD after swap
+    board[4][8]='E'; board[4][9]='I'; board[4][10]='N';
+    pendingPlacements = {};
+    pendingRemovals = new Set();
+    pendingRemovalInfo = {};
+    swappedRackIndices = new Set([0, 2]); // S (stolen) and R (swapped) stay purple
+    lastSwapKeys = ['7,8']; // D on board shows purple — just swapped in
+    lastMoveKeys = [];
+    playerRack = ['S','I','R','V','P','F','G','Z'];
+    window._tutDraggableIdx = null;
+    document.getElementById('tut-bar').style.display = 'none';
+    renderBoard();
+    renderRack();
+    after(80, function() {
+      tutDrawSpringOverlay();
+      window._tutPostRender = tutDrawSpringOverlay;
+    });
+  }
+
+  function tutSpringComplete() {
+    var needed = [['0,10','S'],['1,10','P'],['2,10','R'],['3,10','I'],['5,10','G']];
+    return needed.every(function(pair) {
+      var p = pendingPlacements[pair[0]];
+      return p && p.letter && p.letter.toUpperCase() === pair[1];
+    });
+  }
+
+  function tutDrawSpringOverlay() {
+    document.querySelectorAll('.tut-cell-outline').forEach(function(e) { if (e.parentNode) e.parentNode.removeChild(e); });
+    var boardEl2 = document.getElementById('board');
+    boardEl2.style.position = 'relative';
+    var startCell = boardCell(0, 10);
+    var endCell   = boardCell(5, 10);
+    if (!startCell || !endCell) return;
+    var boardRect = boardEl2.getBoundingClientRect();
+    var Sc = (boardEl2.offsetWidth > 0) ? boardRect.width / boardEl2.offsetWidth : 1;
+    var sr = startCell.getBoundingClientRect();
+    var er = endCell.getBoundingClientRect();
+    var pad = 3;
+    var localLeft   = (sr.left   - boardRect.left) / Sc;
+    var localTop    = (sr.top    - boardRect.top)  / Sc;
+    var localWidth  = sr.width   / Sc;
+    var localHeight = (er.bottom - sr.top) / Sc;
+    var cellH       = sr.height / Sc;
+    var colLeft     = localLeft - pad;
+
+    // Bounding box outline (vertical column)
+    var box = document.createElement('div');
+    box.className = 'tut-cell-outline';
+    box.style.cssText = 'position:absolute;' +
+      'left:' + (localLeft - pad) + 'px;top:' + (localTop - pad) + 'px;' +
+      'width:' + (localWidth + pad*2) + 'px;height:' + (localHeight + pad*2) + 'px;';
+    boardEl2.appendChild(box);
+
+    var complete = tutSpringComplete();
+
+    if (complete) {
+      // Play button top-aligned with TW square, to the left of column
+      var playBtn = document.createElement('button');
+      playBtn.className = 'tut-cell-outline';
+      playBtn.style.cssText =
+        'position:absolute;border:none;animation:none;z-index:14;' +
+        'left:' + (colLeft - 10) + 'px;top:' + localTop + 'px;' +
+        'transform:translateX(-100%);' +
+        'background:linear-gradient(135deg,#7b2ff7,#f72585);' +
+        'color:#fff;font-weight:700;font-size:0.85rem;font-family:inherit;' +
+        'border-radius:10px;padding:8px 20px;cursor:pointer;' +
+        'box-shadow:0 2px 12px rgba(0,0,0,0.5);pointer-events:auto;';
+      playBtn.textContent = 'Play →';
+      playBtn.onclick = function() { tutorialAdvance(); };
+      boardEl2.appendChild(playBtn);
+      // Arrow ▶ from Play button toward TW column
+      var arr2 = document.createElement('div');
+      arr2.className = 'tut-cell-outline';
+      arr2.style.cssText =
+        'position:absolute;border:none;animation:none;z-index:15;' +
+        'left:' + (colLeft - 8) + 'px;top:' + (localTop + cellH / 2) + 'px;' +
+        'transform:translateX(-100%) translateY(-50%);' +
+        'color:#f72585;font-size:1.1rem;line-height:1;' +
+        'text-shadow:0 0 8px rgba(247,37,133,0.8);';
+      arr2.textContent = '▶';
+      boardEl2.appendChild(arr2);
+    } else {
+      // Bubble top-aligned with TW square, to the left of column
+      var lbl = document.createElement('div');
+      lbl.className = 'tut-cell-outline';
+      // Arrow ▶ pointing right from bubble toward TW square (rendered first = under bubble)
+      var arr = document.createElement('div');
+      arr.className = 'tut-cell-outline';
+      arr.style.cssText =
+        'position:absolute;border:none;animation:none;z-index:13;' +
+        'left:' + (colLeft - 8) + 'px;top:' + (localTop + cellH / 2) + 'px;' +
+        'transform:translateX(-100%) translateY(-50%);' +
+        'color:#b794f4;font-size:1.3rem;line-height:1;' +
+        'text-shadow:0 0 10px rgba(183,148,244,0.9);';
+      arr.textContent = '▶';
+      boardEl2.appendChild(arr);
+      var lbl = document.createElement('div');
+      lbl.className = 'tut-cell-outline';
+      lbl.style.cssText =
+        'position:absolute;pointer-events:auto;z-index:14;border:none;animation:none;' +
+        'left:' + (colLeft - 10) + 'px;top:' + localTop + 'px;' +
+        'transform:translateX(-100%);' +
+        'max-width:175px;background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:10px;' +
+        'padding:10px 14px;color:#fff;font-size:0.78rem;line-height:1.5;' +
+        'text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.65);';
+      lbl.innerHTML = 'Now you have the letters to spell <strong>SPRING</strong> here — and hit the triple word bonus!';
+      boardEl2.appendChild(lbl);
+    }
+  }
+
+  function tutStep8() {
+    clearAnims();
+    document.getElementById('tut-bar').style.display = 'none';
+    var el = document.createElement('div');
+    el.id = 'tut-welcome';
+    el.style.cssText = 'position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,4,24,0.82);';
+    el.innerHTML =
+      '<div style="background:#16093a;border:1.5px solid #7b2ff7;border-radius:18px;padding:32px 26px;max-width:310px;width:100%;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,0.7);">' +
+        '<h2 style="font-size:1.3rem;margin:0 0 14px;color:#fff;">You\'re ready to play!</h2>' +
+        '<p style="color:#c8b8f8;font-size:0.88rem;line-height:1.6;margin:0 0 10px;">You can take or swap up to <strong style="color:#f0c4ff;">four letters</strong> every turn.</p>' +
+        '<p style="color:#c8b8f8;font-size:0.88rem;line-height:1.6;margin:0 0 22px;">If you need to reset your tiles, tap the <strong style="color:#f0c4ff;">Recall</strong> button.</p>' +
+        '<button onclick="closeTutorial()" style="background:linear-gradient(135deg,#7b2ff7,#f72585);color:#fff;font-weight:700;font-size:1rem;font-family:inherit;border:none;border-radius:12px;padding:12px 32px;cursor:pointer;box-shadow:0 4px 16px rgba(123,47,247,0.5);">Start Playing →</button>' +
+      '</div>';
+    document.body.appendChild(el);
+  }
+
+  var STEPS = [tutStep0, tutStep1, tutStep3, tutStep4, tutStep5, tutStep6, tutStep7, tutStep8];
+
+  window.tutorialAdvance = function() {
+    _tutStep++;
+    window._tutStep = _tutStep;
+    if (_tutStep > TOTAL_STEPS) {
+      closeTutorial();
+      return;
+    }
+    STEPS[_tutStep - 1]();
+  };
+
+  window.showTutorial = function() {
+    window.tutorialMode = true;
+    aiVsAiMode = false;
+    document.getElementById('controls').style.display = 'none';
+    document.getElementById('tut-exit-row').style.display = 'block';
+    _tutStep = 0;
+    tutorialAdvance();
+  };
+
+  window.closeTutorial = function() {
+    clearAnims();
+    window.tutorialMode = false;
+    window._tutDraggableIdx = null;
+    document.getElementById('tut-exit-row').style.display = 'none';
+    ['tut-ring2','tut-fly'].forEach(function(id) {
+      var e = document.getElementById(id); if (e && e.parentNode) e.parentNode.removeChild(e);
+    });
+    document.getElementById('tut-ring').style.display = 'none';
+    document.getElementById('tut-bubble').style.display = 'none';
+    document.getElementById('tut-bar').style.display = 'none';
+    document.getElementById('controls').style.display = '';
+    startAiGame();
+    try { localStorage.setItem('tutorialSeen', '1'); } catch(e) {}
+  };
+
+  try {
+    if (!localStorage.getItem('tutorialSeen')) {
+      window.addEventListener('load', function() { setTimeout(showTutorial, 800); });
+    }
+  } catch(e) {}
+})();
+// ── End tutorial system ────────────────────────────────────────────────────
 </script>
 </body>
 </html>

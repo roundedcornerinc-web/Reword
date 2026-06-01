@@ -1292,6 +1292,11 @@ function getRemovableInfo(r, c) {
   for (const k of pendingRemovals)
     effectiveBoard[+k.split(',')[0]][+k.split(',')[1]] = null;
 
+  // A tile that belongs to two crossing words can't be taken — it's a junction tile.
+  const crossingWords = [[0,1],[1,0]].filter(([dr,dc]) => getWordAt(effectiveBoard, r, c, dr, dc));
+  if (crossingWords.length === 2)
+    return {removable: false, reason: `That tile is part of two crossing words and can't be taken.`};
+
   let wasAtEnd = false;
   for (const [dr, dc] of [[0,1],[1,0]]) {
     const w = getWordAt(effectiveBoard, r, c, dr, dc);

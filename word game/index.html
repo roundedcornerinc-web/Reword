@@ -4805,6 +4805,8 @@ let lastTap = 0;
 document.getElementById('board-wrapper').addEventListener('touchend', e => {
   // If the finger moved (pan gesture), suppress double-tap
   if (panMoved) { panMoved = false; lastTap = 0; return; }
+  // If a tile drag is in progress, don't let double-tap fire zoomBoardOut mid-drag
+  if (touchGhost) { lastTap = 0; return; }
   const now = Date.now();
   if (now - lastTap < 300) {
     e.preventDefault();

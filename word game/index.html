@@ -3430,12 +3430,12 @@ function computeBestScore() {
   _bestScoreTimer = setTimeout(() => {
     const rack = [...playerRack];
 
-    // Use the curated AI_WORDS list — findBestPlayWithRack now filters using rack+boardPool,
-    // so it correctly finds plays that leverage existing board tiles (e.g. adding S to CAT).
+    // Use the full WORDS dictionary so the meter reflects the true best possible play,
+    // including valid Scrabble words not in the curated AI list (e.g. BIZE, QI, etc.).
     // For the first move (empty board) we still need rack-only spellable words.
     const firstMoveWords = [];
     if (isEmpty()) {
-      for (const w of AI_WORDS) {
+      for (const w of WORDS) {
         if (w.length >= 2 && w.length <= rack.length && canSpell(w, rack)) firstMoveWords.push(w);
       }
     }
@@ -3478,7 +3478,7 @@ function computeBestScore() {
         }
       }
     } else {
-      const best = findBestPlayWithRack(rack, board.map(r => [...r]), AI_WORDS);
+      const best = findBestPlayWithRack(rack, board.map(r => [...r]), WORDS);
       bestScore = best ? best.score : 0;
     }
 

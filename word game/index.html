@@ -1304,7 +1304,7 @@ function getRemovableInfo(r, c) {
       wasAtEnd = true;
       const remaining = cells.filter((_, i) => i !== idx);
       if (remaining.length < 2)
-        return {removable: false, reason: `Removing this tile leaves too few letters.`};
+        return {removable: false, reason: `You can only take letters from words three letters or longer.`};
       const remainingWord = remaining.map(c => c.letter).join('');
       if (!WORDS.has(remainingWord.toUpperCase()))
         return {removable: false, reason: `"${remainingWord.toUpperCase()}" is not a valid word.`};

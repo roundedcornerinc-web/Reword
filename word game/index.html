@@ -2339,6 +2339,9 @@ function onPendingTouchStart(e, key) {
   if (!pending) return;
 
   e.preventDefault();
+  // Zoom out before dragging so onTouchEnd always works in the unzoomed
+  // coordinate space — avoids zoomBoardOut() mid-drag corrupting the drop target.
+  if (boardZoomed) zoomBoardOut();
   touchPendingKey = key;
 
   const t = e.touches[0];
@@ -4837,8 +4840,22 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   if (!m) return;
   const Tx = parseFloat(m[1]), Ty = parseFloat(m[2]), S = parseFloat(m[3]);
 
-  // Use getBoundingClientRect to get the visual top-left of the zoomed board.
-  // With transform-origin:0 0, inverse transform simplifies to: bx = (clientX - br.left) / S
+  // Primary: check if the actual touch target is a pending tile (works for all rows/zoom levels)
+  if (currentPlayer === 'player' && !gameOver) {
+    const targetCell = e.target?.closest?.('.cell');
+    if (targetCell) {
+      const key = `${targetCell.dataset.r},${targetCell.dataset.c}`;
+      const pending = pendingPlacements[key];
+      if (pending && !pending.isSwap) {
+        onPendingTouchStart(e, key);
+        e.stopPropagation();
+        return;
+      }
+    }
+  }
+
+  // Fallback: use coordinate math to identify pending tile
+  // (needed when iOS CSS-transform hit-test misreports the target element)
   const br = boardEl.getBoundingClientRect();
   const bx = (t.clientX - br.left) / S;
   const by = (t.clientY - br.top)  / S;
@@ -4846,7 +4863,6 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   const c = Math.floor(bx / cellW);
   const r = Math.floor(by / cellW);
 
-  // If the touch lands on a pending (non-swap) tile, hand off to tile-drag handler
   if (currentPlayer === 'player' && !gameOver && r >= 0 && r < 15 && c >= 0 && c < 15) {
     const key = `${r},${c}`;
     const pending = pendingPlacements[key];

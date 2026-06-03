@@ -1495,8 +1495,14 @@ function submitPlay() {
   const result = validatePlay(allPlacements, swapKeys);
   if (!result.ok) { showMsg(result.err, 'bad'); return; }
 
-  // Swap positions don't earn points — only words formed by held/normal tiles score
-  const pts = scoreWords(result.words, playKeys, swapKeys);
+  // Swap positions and stolen-tile positions don't earn premium bonuses
+  const stolenTileKeys = new Set(
+    Object.entries(allPlacements)
+      .filter(([, p]) => swappedRackIndices.has(p.rackIdx) && !p.isSwap)
+      .map(([k]) => k)
+  );
+  const noScoreKeys = new Set([...swapKeys, ...stolenTileKeys]);
+  const pts = scoreWords(result.words, playKeys, noScoreKeys);
 
   // Record last-move keys in word order (for animation + highlight)
   const primaryKeys = Object.keys(allPlacements).filter(k => !allPlacements[k].isSwap);
@@ -2729,7 +2735,7 @@ function findAIMove(rackOverride = null) {
 
 // Find best play given an arbitrary rack on an arbitrary board state.
 // Used by the swap move finder so it can evaluate plays after a hypothetical swap.
-function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS) {
+function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRackIndices = new Set()) {
   const candidates = [];
   const maxLen = aiSkill === 'hard' ? 15 : 12;
 
@@ -2772,7 +2778,8 @@ function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS) {
     const words = getWordsFormed(pMap, tb);
     if (words.length === 0) return;
     for (const {word:w} of words) if (!WORDS.has(w.toUpperCase())) return;
-    const score = scoreWords(words, new Set(Object.keys(pMap)));
+    const noScorePos = new Set(placements.filter(p => noScoreRackIndices.has(p.rackIdx)).map(p => `${p.row},${p.col}`));
+    const score = scoreWords(words, new Set(Object.keys(pMap)), noScorePos);
     candidates.push({score, word, placements, words});
   };
 
@@ -2856,9 +2863,10 @@ function findAISwapMove(rackOverride = null) {
         if (!swapValid) continue;
 
         // Valid swap — find best play with new rack on temp board
+        // The stolen tile (at rack index ri) must not earn premium bonuses when replayed
         const newRack = [...rack];
         newRack[ri] = boardLetter; // stolen tile replaces rack tile at ri
-        const play = findBestPlayWithRack(newRack, tempBoard);
+        const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set([ri]));
         if (!play || play.score <= 0) continue;
         // The stolen tile must be used in the subsequent play (same rule as for the player)
         if (!play.placements.some(p => p.rackIdx === ri)) continue;
@@ -3373,7 +3381,13 @@ function renderScorePreview() {
   });
   if (words.length === 0) return;
 
-  const pts = scoreWords(words, new Set(keys), new Set(swapPendingPositions));
+  const stolenPreviewKeys = new Set(
+    Object.entries(pendingPlacements)
+      .filter(([, p]) => swappedRackIndices.has(p.rackIdx) && !p.isSwap)
+      .map(([k]) => k)
+  );
+  const noScorePreview = new Set([...swapPendingPositions, ...stolenPreviewKeys]);
+  const pts = scoreWords(words, new Set(keys), noScorePreview);
   const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
   const bonus = usedIdx.size === 7 ? 35 : 0;
 
@@ -3536,7 +3550,12 @@ function updateStrengthBar() {
     if (result.ok) {
       const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
       const bonus = usedIdx.size === 7 ? 35 : 0;
-      currentScore = scoreWords(result.words, new Set(keys), new Set(swapPendingPositions)) + bonus;
+      const stolenStrKeys = new Set(
+        Object.entries(pendingPlacements)
+          .filter(([, p]) => swappedRackIndices.has(p.rackIdx) && !p.isSwap)
+          .map(([k]) => k)
+      );
+      currentScore = scoreWords(result.words, new Set(keys), new Set([...swapPendingPositions, ...stolenStrKeys])) + bonus;
     }
   }
 

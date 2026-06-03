@@ -4879,17 +4879,6 @@ document.getElementById('board-wrapper').addEventListener('touchend', e => {
     lastTap = 0;
   } else {
     lastTap = now;
-    // Single tap on zoomed board — fire the cell click so committed-tile removal works
-    if (boardZoomed && currentPlayer === 'player' && !gameOver && !touchGhost) {
-      const touch = e.changedTouches[0];
-      const boardEl = document.getElementById('board');
-      const br = boardEl.getBoundingClientRect();
-      const m = boardEl.style.transform.match(/scale\(([^)]+)\)/);
-      const S = m ? parseFloat(m[1]) : 1;
-      const c = Math.max(0, Math.min(14, Math.floor((touch.clientX - br.left) / S / (boardEl.offsetWidth / 15))));
-      const r = Math.max(0, Math.min(14, Math.floor((touch.clientY - br.top)  / S / (boardEl.offsetWidth / 15))));
-      onCellClick(r, c);
-    }
   }
 }, { passive: false });
 
@@ -4919,6 +4908,15 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     if (pending && !pending.isSwap) {
       onPendingTouchStart(e, key);
       e.stopPropagation();
+      return;
+    }
+    // If the touch lands on a committed board tile, treat as a tap (cell click) rather
+    // than a pan — otherwise e.preventDefault() below kills the click event.
+    if (board[r] && board[r][c] && !pending) {
+      // Let the event propagate so the cell's click handler fires normally.
+      // We still need preventDefault to stop scroll, but NOT stopPropagation.
+      e.preventDefault();
+      onCellClick(r, c);
       return;
     }
   }

@@ -418,24 +418,16 @@ body {
   z-index: 60;
   background: #287900;
   border: 1px solid rgba(255,255,255,0.9);
-  border-radius: 12px;
-  padding: 2px 5px;
+  border-radius: 50%;
+  padding: 0;
   pointer-events: none;
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, -50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-  min-width: clamp(15px, 3.4vw, 21px);
-  white-space: nowrap;
-}
-.bsp-breakdown {
-  font-size: clamp(5px, 1.1vw, 8px);
-  font-weight: 700;
-  color: rgba(255,255,255,0.85);
-  line-height: 1.2;
-  letter-spacing: 0.01em;
+  width: clamp(15px, 3.4vw, 21px);
+  height: clamp(15px, 3.4vw, 21px);
 }
 
 /* Last committed play score badge */
@@ -3413,27 +3405,9 @@ function renderScorePreview() {
     ? (cellRect.top    - boardRect.top) / scale
     : (cellRect.bottom - boardRect.top) / scale;
 
-  // Build per-word breakdown for preview
-  const previewBreakdown = words.map(({word, cells}) => {
-    let ws = 0, wm = 1;
-    for (const {row, col, letter} of cells) {
-      const k = `${row},${col}`;
-      const isNew = new Set(keys).has(k) && !new Set(swapPendingPositions).has(k);
-      const prem = isNew ? PREMIUM[k] : null;
-      const lv = VAL[letter] ?? 0;
-      let ls = lv;
-      if (prem === 'DL') ls *= 2;
-      else if (prem === 'TL') ls *= 3;
-      if (prem === 'DW' || prem === 'CENTER') wm *= 2;
-      else if (prem === 'TW') wm *= 3;
-      ws += ls;
-    }
-    return `${word.toUpperCase()}(${ws * wm})`;
-  }).join('+') + (bonus ? `+${bonus}✦` : '');
-
   const preview = document.createElement('div');
   preview.className = 'board-score-preview';
-  preview.innerHTML = `<span class="bsp-pts">${pts + bonus}</span><span class="bsp-breakdown">${previewBreakdown}</span>`;
+  preview.innerHTML = `<span class="bsp-pts">${pts + bonus}</span>`;
   preview.style.left = `${x}px`;
   preview.style.top  = `${y}px`;
   boardEl.appendChild(preview);

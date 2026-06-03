@@ -1545,12 +1545,12 @@ function submitPlay() {
   zoomBoardOut();
   updateUI();
 
-  // Build per-word breakdown for the score message
+  // Build per-word breakdown for the score message (use same noScoreKeys as pts)
   const wordBreakdown = result.words.map(({word, cells}) => {
     let ws = 0, wm = 1;
     for (const {row, col, letter} of cells) {
       const k = `${row},${col}`;
-      const isNew = playKeys.has(k) && !swapKeys.has(k);
+      const isNew = playKeys.has(k) && !noScoreKeys.has(k);
       const prem = isNew ? PREMIUM[k] : null;
       const lv = VAL[letter] ?? 0;
       let ls = lv;

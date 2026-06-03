@@ -418,16 +418,24 @@ body {
   z-index: 60;
   background: #287900;
   border: 1px solid rgba(255,255,255,0.9);
-  border-radius: 50%;
-  padding: 0;
+  border-radius: 12px;
+  padding: 2px 5px;
   pointer-events: none;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -100%);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-  width: clamp(15px, 3.4vw, 21px);
-  height: clamp(15px, 3.4vw, 21px);
+  min-width: clamp(15px, 3.4vw, 21px);
+  white-space: nowrap;
+}
+.bsp-breakdown {
+  font-size: clamp(5px, 1.1vw, 8px);
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.2;
+  letter-spacing: 0.01em;
 }
 
 /* Last committed play score badge */
@@ -1396,6 +1404,57 @@ function scoreWords(words, newKeys, noScoreKeys = new Set()) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  SCORE AUDITOR  (logs every move's word-by-word breakdown)
+// ═══════════════════════════════════════════════════════
+function auditMoveScore(label, words, newKeysSet, noScoreKeysSet = new Set(), bonus = 0) {
+  let grandTotal = 0;
+  const lines = [];
+  for (const {word, cells} of words) {
+    let ws = 0, wm = 1;
+    const tileDetails = [];
+    for (const {row, col, letter} of cells) {
+      const k = `${row},${col}`;
+      const isNew = newKeysSet.has(k) && !noScoreKeysSet.has(k);
+      const prem = isNew ? PREMIUM[k] : null;
+      const lv = VAL[letter] ?? 0;
+      let ls = lv;
+      if (prem === 'DL') ls *= 2;
+      else if (prem === 'TL') ls *= 3;
+      if (prem === 'DW' || prem === 'CENTER') wm *= 2;
+      else if (prem === 'TW') wm *= 3;
+      ws += ls;
+      tileDetails.push(`${letter.toUpperCase()}(${row},${col})=${ls}${prem?'['+prem+']':''}`);
+    }
+    const wordTotal = ws * wm;
+    grandTotal += wordTotal;
+    lines.push(`${word.toUpperCase()}: ${tileDetails.join(' ')} ×${wm} = ${wordTotal}`);
+  }
+  if (bonus) { grandTotal += bonus; lines.push(`BONUS: +${bonus}`); }
+  console.group(`%c[SCORE AUDIT] ${label} → ${grandTotal} pts`, 'color:#2a0;font-weight:bold');
+  lines.forEach(l => console.log(l));
+  console.groupEnd();
+  // Push to on-screen audit panel
+  auditLogToPanel(label, grandTotal, lines);
+  return grandTotal;
+}
+
+function auditLogToPanel(label, total, lines) {
+  let panel = document.getElementById('audit-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'audit-panel';
+    panel.style.cssText = 'position:fixed;top:0;right:0;width:340px;max-height:100vh;overflow-y:auto;background:rgba(0,0,0,0.88);color:#cfc;font:11px/1.4 monospace;z-index:9999;padding:6px 8px;pointer-events:auto;';
+    panel.innerHTML = '<b style="color:#fff;font-size:13px">Score Audit Log</b><br>';
+    document.body.appendChild(panel);
+  }
+  const entry = document.createElement('div');
+  entry.style.cssText = 'border-top:1px solid #333;margin-top:4px;padding-top:4px;';
+  entry.innerHTML = `<b style="color:#8f8">${label} → ${total} pts</b><br>` + lines.map(l=>`<span style="color:#aaa">${l}</span>`).join('<br>');
+  panel.appendChild(entry);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════
 //  VALIDATION
 // ═══════════════════════════════════════════════════════
 function validatePlay(placements, swapKeys = new Set()) {
@@ -1532,18 +1591,39 @@ function submitPlay() {
 
   playerScore += pts;
   passCount = 0;
+  // Score audit
+  const _auditedPlayer = auditMoveScore(`Player move`, result.words, playKeys, swapKeys, usedAllTiles ? 35 : 0);
+  if (_auditedPlayer !== pts + (usedAllTiles ? 35 : 0)) console.warn(`[SCORE MISMATCH] reported=${pts + (usedAllTiles?35:0)} audited=${_auditedPlayer}`);
   resetPending();
 
   lastPlayScore = pts + (usedAllTiles ? 35 : 0);
   zoomBoardOut();
   updateUI();
 
+  // Build per-word breakdown for the score message
+  const wordBreakdown = result.words.map(({word, cells}) => {
+    let ws = 0, wm = 1;
+    for (const {row, col, letter} of cells) {
+      const k = `${row},${col}`;
+      const isNew = playKeys.has(k) && !swapKeys.has(k);
+      const prem = isNew ? PREMIUM[k] : null;
+      const lv = VAL[letter] ?? 0;
+      let ls = lv;
+      if (prem === 'DL') ls *= 2;
+      else if (prem === 'TL') ls *= 3;
+      if (prem === 'DW' || prem === 'CENTER') wm *= 2;
+      else if (prem === 'TW') wm *= 3;
+      ws += ls;
+    }
+    return `${word}(${ws * wm})`;
+  }).join(' + ');
+
   // All-tiles bonus — fires when every rack tile was placed this turn
   if (usedAllTiles) {
     playerScore += 35;
-    setTimeout(() => showMsg(`All tiles used! +35 bonus — you scored ${lastPlayScore} pts this turn!`, 'good'), 1000);
+    setTimeout(() => showMsg(`All tiles used! +35 bonus — you scored ${lastPlayScore} pts! [${wordBreakdown}]`, 'good'), 1000);
   } else {
-    showMsg(`You scored ${lastPlayScore} pts!`, 'good');
+    showMsg(`You scored ${lastPlayScore} pts! [${wordBreakdown}]`, 'good');
   }
 
   auditTiles('commitPlay');
@@ -2407,6 +2487,11 @@ function doPlayerAiTurn() {
       playerScore += play.score + bonus;
       lastPlayScore = play.score + bonus;
       passCount = 0;
+      {
+        const newKeys = new Set(play.placements.map(p => `${p.row},${p.col}`));
+        const audited = auditMoveScore(`AI-1 swap "${play.word}"`, play.words || [], newKeys, new Set(), bonus);
+        if (audited !== lastPlayScore) console.warn(`[SCORE MISMATCH] reported=${lastPlayScore} audited=${audited}`);
+      }
       showMsg(`AI-1 swapped "${swapBoardLetter.toUpperCase()}" → played "${play.word}" for ${play.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
     } else if (normalMove) {
       boardSwapPositions = new Set();
@@ -2426,8 +2511,17 @@ function doPlayerAiTurn() {
       playerScore += normalMove.score + bonus;
       lastPlayScore = normalMove.score + bonus;
       passCount = 0;
+      {
+        const newKeys = new Set(normalMove.placements.map(p => `${p.row},${p.col}`));
+        const audited = auditMoveScore(`AI-1 normal`, normalMove.words || [], newKeys, new Set(), bonus);
+        if (audited !== lastPlayScore) console.warn(`[SCORE MISMATCH] reported=${lastPlayScore} audited=${audited}`);
+      }
       const primaryWord = normalMove.words
-        ? (normalMove.words.find(w=>normalMove.placements.every(p=>w.cells.some(c=>c.row===p.row&&c.col===p.col)))||normalMove.words[0]).word
+        ? (normalMove.words
+            .filter(w => normalMove.placements.every(p => w.cells.some(c => c.row === p.row && c.col === p.col)))
+            .sort((a, b) => b.word.length - a.word.length)[0]
+          || normalMove.words.reduce((best, w) => w.word.length > best.word.length ? w : best)
+          ).word
         : normalMove.word;
       showMsg(`AI-1 played "${primaryWord}" for ${normalMove.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
     } else {
@@ -2497,6 +2591,12 @@ function doAiTurn() {
       aiScore += play.score + aiBonus;
       lastPlayScore = play.score + aiBonus;
       passCount = 0;
+      // Score audit
+      {
+        const newKeys = new Set(play.placements.map(p => `${p.row},${p.col}`));
+        const audited = auditMoveScore(`AI swap "${play.word}"`, play.words || [], newKeys, new Set(), aiBonus);
+        if (audited !== lastPlayScore) console.warn(`[SCORE MISMATCH] reported=${lastPlayScore} audited=${audited}`);
+      }
       showMsg(
         `AI swapped ${swapBoardLetter.toUpperCase()} off the board and played "${play.word}" for ${play.score + aiBonus} points${aiBonus ? ' (+35 bonus)' : ''}!`,
         'info'
@@ -2523,14 +2623,19 @@ function doAiTurn() {
       aiScore += normalMove.score + aiBonus;
       lastPlayScore = normalMove.score + aiBonus;
       passCount = 0;
-      // Use the actual word formed (may be longer than the searched word if it extended board tiles)
-      // Primary word is the one containing ALL newly placed tiles (cross-words only contain one each)
+      // Score audit
+      {
+        const newKeys = new Set(normalMove.placements.map(p => `${p.row},${p.col}`));
+        const audited = auditMoveScore(`AI normal "${normalMove.word}"`, normalMove.words || [], newKeys, new Set(), aiBonus);
+        if (audited !== lastPlayScore) console.warn(`[SCORE MISMATCH] reported=${lastPlayScore} audited=${audited}`);
+      }
+      // Primary word: longest word whose cells contain ALL newly placed tiles
       const primaryWord = normalMove.words
-        ? (normalMove.words.find(w =>
-            normalMove.placements.every(p =>
-              w.cells.some(c => c.row === p.row && c.col === p.col)
-            )
-          ) || normalMove.words[0]).word
+        ? (normalMove.words
+            .filter(w => normalMove.placements.every(p => w.cells.some(c => c.row === p.row && c.col === p.col)))
+            .sort((a, b) => b.word.length - a.word.length)[0]
+          || normalMove.words.reduce((best, w) => w.word.length > best.word.length ? w : best)
+          ).word
         : normalMove.word;
       showMsg(`AI played "${primaryWord}" for ${normalMove.score + aiBonus} points${aiBonus ? ' (+35 all-tiles bonus)' : ''}.`, 'info');
 
@@ -2751,7 +2856,7 @@ function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS) {
     if (words.length === 0) return;
     for (const {word:w} of words) if (!WORDS.has(w.toUpperCase())) return;
     const score = scoreWords(words, new Set(Object.keys(pMap)));
-    candidates.push({score, word, placements});
+    candidates.push({score, word, placements, words});
   };
 
   // Anchor squares on the provided board state
@@ -3338,15 +3443,25 @@ function renderScorePreview() {
   if (hasGaps(primaryKeys)) return;                              // gap in placement
 
   const tb = boardWithPending();
-  const words = getWordsFormed(pendingPlacements, tb);
+  const allWords = getWordsFormed(pendingPlacements, tb);
+  if (allWords.length === 0) return;
+
+  // Cross-words are always complete (existing tile + new tile) — filter invalid ones
+  // so the preview score matches what actually scores on commit.
+  // The primary word may be incomplete (still being built), so don't filter it.
+  const primaryKeySet = new Set(primaryKeys);
+  const words = allWords.filter(w => {
+    const isPrimary = w.cells.some(c => primaryKeySet.has(`${c.row},${c.col}`));
+    return isPrimary || WORDS.has(w.word.toUpperCase());
+  });
   if (words.length === 0) return;
 
   const pts = scoreWords(words, new Set(keys), new Set(swapPendingPositions));
+  console.log('[preview] words:', words.map(w => w.word), 'pts:', pts, 'keys:', [...new Set(keys)], 'swapKeys:', [...new Set(swapPendingPositions)]);
   const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
   const bonus = usedIdx.size === 7 ? 35 : 0;
 
   // Find the primary word (most overlap with non-swap new tiles)
-  const primaryKeySet = new Set(primaryKeys);
   const primaryWord = words.reduce((best, w) => {
     const hits = w.cells.filter(c => primaryKeySet.has(`${c.row},${c.col}`)).length;
     const bHits = best.cells.filter(c => primaryKeySet.has(`${c.row},${c.col}`)).length;
@@ -3374,9 +3489,27 @@ function renderScorePreview() {
     ? (cellRect.top    - boardRect.top) / scale
     : (cellRect.bottom - boardRect.top) / scale;
 
+  // Build per-word breakdown for preview
+  const previewBreakdown = words.map(({word, cells}) => {
+    let ws = 0, wm = 1;
+    for (const {row, col, letter} of cells) {
+      const k = `${row},${col}`;
+      const isNew = new Set(keys).has(k) && !new Set(swapPendingPositions).has(k);
+      const prem = isNew ? PREMIUM[k] : null;
+      const lv = VAL[letter] ?? 0;
+      let ls = lv;
+      if (prem === 'DL') ls *= 2;
+      else if (prem === 'TL') ls *= 3;
+      if (prem === 'DW' || prem === 'CENTER') wm *= 2;
+      else if (prem === 'TW') wm *= 3;
+      ws += ls;
+    }
+    return `${word.toUpperCase()}(${ws * wm})`;
+  }).join('+') + (bonus ? `+${bonus}✦` : '');
+
   const preview = document.createElement('div');
   preview.className = 'board-score-preview';
-  preview.innerHTML = `<span class="bsp-pts">${pts + bonus}</span>`;
+  preview.innerHTML = `<span class="bsp-pts">${pts + bonus}</span><span class="bsp-breakdown">${previewBreakdown}</span>`;
   preview.style.left = `${x}px`;
   preview.style.top  = `${y}px`;
   boardEl.appendChild(preview);

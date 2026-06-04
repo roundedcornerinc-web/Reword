@@ -3368,7 +3368,12 @@ function renderScorePreview() {
   if (hasGaps(primaryKeys)) return;                              // gap in placement
 
   const tb = boardWithPending();
-  const allWords = getWordsFormed(pendingPlacements, tb);
+  // Exclude swap positions — they occupy existing board squares and cause pre-existing words
+  // (e.g. DIGGERS containing the swapped-out E) to be counted as newly formed.
+  const primaryOnlyPlacements = Object.fromEntries(
+    Object.entries(pendingPlacements).filter(([, p]) => !p.isSwap)
+  );
+  const allWords = getWordsFormed(primaryOnlyPlacements, tb);
   if (allWords.length === 0) return;
 
   // Cross-words are always complete (existing tile + new tile) — filter invalid ones
@@ -3380,6 +3385,11 @@ function renderScorePreview() {
     return isPrimary || WORDS.has(w.word.toUpperCase());
   });
   if (words.length === 0) return;
+
+  // Don't show a preview badge when none of the words involve a primary (non-swap) tile.
+  // This prevents confusing score bubbles when only the swap tile's incidental words score
+  // (e.g. the placed tile is still floating/isolated).
+  if (!words.some(w => w.cells.some(c => primaryKeySet.has(`${c.row},${c.col}`)))) return;
 
   const stolenPreviewKeys = new Set(
     Object.entries(pendingPlacements)

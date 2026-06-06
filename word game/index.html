@@ -1380,12 +1380,15 @@ function scoreWords(words, newKeys, noScoreKeys = new Set()) {
     let wordScore = 0, wordMult = 1;
     for (const {row, col, letter} of cells) {
       const key = `${row},${col}`;
-      const isNew = newKeys.has(key) && !noScoreKeys.has(key);
+      const isNew = newKeys.has(key);
+      const noLetterBonus = noScoreKeys.has(key);
       const prem = isNew ? PREMIUM[key] : null;
       const lv = VAL[letter] ?? 0;
       let ls = lv;
-      if (prem === 'DL') ls *= 2;
-      else if (prem === 'TL') ls *= 3;
+      if (!noLetterBonus) {
+        if (prem === 'DL') ls *= 2;
+        else if (prem === 'TL') ls *= 3;
+      }
       if (prem === 'DW' || prem === 'CENTER') wordMult *= 2;
       else if (prem === 'TW') wordMult *= 3;
       wordScore += ls;
@@ -4221,6 +4224,7 @@ function cancelOnlineGame() {
   const el = document.getElementById('ai-name-display');
   if (el) el.textContent = 'AI';
   startGame();
+  loadAiGameState();
   updateGamesBadge();
 }
 
@@ -4266,6 +4270,7 @@ async function resignOnlineGame() {
   if (el) el.textContent = 'AI';
   updateGamesBadge();
   startGame();
+  loadAiGameState();
   showMsg('You resigned.', 'info');
 }
 
@@ -4371,6 +4376,7 @@ async function loadOnlineGame(gameId, myRole) {
       showMsg('Game not found — it may have been cancelled.', 'bad');
       removeStoredGame(gameId);
       isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+      loadAiGameState();
       return;
     }
     const data = snap.data();
@@ -4395,6 +4401,7 @@ async function loadOnlineGame(gameId, myRole) {
   } catch(e) {
     showMsg('Error loading game. Check your connection.', 'bad');
     isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+    loadAiGameState();
   }
 }
 

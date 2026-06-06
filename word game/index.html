@@ -1092,6 +1092,7 @@ let swapCount;            // number of swaps done this turn (max 4)
 let pendingRemovals = new Set();   // Set of board keys of committed tiles being removed (no replacement placed)
 let pendingRemovalInfo = {};       // key → { letter, rackIdx, isBlank } for undo
 let passCount;
+let aiNoMoveCount = 0; // consecutive AI passes while bag is empty
 let aiVsAiMode  = false;
 let aiVsAiSpeed = 'normal'; // 'slow' | 'normal' | 'fast'
 let currentPlayer;     // 'player' | 'ai'
@@ -1910,6 +1911,10 @@ function checkGameOver() {
   if (bag.length === 0 && (playerRack.length === 0 || aiRack.length === 0)) {
     const opLabel = isOnlineMode ? opponentOnlineName : 'AI';
     endGame(playerRack.length === 0 ? 'you used all your tiles' : `${opLabel} used all their tiles`);
+    return;
+  }
+  if (aiNoMoveCount >= 2) {
+    endGame('AI has no playable tiles');
   }
 }
 
@@ -2476,6 +2481,8 @@ function doPlayerAiTurn() {
 
 function doAiTurn() {
   if (gameOver) return;
+  // If AI rack is already empty and bag is empty, end immediately
+  if (aiRack.length === 0 && bag.length === 0) { checkGameOver(); return; }
   zoomBoardOut();
   currentPlayer = 'ai';
   updateTurnBadge();
@@ -2529,6 +2536,7 @@ function doAiTurn() {
       aiScore += play.score + aiBonus;
       lastPlayScore = play.score + aiBonus;
       passCount = 0;
+      aiNoMoveCount = 0;
       showMsg(
         `AI swapped ${swapBoardLetter.toUpperCase()} off the board and played "${play.word}" for ${play.score + aiBonus} points${aiBonus ? ' (+35 bonus)' : ''}!`,
         'info'
@@ -2555,6 +2563,7 @@ function doAiTurn() {
       aiScore += normalMove.score + aiBonus;
       lastPlayScore = normalMove.score + aiBonus;
       passCount = 0;
+      aiNoMoveCount = 0;
       // Primary word: longest word whose cells contain ALL newly placed tiles
       const primaryWord = normalMove.words
         ? (normalMove.words
@@ -2569,6 +2578,7 @@ function doAiTurn() {
       // ── No move found — pass ─────────────────────────────────
       boardSwapPositions = new Set();
       passCount++;
+      if (bag.length === 0) aiNoMoveCount++;
       showMsg('AI passed.', 'info');
     }
 
@@ -3703,6 +3713,7 @@ function startGame() {
   playerScore = 0;
   aiScore = 0;
   passCount = 0;
+  aiNoMoveCount = 0;
   lastPlayScore = null;
   currentPlayer = 'player';
   gameOver = false;
@@ -3726,6 +3737,7 @@ function saveAiGameState() {
       playerScore,
       aiScore,
       passCount,
+      aiNoMoveCount,
       currentPlayer,
       gameOver,
       lastPlayScore: lastPlayScore ?? null,
@@ -3784,6 +3796,7 @@ function loadAiGameState() {
     playerScore = s.playerScore;
     aiScore = s.aiScore;
     passCount = s.passCount;
+    aiNoMoveCount = s.aiNoMoveCount || 0;
     currentPlayer = s.currentPlayer;
     gameOver = s.gameOver;
     lastPlayScore = s.lastPlayScore;
@@ -4099,7 +4112,7 @@ async function createOnlineGame() {
   bag = buildBag();
   playerRack = []; aiRack = [];
   drawTiles(playerRack); drawTiles(aiRack);
-  playerScore = 0; aiScore = 0; passCount = 0;
+  playerScore = 0; aiScore = 0; passCount = 0; aiNoMoveCount = 0;
   lastPlayScore = null; currentPlayer = 'player'; gameOver = false;
   resetPending(); updateUI();
 

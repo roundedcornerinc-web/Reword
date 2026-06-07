@@ -1920,6 +1920,8 @@ function checkGameOver() {
 
 function endGame(reason) {
   gameOver = true;
+  // Remove from active games list immediately so the initiating player's list also cleans up
+  if (isOnlineMode && onlineGameId) { removeStoredGame(onlineGameId); updateGamesBadge(); }
   const playerDeduct = playerRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
   const aiDeduct     = aiRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
   playerScore -= playerDeduct;
@@ -3995,7 +3997,8 @@ function applyOnlineState(data) {
   playerScore = data.scores?.[myOnlineRole] ?? 0;
   aiScore     = data.scores?.[opRole]       ?? 0;
   passCount   = data.passCount || 0;
-  gameOver    = data.gameOver  || false;
+  // Never roll gameOver backward — once true locally it stays true until a new game starts
+  gameOver    = gameOver || data.gameOver || false;
   boardSwapPositions = new Set(data.boardSwapPositions || []);
   lastMoveKeys  = data.lastMoveKeys || [];
   lastSwapKeys  = data.lastSwapKeys || [];
@@ -4138,6 +4141,7 @@ async function createOnlineGame() {
     showNotifPrompt();
   } catch(e) {
     showMsg('Error creating game. Check your connection.', 'bad');
+    removeStoredGame(gameId); // creation failed — don't leave a ghost entry in localStorage
     isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
   }
 }

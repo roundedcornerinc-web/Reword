@@ -1094,7 +1094,8 @@ let swapCount;            // number of swaps done this turn (max 4)
 let pendingRemovals = new Set();   // Set of board keys of committed tiles being removed (no replacement placed)
 let pendingRemovalInfo = {};       // key → { letter, rackIdx, isBlank } for undo
 let passCount;
-let aiNoMoveCount = 0; // consecutive AI passes while bag is empty
+let aiNoMoveCount = 0;     // consecutive AI passes while bag is empty
+let playerNoMoveCount = 0; // consecutive player passes while bag is empty
 let aiVsAiMode  = false;
 let aiVsAiSpeed = 'normal'; // 'slow' | 'normal' | 'fast'
 let currentPlayer;     // 'player' | 'ai'
@@ -1552,6 +1553,7 @@ function submitPlay() {
 
   playerScore += pts;
   passCount = 0;
+  playerNoMoveCount = 0;
   resetPending();
 
   lastPlayScore = pts + (usedAllTiles ? 35 : 0);
@@ -1599,6 +1601,7 @@ function passTurn() {
   if (playerRack.length === 0 && bag.length === 0) { checkGameOver(); return; }
   recallTiles(() => {
     passCount++;
+    if (bag.length === 0) playerNoMoveCount++;
     showMsg('You passed your turn.', 'info');
     updateUI();
     checkGameOver();
@@ -1885,6 +1888,7 @@ function confirmExchange() {
   });
   cancelExchangeMode();
   passCount = 0;
+  playerNoMoveCount = 0;
   showMsg(`Exchanged ${count} tile(s).`, 'good');
   updateUI();
   checkGameOver();
@@ -1920,16 +1924,15 @@ function recallPendingTile(key) {
 }
 
 function checkGameOver() {
-  console.log(`[checkGameOver] bag=${bag.length} playerRack=${playerRack.length} aiRack=${aiRack.length} passCount=${passCount} aiNoMoveCount=${aiNoMoveCount}`);
+  console.log(`[checkGameOver] bag=${bag.length} playerRack=${playerRack.length} aiRack=${aiRack.length} passCount=${passCount} aiNoMoveCount=${aiNoMoveCount} playerNoMoveCount=${playerNoMoveCount}`);
   if (passCount >= 4) { endGame('four consecutive passes'); return; }
   if (bag.length === 0 && (playerRack.length === 0 || aiRack.length === 0)) {
     const opLabel = isOnlineMode ? opponentOnlineName : 'AI';
     endGame(playerRack.length === 0 ? 'you used all your tiles' : `${opLabel} used all their tiles`);
     return;
   }
-  if (aiNoMoveCount >= 2) {
-    endGame('AI has no playable tiles');
-  }
+  if (aiNoMoveCount >= 2) { endGame('AI has no playable tiles'); return; }
+  if (playerNoMoveCount >= 2) { endGame('no more moves available'); return; }
 }
 
 function endGame(reason) {
@@ -3735,6 +3738,7 @@ function startGame() {
   aiScore = 0;
   passCount = 0;
   aiNoMoveCount = 0;
+  playerNoMoveCount = 0;
   lastPlayScore = null;
   currentPlayer = 'player';
   gameOver = false;
@@ -3759,6 +3763,7 @@ function saveAiGameState() {
       aiScore,
       passCount,
       aiNoMoveCount,
+      playerNoMoveCount,
       currentPlayer,
       gameOver,
       lastPlayScore: lastPlayScore ?? null,
@@ -3818,6 +3823,7 @@ function loadAiGameState() {
     aiScore = s.aiScore;
     passCount = s.passCount;
     aiNoMoveCount = s.aiNoMoveCount || 0;
+    playerNoMoveCount = s.playerNoMoveCount || 0;
     currentPlayer = s.currentPlayer;
     gameOver = s.gameOver;
     lastPlayScore = s.lastPlayScore;
@@ -4136,7 +4142,7 @@ async function createOnlineGame() {
   bag = buildBag();
   playerRack = []; aiRack = [];
   drawTiles(playerRack); drawTiles(aiRack);
-  playerScore = 0; aiScore = 0; passCount = 0; aiNoMoveCount = 0;
+  playerScore = 0; aiScore = 0; passCount = 0; aiNoMoveCount = 0; playerNoMoveCount = 0;
   lastPlayScore = null; currentPlayer = 'player'; gameOver = false;
   resetPending(); updateUI();
 

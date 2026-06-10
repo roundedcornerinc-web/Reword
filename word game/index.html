@@ -546,6 +546,8 @@ body {
 .rack-tile.blank-tile { background: #f0ece0; box-shadow: 0 3px 0 #999, 0 4px 8px rgba(0,0,0,0.3); border: 1.5px dashed #aaa; }
 .rack-tile.blank-tile .tile-letter { color: #888; font-size: 1rem; }
 .rack-tile.blank-tile:hover { transform: translateY(-4px); box-shadow: 0 7px 0 #999, 0 8px 16px rgba(0,0,0,0.4); }
+.rack-tile.swapped-tile.blank-tile { background: #c070ff; box-shadow: 0 3px 0 #7b2ff7, 0 4px 8px rgba(123,47,247,0.5); border: none; }
+.rack-tile.swapped-tile.blank-tile:hover { background: #d090ff; box-shadow: 0 7px 0 #7b2ff7, 0 8px 16px rgba(123,47,247,0.5); }
 
 /* Blank letter picker */
 #blank-picker { position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:300; display:none; align-items:center; justify-content:center; }
@@ -1378,6 +1380,13 @@ function recallRemoval(key) {
 function scoreWords(words, newKeys, noScoreKeys = new Set()) {
   let total = 0;
   for (const {cells} of words) {
+    // Skip words where every new tile is a swap/stolen-tile position —
+    // the player doesn't earn points for a word formed solely by the swap.
+    const hasGenuineNewTile = cells.some(({row, col}) => {
+      const k = `${row},${col}`;
+      return newKeys.has(k) && !noScoreKeys.has(k);
+    });
+    if (!hasGenuineNewTile) continue;
     let wordScore = 0, wordMult = 1;
     for (const {row, col, letter} of cells) {
       const key = `${row},${col}`;
@@ -1550,7 +1559,9 @@ function submitPlay() {
   updateUI();
 
   // Build per-word breakdown for the score message (use same noScoreKeys as pts)
-  const wordBreakdown = result.words.map(({word, cells}) => {
+  const wordBreakdown = result.words.filter(({cells}) =>
+    cells.some(({row, col}) => { const k=`${row},${col}`; return playKeys.has(k) && !noScoreKeys.has(k); })
+  ).map(({word, cells}) => {
     let ws = 0, wm = 1;
     for (const {row, col, letter} of cells) {
       const k = `${row},${col}`;
@@ -1584,6 +1595,8 @@ function submitPlay() {
 
 function passTurn() {
   if (currentPlayer !== 'player' || gameOver) return;
+  // If rack is empty and bag is empty, end the game instead of recording a pass
+  if (playerRack.length === 0 && bag.length === 0) { checkGameOver(); return; }
   recallTiles(() => {
     passCount++;
     showMsg('You passed your turn.', 'info');
@@ -3604,6 +3617,11 @@ function updateStrengthBar() {
 }
 
 function updateUI() {
+  // Safety net: end the game if bag and both racks are empty but gameOver wasn't set
+  if (!gameOver && bag.length === 0 && playerRack.length === 0 && aiRack.length === 0) {
+    checkGameOver();
+    return;
+  }
   document.getElementById('score-player').textContent = playerScore;
   document.getElementById('score-ai').textContent = aiScore;
   document.getElementById('bag-num').textContent = bag.length;
@@ -3809,6 +3827,8 @@ function loadAiGameState() {
     resetPending();
     updateUI();
     computeBestScore();
+    checkGameOver();
+    if (!gameOver && currentPlayer === 'ai') setTimeout(doAiTurn, 800);
     return true;
   } catch { return false; }
 }

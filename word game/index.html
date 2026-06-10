@@ -1920,6 +1920,7 @@ function recallPendingTile(key) {
 }
 
 function checkGameOver() {
+  console.log(`[checkGameOver] bag=${bag.length} playerRack=${playerRack.length} aiRack=${aiRack.length} passCount=${passCount} aiNoMoveCount=${aiNoMoveCount}`);
   if (passCount >= 4) { endGame('four consecutive passes'); return; }
   if (bag.length === 0 && (playerRack.length === 0 || aiRack.length === 0)) {
     const opLabel = isOnlineMode ? opponentOnlineName : 'AI';
@@ -3617,8 +3618,8 @@ function updateStrengthBar() {
 }
 
 function updateUI() {
-  // Safety net: end the game if bag and both racks are empty but gameOver wasn't set
-  if (!gameOver && bag.length === 0 && playerRack.length === 0 && aiRack.length === 0) {
+  // Safety net: end the game if bag is empty and at least one rack is empty
+  if (!gameOver && bag.length === 0 && (playerRack.length === 0 || aiRack.length === 0)) {
     checkGameOver();
     return;
   }

@@ -1378,14 +1378,14 @@ function recallRemoval(key) {
 // ═══════════════════════════════════════════════════════
 //  SCORING
 // ═══════════════════════════════════════════════════════
-function scoreWords(words, newKeys, noScoreKeys = new Set()) {
+function scoreWords(words, newKeys, noScoreKeys = new Set(), noWordGateKeys = noScoreKeys) {
   let total = 0;
   for (const {cells} of words) {
-    // Skip words where every new tile is a swap/stolen-tile position —
-    // the player doesn't earn points for a word formed solely by the swap.
+    // Skip words where every new tile is an in-place swap position (word was already on the board).
+    // Stolen tiles placed at NEW positions do count — they earn word score, just no letter bonuses.
     const hasGenuineNewTile = cells.some(({row, col}) => {
       const k = `${row},${col}`;
-      return newKeys.has(k) && !noScoreKeys.has(k);
+      return newKeys.has(k) && !noWordGateKeys.has(k);
     });
     if (!hasGenuineNewTile) continue;
     let wordScore = 0, wordMult = 1;
@@ -1516,7 +1516,7 @@ function submitPlay() {
       .map(([k]) => k)
   );
   const noScoreKeys = new Set([...swapKeys, ...stolenTileKeys]);
-  const pts = scoreWords(result.words, playKeys, noScoreKeys);
+  const pts = scoreWords(result.words, playKeys, noScoreKeys, swapKeys);
 
   // Record last-move keys in word order (for animation + highlight)
   const primaryKeys = Object.keys(allPlacements).filter(k => !allPlacements[k].isSwap);
@@ -3411,6 +3411,15 @@ function renderScorePreview() {
   const allWords = getWordsFormed(primaryOnlyPlacements, tb);
   if (allWords.length === 0) return;
 
+  // Don't show a preview when the tiles aren't connected to any existing word yet.
+  if (!isEmpty()) {
+    const connected = primaryKeys.some(key => {
+      const [r, c] = key.split(',').map(Number);
+      return hasAdjacentTile(board, r, c, null);
+    });
+    if (!connected) return;
+  }
+
   // Cross-words are always complete (existing tile + new tile) — filter invalid ones
   // so the preview score matches what actually scores on commit.
   // The primary word may be incomplete (still being built), so don't filter it.
@@ -3432,7 +3441,7 @@ function renderScorePreview() {
       .map(([k]) => k)
   );
   const noScorePreview = new Set([...swapPendingPositions, ...stolenPreviewKeys]);
-  const pts = scoreWords(words, new Set(keys), noScorePreview);
+  const pts = scoreWords(words, new Set(keys), noScorePreview, swapPendingPositions);
   const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
   const bonus = usedIdx.size === 7 ? 35 : 0;
 
@@ -3600,7 +3609,7 @@ function updateStrengthBar() {
           .filter(([, p]) => swappedRackIndices.has(p.rackIdx) && !p.isSwap)
           .map(([k]) => k)
       );
-      currentScore = scoreWords(result.words, new Set(keys), new Set([...swapPendingPositions, ...stolenStrKeys])) + bonus;
+      currentScore = scoreWords(result.words, new Set(keys), new Set([...swapPendingPositions, ...stolenStrKeys]), swapPendingPositions) + bonus;
     }
   }
 
@@ -4919,7 +4928,7 @@ function playAgain() {
 }
 
 // ── Pan state (shared with capture listener + double-tap guard) ──
-let panActive = false, panMoved = false;
+let panActive = false, panMoved = false, panWasBoardTap = null;
 let panStartX = 0, panStartY = 0, panStartTx = 0, panStartTy = 0, panStartS = 1;
 
 function onPanMove(e) {
@@ -4943,7 +4952,11 @@ function onPanEnd() {
   document.removeEventListener('touchmove', onPanMove);
   document.removeEventListener('touchend',  onPanEnd);
   const boardEl = document.getElementById('board');
-  boardEl.style.transition = ''; // restore smooth transition for zoom in/out
+  boardEl.style.transition = '';
+  if (!panMoved && panWasBoardTap) {
+    onCellClick(panWasBoardTap.r, panWasBoardTap.c);
+  }
+  panWasBoardTap = null;
 }
 
 // ── Board double-tap to zoom ──────────────────────────────
@@ -5001,26 +5014,22 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       e.stopPropagation();
       return;
     }
-    // If the touch lands on a committed board tile, treat as a tap (cell click) rather
-    // than a pan — otherwise e.preventDefault() below kills the click event.
-    if (board[r] && board[r][c] && !pending) {
-      // Let the event propagate so the cell's click handler fires normally.
-      // We still need preventDefault to stop scroll, but NOT stopPropagation.
-      e.preventDefault();
-      onCellClick(r, c);
-      return;
-    }
   }
 
-  // Otherwise start a pan gesture
+  // Start a pan gesture. If the touch lands on a committed tile without moving,
+  // onPanEnd will fire onCellClick instead (tap-vs-drag detection).
   panActive = true;
   panMoved  = false;
+  panWasBoardTap = null;
+  if (r >= 0 && r < 15 && c >= 0 && c < 15 && board[r] && board[r][c] && !pendingPlacements[`${r},${c}`]) {
+    panWasBoardTap = { r, c };
+  }
   panStartX  = t.clientX;
   panStartY  = t.clientY;
   panStartTx = Tx;
   panStartTy = Ty;
   panStartS  = S;
-  e.preventDefault(); // prevent browser scroll from stealing the touch
+  e.preventDefault();
   document.addEventListener('touchmove', onPanMove, { passive: false });
   document.addEventListener('touchend',  onPanEnd,  { passive: false });
   e.stopPropagation();

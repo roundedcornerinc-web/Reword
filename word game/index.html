@@ -897,7 +897,7 @@ body {
   </div>
 </div>
 
-<div id="bag-count">Tiles in bag: <span id="bag-num">100</span></div>
+<div id="bag-count">Tiles left: <span id="bag-num">100</span></div>
 <div id="ai-indicator">AI is thinking</div>
 <div id="aivai-controls" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:#1a1a2e;border-top:1px solid #333;padding:10px 16px;align-items:center;justify-content:space-between;gap:10px;">
   <span style="color:#aaa;font-size:0.8rem;font-weight:600;letter-spacing:0.05em;">AI VS AI</span>
@@ -3635,7 +3635,7 @@ function updateUI() {
   }
   document.getElementById('score-player').textContent = playerScore;
   document.getElementById('score-ai').textContent = aiScore;
-  document.getElementById('bag-num').textContent = bag.length;
+  document.getElementById('bag-num').textContent = bag.length + playerRack.length + aiRack.length;
   updateTurnBadge();
   renderBoard();
   renderRack();

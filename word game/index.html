@@ -2491,14 +2491,7 @@ function doPlayerAiTurn() {
       playerScore += normalMove.score + bonus;
       lastPlayScore = normalMove.score + bonus;
       passCount = 0;
-      const primaryWord = normalMove.words
-        ? (normalMove.words
-            .filter(w => normalMove.placements.every(p => w.cells.some(c => c.row === p.row && c.col === p.col)))
-            .sort((a, b) => b.word.length - a.word.length)[0]
-          || normalMove.words.reduce((best, w) => w.word.length > best.word.length ? w : best)
-          ).word
-        : normalMove.word;
-      showMsg(`AI-1 played "${primaryWord}" for ${normalMove.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
+      showMsg(`AI-1 played "${normalMove.word}" for ${normalMove.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
     } else {
       boardSwapPositions = new Set();
       passCount++;
@@ -2596,15 +2589,7 @@ function doAiTurn() {
       lastPlayScore = normalMove.score + aiBonus;
       passCount = 0;
       aiNoMoveCount = 0;
-      // Primary word: longest word whose cells contain ALL newly placed tiles
-      const primaryWord = normalMove.words
-        ? (normalMove.words
-            .filter(w => normalMove.placements.every(p => w.cells.some(c => c.row === p.row && c.col === p.col)))
-            .sort((a, b) => b.word.length - a.word.length)[0]
-          || normalMove.words.reduce((best, w) => w.word.length > best.word.length ? w : best)
-          ).word
-        : normalMove.word;
-      showMsg(`AI played "${primaryWord}" for ${normalMove.score + aiBonus} points${aiBonus ? ' (+35 all-tiles bonus)' : ''}.`, 'info');
+      showMsg(`AI played "${normalMove.word}" for ${normalMove.score + aiBonus} points${aiBonus ? ' (+35 all-tiles bonus)' : ''}.`, 'info');
 
     } else {
       // ── No move found — pass ─────────────────────────────────

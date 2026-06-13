@@ -1554,7 +1554,7 @@ function submitPlay() {
   playerScore += pts;
   passCount = 0;
   playerNoMoveCount = 0;
-  resetPending();
+  resetPending(true);
 
   lastPlayScore = pts + (usedAllTiles ? 35 : 0);
   zoomBoardOut();
@@ -1820,20 +1820,23 @@ function clearRackSlide() {
   });
 }
 
-function resetPending() {
-  // Restore any swapped rack slots to their original letters.
-  // Each rackIdx is only restored once (first entry = the original rack tile).
-  const restoredIdx = new Set();
-  for (const p of Object.values(pendingPlacements || {})) {
-    if (p.isSwap && p.rackIdx != null && !restoredIdx.has(p.rackIdx)) {
-      playerRack[p.rackIdx] = p.isBlank ? ' ' : p.letter;
-      restoredIdx.add(p.rackIdx);
+// afterCommit=true when called after a play is committed — tile moves were
+// already handled by usedIdx splicing, so skip the cancel-path restorations.
+function resetPending(afterCommit = false) {
+  if (!afterCommit) {
+    // Restore any swapped rack slots to their original letters (cancel path only).
+    const restoredIdx = new Set();
+    for (const p of Object.values(pendingPlacements || {})) {
+      if (p.isSwap && p.rackIdx != null && !restoredIdx.has(p.rackIdx)) {
+        playerRack[p.rackIdx] = p.isBlank ? ' ' : p.letter;
+        restoredIdx.add(p.rackIdx);
+      }
     }
-  }
-  // Remove any tiles added to the rack by pending removals (in reverse index order)
-  const removalEntries = Object.values(pendingRemovalInfo || {}).sort((a,b) => b.rackIdx - a.rackIdx);
-  for (const info of removalEntries) {
-    playerRack.splice(info.rackIdx, 1);
+    // Remove any tiles added to the rack by pending removals (cancel path only).
+    const removalEntries = Object.values(pendingRemovalInfo || {}).sort((a,b) => b.rackIdx - a.rackIdx);
+    for (const info of removalEntries) {
+      playerRack.splice(info.rackIdx, 1);
+    }
   }
   pendingRemovals = new Set();
   pendingRemovalInfo = {};

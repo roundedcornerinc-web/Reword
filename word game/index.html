@@ -1119,6 +1119,15 @@ let lastSwapKeys  = []; // ordered array so each swap gets a distinct shade inde
 let lastPlayScore = null; // score of the most recently committed play (player or AI)
 
 let boardZoomed = false;
+let boardTx = 0, boardTy = 0, boardScale = 1; // authoritative JS state for board transform
+
+function applyBoardTransform(Tx, Ty, S) {
+  const boardEl = document.getElementById('board');
+  if (!boardEl) return;
+  boardTx = Tx; boardTy = Ty; boardScale = S;
+  boardEl.style.transform = `translate(${Tx}px,${Ty}px) scale(${S})`;
+}
+
 function zoomToCell(r, c) {
   const boardEl = document.getElementById('board');
   if (!boardEl) return;
@@ -1128,12 +1137,13 @@ function zoomToCell(r, c) {
   const y0 = (r + 0.5) * (H / 15);
   const Tx = Math.max(W * (1 - S), Math.min(0, W / 2 - x0 * S));
   const Ty = Math.max(H * (1 - S), Math.min(0, H / 2 - y0 * S));
-  boardEl.style.transform = `translate(${Tx}px,${Ty}px) scale(${S})`;
+  applyBoardTransform(Tx, Ty, S);
   boardZoomed = true;
 }
 function zoomBoardOut() {
   const boardEl = document.getElementById('board');
   if (boardEl) boardEl.style.transform = '';
+  boardTx = 0; boardTy = 0; boardScale = 1;
   boardZoomed = false;
 }
 let boardSwapPositions = new Set(); // permanent: all positions occupied by swap-involved tiles
@@ -4942,8 +4952,8 @@ function onPanMove(e) {
   const S = panStartS;
   const Tx = Math.max(W * (1 - S), Math.min(0, panStartTx + dx));
   const Ty = Math.max(H * (1 - S), Math.min(0, panStartTy + dy));
-  boardEl.style.transition = 'none'; // kill animation lag while finger is down
-  boardEl.style.transform = `translate(${Tx}px,${Ty}px) scale(${S})`;
+  boardEl.style.transition = 'none';
+  applyBoardTransform(Tx, Ty, S);
 }
 
 function onPanEnd() {
@@ -4992,12 +5002,10 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   if (!boardZoomed) return;
   const t = e.touches[0];
   const boardEl = document.getElementById('board');
-  const m = boardEl.style.transform.match(/translate\(([^,]+)px,\s*([^p]+)px\)\s*scale\(([^)]+)\)/);
-  if (!m) return;
-  const Tx = parseFloat(m[1]), Ty = parseFloat(m[2]), S = parseFloat(m[3]);
+  const S = boardScale;
 
-  // Use getBoundingClientRect to get the visual top-left of the zoomed board.
-  // With transform-origin:0 0, inverse transform simplifies to: bx = (clientX - br.left) / S
+  // Use getBoundingClientRect so we get the actual visual position regardless
+  // of any in-flight CSS transition (avoids stale transform-string parsing).
   const br = boardEl.getBoundingClientRect();
   const bx = (t.clientX - br.left) / S;
   const by = (t.clientY - br.top)  / S;
@@ -5026,8 +5034,8 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   }
   panStartX  = t.clientX;
   panStartY  = t.clientY;
-  panStartTx = Tx;
-  panStartTy = Ty;
+  panStartTx = boardTx;
+  panStartTy = boardTy;
   panStartS  = S;
   e.preventDefault();
   document.addEventListener('touchmove', onPanMove, { passive: false });

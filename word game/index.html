@@ -3792,14 +3792,19 @@ function validateSavedTileCounts(s) {
   for (const l of (s.aiRack || []))     counts[l] = (counts[l] || 0) + 1;
 
   const expected = { ...DIST, ' ': 2 };
+  const violations = [];
   for (const [letter, exp] of Object.entries(expected)) {
-    if ((counts[letter] || 0) !== exp) return false;
+    const got = counts[letter] || 0;
+    if (got !== exp) violations.push(`${letter}: expected ${exp}, got ${got}`);
   }
-  // No unexpected letters
   for (const letter of Object.keys(counts)) {
-    if (!(letter in expected)) return false;
+    if (!(letter in expected)) violations.push(`${letter}: unexpected`);
   }
-  return true;
+  if (violations.length > 0) {
+    console.warn('[TileAudit] Save invalid:', violations.join('; '));
+    return { valid: false, violations };
+  }
+  return { valid: true };
 }
 
 function loadAiGameState() {
@@ -3808,11 +3813,11 @@ function loadAiGameState() {
     if (!raw) return false;
     const s = JSON.parse(raw);
 
-    // Reject corrupt saves with wrong tile counts (e.g. 3 blanks) rather than
-    // loading bad state silently. Clears the save so a fresh game starts instead.
-    if (!validateSavedTileCounts(s)) {
-      console.warn('[TileAudit] Saved game has invalid tile counts — discarding corrupt save.');
+    // Reject corrupt saves with wrong tile counts rather than loading bad state silently.
+    const validation = validateSavedTileCounts(s);
+    if (!validation.valid) {
       clearAiGameState();
+      setTimeout(() => showMsg(`Your saved game had a tile error and couldn't be restored. (${validation.violations.join(', ')})`, 'bad'), 500);
       return false;
     }
 

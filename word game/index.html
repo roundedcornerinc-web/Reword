@@ -1100,7 +1100,7 @@ let WORDS = new Set(AI_WORDS);
     );
     if (full.size > 1000) {
       WORDS = full;
-      try { showMsg(`Full Scrabble dictionary loaded (${full.size.toLocaleString()} words).`, 'good'); } catch {}
+      try { computeBestScore(); } catch {}
     }
   } catch { /* stay on curated fallback */ }
 })();

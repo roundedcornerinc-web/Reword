@@ -386,9 +386,32 @@ body {
   flex-wrap: nowrap;
   gap: 5px;
   padding: 8px 10px;
+  padding-bottom: calc(8px + 50px + env(safe-area-inset-bottom, 0px));
   background: #110b2e;
   justify-content: center;
   align-items: center;
+}
+
+#ad-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(50px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: #0a0720;
+  border-top: 1px solid #2a1f55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  pointer-events: none;
+}
+#ad-banner span {
+  font-size: 0.6rem;
+  color: #333;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .btn {
@@ -5684,5 +5707,6 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
 })();
 // ── End tutorial system ────────────────────────────────────────────────────
 </script>
+<div id="ad-banner"><span>Advertisement</span></div>
 </body>
 </html>

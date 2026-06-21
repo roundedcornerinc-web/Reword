@@ -1701,7 +1701,7 @@ function recallTiles(onComplete) {
     resetPending();
     cancelExchangeMode();
     updateUI();
-    showMsg('Select a tile, then tap the board to place it.', 'info');
+    showMsg('', 'info');
     onComplete?.();
     return;
   }
@@ -1748,7 +1748,7 @@ function recallTiles(onComplete) {
       resetPending();
       cancelExchangeMode();
       updateUI();
-      showMsg('Select a tile, then tap the board to place it.', 'info');
+      showMsg('', 'info');
       onComplete?.();
     }, 240);
   }));
@@ -1955,7 +1955,7 @@ function recallPendingTile(key) {
   updateUI();
   // If we just recalled the last swap tile, clear the stale "place your purple tile" message
   if (p.isSwap && swappedRackIndices.size === 0) {
-    showMsg('Select a tile, then tap the board to place it.', 'info');
+    showMsg('', 'info');
   }
 }
 
@@ -3773,7 +3773,7 @@ function startGame() {
   currentPlayer = 'player';
   gameOver = false;
   resetPending();
-  showMsg('Select a tile, then click the board to place it. Have fun!', 'info');
+  showMsg('', 'info');
   updateUI();
   computeBestScore();
 }

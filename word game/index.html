@@ -498,10 +498,10 @@ body {
   box-shadow: inset 0 -2px 0 #8b6914, 0 0 0 2px rgba(0,0,0,0.28);
   background: #d4b96a;
 }
-.tile-on-board.swap-shade-0 { background: #f72585; box-shadow: inset 0 -2px 0 #a0005a, 0 0 0 2px rgba(247,37,133,0.5); }
-.tile-on-board.swap-shade-1 { background: #c41b6e; box-shadow: inset 0 -2px 0 #7a003e, 0 0 0 2px rgba(196,27,110,0.5); }
-.tile-on-board.swap-shade-2 { background: #ff6eb0; box-shadow: inset 0 -2px 0 #b0005a, 0 0 0 2px rgba(255,110,176,0.5); }
-.tile-on-board.swap-shade-3 { background: #9a0050; box-shadow: inset 0 -2px 0 #5a0030, 0 0 0 2px rgba(154,0,80,0.5); }
+.tile-on-board.swap-shade-0 { background: #c0446a; box-shadow: inset 0 -2px 0 #7a1a3e, 0 0 0 2px rgba(192,68,106,0.5); }
+.tile-on-board.swap-shade-1 { background: #8b2252; box-shadow: inset 0 -2px 0 #4e0e2c, 0 0 0 2px rgba(139,34,82,0.5); }
+.tile-on-board.swap-shade-2 { background: #e0758f; box-shadow: inset 0 -2px 0 #9a3050, 0 0 0 2px rgba(224,117,143,0.5); }
+.tile-on-board.swap-shade-3 { background: #6b1040; box-shadow: inset 0 -2px 0 #3a0020, 0 0 0 2px rgba(107,16,64,0.5); }
 .tile-on-board.is-removal {
   background: #888;
   box-shadow: inset 0 -2px 0 #555;
@@ -1138,7 +1138,8 @@ let exchangeMode    = false;
 let exchangeSelectedIdxs = new Set();
 let aiSkill = 'hard';
 let lastMoveKeys  = [];
-let lastSwapKeys  = []; // ordered array so each swap gets a distinct shade index
+let lastSwapKeys  = []; // kept for save/load compat; rendering uses lastSwapPairMap
+let lastSwapPairMap = {}; // key -> pairIndex: both swap source and placed stolen tile share same index
 let lastPlayScore = null; // score of the most recently committed play (player or AI)
 
 let boardZoomed = false;
@@ -1565,6 +1566,21 @@ function submitPlay() {
   for (const key of swapKeys) boardSwapPositions.add(key);
   for (const [key, p] of Object.entries(allPlacements)) {
     if (swappedRackIndices.has(p.rackIdx)) boardSwapPositions.add(key);
+  }
+
+  // Build pair map: both the swap source square and the square where the stolen
+  // tile was placed get the same shade index, so they visually link as a pair.
+  lastSwapPairMap = {};
+  const stolenIdxToSourceKey = {};
+  for (const [srcKey, info] of Object.entries(pendingRemovalInfo)) {
+    stolenIdxToSourceKey[info.rackIdx] = srcKey;
+  }
+  lastSwapKeys.forEach((srcKey, i) => { lastSwapPairMap[srcKey] = i; });
+  for (const [placedKey, p] of Object.entries(allPlacements)) {
+    if (!p.isSwap && swappedRackIndices.has(p.rackIdx)) {
+      const srcKey = stolenIdxToSourceKey[p.rackIdx];
+      if (srcKey !== undefined) lastSwapPairMap[placedKey] = lastSwapPairMap[srcKey] ?? 0;
+    }
   }
 
   // Commit to board
@@ -2491,6 +2507,8 @@ function doPlayerAiTurn() {
       boardSwapPositions = new Set([`${swapRow},${swapCol}`]);
       const stolenP = play.placements.find(p=>p.rackIdx===swapRackIdx);
       if (stolenP) boardSwapPositions.add(`${stolenP.row},${stolenP.col}`);
+      lastSwapPairMap = { [`${swapRow},${swapCol}`]: 0 };
+      if (stolenP) lastSwapPairMap[`${stolenP.row},${stolenP.col}`] = 0;
       const bonus = play.placements.length === 7 ? 35 : 0;
       playerScore += play.score + bonus;
       lastPlayScore = play.score + bonus;
@@ -2505,7 +2523,7 @@ function doPlayerAiTurn() {
       }
       [...usedIdx].sort((a,b)=>b-a).forEach(i=>playerRack.splice(i,1));
       drawTiles(playerRack);
-      lastSwapKeys = [];
+      lastSwapKeys = []; lastSwapPairMap = {};
       lastMoveKeys = [...normalMove.placements]
         .sort((a,b)=>a.row!==b.row?a.row-b.row:a.col-b.col)
         .map(p=>`${p.row},${p.col}`);
@@ -2578,6 +2596,9 @@ function doAiTurn() {
       boardSwapPositions.add(`${swapRow},${swapCol}`);
       const stolenPlacement = play.placements.find(p => p.rackIdx === swapRackIdx);
       if (stolenPlacement) boardSwapPositions.add(`${stolenPlacement.row},${stolenPlacement.col}`);
+      // Pair map: AI only ever does one swap so both squares share pair index 0
+      lastSwapPairMap = { [`${swapRow},${swapCol}`]: 0 };
+      if (stolenPlacement) lastSwapPairMap[`${stolenPlacement.row},${stolenPlacement.col}`] = 0;
       lastMoveAnimated = false;
 
       const aiBonus = play.placements.length === 7 ? 35 : 0;
@@ -2601,7 +2622,7 @@ function doAiTurn() {
       [...usedIdx].sort((a,b)=>b-a).forEach(i => aiRack.splice(i,1));
       drawTiles(aiRack);
 
-      lastSwapKeys = [];
+      lastSwapKeys = []; lastSwapPairMap = {};
       lastMoveKeys = [...normalMove.placements]
         .sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col)
         .map(p => `${p.row},${p.col}`);
@@ -3004,10 +3025,10 @@ function renderBoard() {
       } else if (board[r][c]) {
         const tile = document.createElement('div');
         const moveIdx = lastMoveKeys.indexOf(key);
-        const swapIdx = lastSwapKeys.indexOf(key);
-        const isLastSwap = swapIdx >= 0;
+        const swapPairIdx = lastSwapPairMap[key];
+        const isLastSwap = swapPairIdx !== undefined;
         let cls = 'tile-on-board';
-        if (isLastSwap)        cls += ` is-last-swap swap-shade-${swapIdx % 4}`;
+        if (isLastSwap)        cls += ` is-last-swap swap-shade-${swapPairIdx % 4}`;
         else if (moveIdx >= 0) cls += ' is-last-move';
         tile.className = cls;
         if ((moveIdx >= 0 || isLastSwap) && shouldAnim) {
@@ -3800,6 +3821,7 @@ function saveAiGameState() {
       boardSwapPositions: [...boardSwapPositions],
       lastMoveKeys: [...lastMoveKeys],
       lastSwapKeys: [...lastSwapKeys],
+      lastSwapPairMap: {...lastSwapPairMap},
       aiSkill,
     }));
   } catch {}
@@ -3865,6 +3887,7 @@ function loadAiGameState() {
     boardSwapPositions = new Set(s.boardSwapPositions || []);
     lastMoveKeys = s.lastMoveKeys || [];
     lastSwapKeys = s.lastSwapKeys || [];
+    lastSwapPairMap = s.lastSwapPairMap || {};
     if (s.aiSkill) aiSkill = s.aiSkill;
     resetPending();
     updateUI();
@@ -4038,6 +4061,7 @@ function buildOnlinePayload(nextTurn) {
     boardSwapPositions: [...boardSwapPositions],
     lastMoveKeys: [...lastMoveKeys],
     lastSwapKeys: [...lastSwapKeys],
+    lastSwapPairMap: {...lastSwapPairMap},
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
   };
 }
@@ -4064,6 +4088,7 @@ function applyOnlineState(data) {
   boardSwapPositions = new Set(data.boardSwapPositions || []);
   lastMoveKeys  = data.lastMoveKeys || [];
   lastSwapKeys  = data.lastSwapKeys || [];
+  lastSwapPairMap = data.lastSwapPairMap || {};
   lastPlayScore = data.lastPlayScore ?? null;
   lastMoveAnimated = false;
   currentPlayer = data.currentTurn === myOnlineRole ? 'player' : 'ai';
@@ -5275,7 +5300,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     pendingRemovals = new Set();
     pendingRemovalInfo = {};
     swappedRackIndices = new Set([0]); // E at index 0 is purple — taken from board
-    lastSwapKeys = [];
+    lastSwapKeys = []; lastSwapPairMap = {};
     lastMoveKeys = [];
     playerRack = ['E','R','T','I','L','N','D'];
     window._tutDraggableIdx = null;
@@ -5421,7 +5446,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     pendingRemovals = new Set();
     pendingRemovalInfo = {};
     swappedRackIndices = new Set();
-    lastSwapKeys = [];
+    lastSwapKeys = []; lastSwapPairMap = {};
     lastMoveKeys = [];
     playerRack = ['V','D','W','P','F','G','Z'];
     window._tutDraggableIdx = null;
@@ -5458,7 +5483,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     pendingRemovals = new Set();
     pendingRemovalInfo = {};
     swappedRackIndices = new Set([0]); // S (index 0) is purple — taken from board
-    lastSwapKeys = [];
+    lastSwapKeys = []; lastSwapPairMap = {};
     lastMoveKeys = [];
     playerRack = ['S','V','D','W','P','F','G','Z'];
     window._tutDraggableIdx = null;

@@ -330,8 +330,8 @@ body {
 #rack {
   display: flex;
   justify-content: center;
-  gap: 4px;
-  min-height: 70px;
+  gap: 5px;
+  min-height: 52px;
   align-items: center;
   border-radius: 8px;
   transition: background 0.15s, box-shadow 0.15s;
@@ -342,22 +342,22 @@ body {
 }
 
 .rack-tile {
-  width: 62px;
-  height: 70px;
+  width: 46px;
+  height: 52px;
   background: var(--tile-bg);
-  border-radius: 10px;
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 0 var(--tile-shadow), 0 5px 10px rgba(0,0,0,0.4);
+  box-shadow: 0 3px 0 var(--tile-shadow), 0 4px 8px rgba(0,0,0,0.4);
   user-select: none;
   transition: transform 0.1s, box-shadow 0.1s;
   position: relative;
   flex-shrink: 0;
 }
-.rack-tile:hover { transform: translateY(-4px); box-shadow: 0 8px 0 var(--tile-shadow), 0 9px 18px rgba(0,0,0,0.4); }
+.rack-tile:hover { transform: translateY(-4px); box-shadow: 0 7px 0 var(--tile-shadow), 0 8px 16px rgba(0,0,0,0.4); }
 .rack-tile.selected {
   background: #fffb80;
   transform: translateY(-8px);
@@ -368,8 +368,8 @@ body {
   transform: translateY(-8px);
   box-shadow: 0 10px 0 #c00000, 0 12px 20px rgba(0,0,0,0.5);
 }
-.rack-tile .tile-letter { font-size: 2rem; font-weight: 700; color: var(--tile-text); }
-.rack-tile .tile-val { font-size: 0.62rem; font-weight: 600; color: var(--tile-text); opacity: 0.65; position: absolute; right: 5px; bottom: 4px; }
+.rack-tile .tile-letter { font-size: 1.69rem; color: var(--tile-text); }
+.rack-tile .tile-val { font-size: 0.6rem; color: var(--tile-text); opacity: 0.7; position: absolute; right: 4px; bottom: 3px; }
 .rack-tile.empty-slot { background: rgba(255,255,255,0.06); box-shadow: none; cursor: default; border: 2px dashed rgba(255,255,255,0.15); }
 .rack-tile.empty-slot:hover { transform: none; }
 

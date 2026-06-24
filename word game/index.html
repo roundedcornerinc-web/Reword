@@ -105,7 +105,7 @@ body {
 }
 
 #game-logo-img {
-  width: 130px;
+  width: 190px;
   height: auto;
   display: block;
 }
@@ -1125,7 +1125,7 @@ body {
       <div class="score-panel" id="panel-player">
         <div class="pts" id="score-player">0</div>
         <div class="name" id="player-name-display" onclick="startEditName()">
-          <span id="player-name-text">You</span><span style="font-size:0.5rem;opacity:0.4;margin-left:3px">✎</span>
+          <span id="player-name-text">You</span>
         </div>
       </div>
     </div>
@@ -4074,7 +4074,7 @@ function startEditName() {
     const val = input.value.trim();
     playerName = val || 'You';
     localStorage.setItem('playerName', playerName);
-    display.innerHTML = `<span id="player-name-text">${playerName}</span> <span style="font-size:0.55rem;opacity:0.5">✎</span>`;
+    display.innerHTML = `<span id="player-name-text">${playerName}</span>`;
   }
   input.addEventListener('blur', commit);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = ''; input.blur(); } });
@@ -4996,7 +4996,7 @@ function confirmNameModal() {
   const nt = document.getElementById('player-name-text');
   if (nt) nt.textContent = playerName;
   const nd = document.getElementById('player-name-display');
-  if (nd) nd.innerHTML = `<span id="player-name-text">${playerName}</span> <span style="font-size:0.55rem;opacity:0.5">✎</span>`;
+  if (nd) nd.innerHTML = `<span id="player-name-text">${playerName}</span>`;
   document.getElementById('name-modal').classList.add('hidden');
   if (_nameModalCallback) { const cb = _nameModalCallback; _nameModalCallback = null; cb(); }
 }

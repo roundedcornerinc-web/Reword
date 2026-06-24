@@ -3760,7 +3760,7 @@ function updateStrengthBar() {
   const pctVal = Math.round(ratio * 100);
   fill.style.width = pctVal + '%';
   fill.style.backgroundColor = `hsl(${Math.round(ratio * 120)},75%,48%)`;
-  pct.textContent = currentScore > 0 ? pctVal + '%' : '—';
+  pct.textContent = currentScore > 0 ? pctVal + '%' : '';
 }
 
 function handleShuffleOrRecall() {

@@ -102,7 +102,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
 }
+.turn-arrow { display: none; align-items: center; }
+.turn-arrow svg { width: 8px; height: auto; }
+#game-title.turn-left  #turn-arrow-left  { display: flex; }
+#game-title.turn-right #turn-arrow-right { display: flex; }
 
 #game-logo-img {
   width: 190px;
@@ -1130,8 +1135,10 @@ body {
       </div>
     </div>
     <div id="game-title">
+      <span id="turn-arrow-left" class="turn-arrow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25.68971 37.66273"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="23.18971 35.16273 2.5 18.83136 23.18971 2.5"/></svg></span>
       <img src="./reword_logo.png" id="game-logo-img" alt="REWORD" onerror="this.style.display='none';document.getElementById('game-title-text').style.display='block'">
       <span id="game-title-text" style="display:none">REWORD</span>
+      <span id="turn-arrow-right" class="turn-arrow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25.68971 37.66273"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="2.5 35.16273 23.18971 18.83136 2.5 2.5"/></svg></span>
     </div>
     <div id="score-right">
       <div class="score-panel" id="panel-ai">
@@ -3669,7 +3676,14 @@ async function playRecall() {
 }
 
 function updateTurnBadge() {
-  // panel active borders removed in new design — no-op for those
+  const titleEl = document.getElementById('game-title');
+  if (!titleEl) return;
+  if (isOnlineMode && !gameOver) {
+    titleEl.classList.toggle('turn-left',  currentPlayer === 'player');
+    titleEl.classList.toggle('turn-right', currentPlayer !== 'player');
+  } else {
+    titleEl.classList.remove('turn-left', 'turn-right');
+  }
 }
 
 function updateDifficultyBadge() {

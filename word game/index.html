@@ -4385,7 +4385,12 @@ function buildOnlinePayload(nextTurn) {
     lastMoveKeys: [...lastMoveKeys],
     lastSwapKeys: [...lastSwapKeys],
     lastSwapPairMap: {...lastSwapPairMap},
-    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+    expiresAt: (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + (gameOver ? 30 : 15));
+      return firebase.firestore.Timestamp.fromDate(d);
+    })()
   };
 }
 
@@ -4537,9 +4542,12 @@ async function createOnlineGame() {
   const el = document.getElementById('ai-name-display');
   if (el) el.textContent = '?';
 
+  const waitingExpiry = new Date();
+  waitingExpiry.setDate(waitingExpiry.getDate() + 7);
   const payload = {
     status: 'waiting',
     created: firebase.firestore.FieldValue.serverTimestamp(),
+    expiresAt: firebase.firestore.Timestamp.fromDate(waitingExpiry),
     players: { p1: { id: myId, name: playerName } },
     ...buildOnlinePayload('p2')   // p2 (joiner) always goes first
   };
@@ -4606,9 +4614,12 @@ async function joinOnlineGame(gameId) {
     if (el) el.textContent = opponentOnlineName;
     addStoredGame(gameId.toUpperCase(), 'p2');
 
+    const activeExpiry = new Date();
+    activeExpiry.setDate(activeExpiry.getDate() + 15);
     await db.collection('games').doc(gameId.toUpperCase()).update({
       status: 'active',
-      'players.p2': { id: myId, name: playerName }
+      'players.p2': { id: myId, name: playerName },
+      expiresAt: firebase.firestore.Timestamp.fromDate(activeExpiry)
     });
 
     applyOnlineState(data);

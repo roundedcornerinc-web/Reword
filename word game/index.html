@@ -20,10 +20,10 @@
   --header-bg: #2d1b69;
   --board-bg: #dfdfdf;
   --board-line: #a9a8a8;
-  --tile-bg: #f5deb3;
+  --tile-bg: #efd1a9;
   --tile-text: #2c1a00;
   --tile-placed: #e8c870;
-  --tile-shadow: #8b6914;
+  --tile-shadow: #b8865a;
   --tw: #e63946;
   --dw: #ff9f1c;
   --tl: #2191fb;
@@ -286,12 +286,24 @@ body {
   white-space: nowrap;
   flex-shrink: 0;
 }
+#strength-icon {
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
 #strength-track {
-  flex: 1;
+  flex: 0 0 90px;
   height: 5px;
   background: rgba(255,255,255,0.1);
   border-radius: 3px;
   overflow: hidden;
+}
+#tiles-left-inline {
+  font-size: 0.58rem;
+  color: #888;
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 #strength-fill {
   height: 100%;
@@ -349,8 +361,8 @@ body {
   transform: translateY(-8px);
   box-shadow: 0 10px 0 #c00000, 0 12px 20px rgba(0,0,0,0.5);
 }
-.rack-tile .tile-letter { font-size: 1.3rem; color: var(--tile-text); }
-.rack-tile .tile-val { font-size: 0.6rem; color: var(--tile-text); opacity: 0.7; align-self: flex-end; padding-right: 3px; }
+.rack-tile .tile-letter { font-size: 1.69rem; color: var(--tile-text); }
+.rack-tile .tile-val { font-size: 0.6rem; color: var(--tile-text); opacity: 0.7; position: absolute; right: 4px; bottom: 3px; }
 .rack-tile.empty-slot { background: rgba(255,255,255,0.06); box-shadow: none; cursor: default; border: 2px dashed rgba(255,255,255,0.15); }
 .rack-tile.empty-slot:hover { transform: none; }
 
@@ -384,11 +396,10 @@ body {
   max-width: 520px;
   display: flex;
   flex-wrap: nowrap;
-  gap: 5px;
-  padding: 8px 10px;
-  padding-bottom: calc(8px + 50px + env(safe-area-inset-bottom, 0px));
+  padding: 6px 8px;
+  padding-bottom: calc(6px + 50px + env(safe-area-inset-bottom, 0px));
   background: #110b2e;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
 }
 
@@ -433,6 +444,45 @@ body {
 .btn-pass     { background: #555;             color: #fff; }
 .btn-recall   { background: #4455aa;          color: #fff; }
 .btn-shuffle  { background: #337;             color: #fff; }
+
+/* ── ICON BUTTONS (controls bar) ── */
+.icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 10px;
+  transition: background 0.12s, opacity 0.2s;
+  flex: 1;
+  font-family: inherit;
+}
+.icon-btn:hover { background: rgba(255,255,255,0.07); }
+.icon-btn:active { background: rgba(255,255,255,0.12); }
+.icon-btn-ico {
+  font-size: 1.4rem;
+  line-height: 1;
+  color: #ccc;
+}
+.icon-btn-lbl {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+}
+.icon-btn:hover .icon-btn-ico { color: #fff; }
+.icon-btn:hover .icon-btn-lbl { color: #bbb; }
+.icon-btn.active-exchange .icon-btn-ico,
+.icon-btn.active-exchange .icon-btn-lbl { color: #ffd050; }
+#btn-play .icon-btn-ico { color: var(--btn-safe); }
+#btn-play .icon-btn-lbl { color: var(--btn-safe); opacity: 0.8; }
+#btn-play { opacity: 0.5; }
+#btn-play.tiles-placed { opacity: 1; }
 
 /* ── BOARD SCORE PREVIEW ── */
 #board { position: relative; }
@@ -883,9 +933,11 @@ body {
 
 <div id="rack-area">
   <div id="strength-area">
+    <span id="strength-icon">⚡</span>
     <span id="strength-label">Word Strength</span>
     <div id="strength-track"><div id="strength-fill"></div></div>
     <span id="strength-pct">—</span>
+    <span id="tiles-left-inline">Tiles: <span id="bag-num">100</span></span>
   </div>
   <div id="rack"></div>
   <div id="tut-exit-row" style="display:none;text-align:center;padding:6px 0 2px;">
@@ -894,11 +946,22 @@ body {
 </div>
 
 <div id="controls">
-  <button class="btn btn-play"     id="btn-play"     onclick="submitPlay()">Play Word</button>
-  <button class="btn btn-exchange" id="btn-exchange"  onclick="toggleExchangeMode()">Exchange</button>
-  <button class="btn btn-recall"   id="btn-recall"    onclick="recallTiles()">Recall</button>
-  <button class="btn btn-shuffle"  id="btn-shuffle"   onclick="shuffleRack()">Shuffle</button>
-  <button class="btn btn-more"     id="btn-more"      onclick="toggleMoreMenu(event)">☰</button>
+  <button class="icon-btn btn-more" id="btn-more" onclick="toggleMoreMenu(event)">
+    <span class="icon-btn-ico">☰</span>
+    <span class="icon-btn-lbl">More</span>
+  </button>
+  <button class="icon-btn" id="btn-exchange" onclick="toggleExchangeMode()">
+    <span class="icon-btn-ico">⇄</span>
+    <span class="icon-btn-lbl" id="exchange-label">Exchange</span>
+  </button>
+  <button class="icon-btn" id="btn-shuffle-recall" onclick="handleShuffleOrRecall()">
+    <span class="icon-btn-ico" id="shuffle-recall-ico">↻</span>
+    <span class="icon-btn-lbl" id="shuffle-recall-lbl">Shuffle</span>
+  </button>
+  <button class="icon-btn" id="btn-play" onclick="submitPlay()">
+    <span class="icon-btn-ico">▶</span>
+    <span class="icon-btn-lbl">Play</span>
+  </button>
   <div id="more-menu">
     <button class="more-item" onclick="showTutorial();closeMoreMenu()">How to Play</button>
     <button class="more-item" onclick="toggleRemaining();closeMoreMenu()">Tile Bag</button>
@@ -920,7 +983,6 @@ body {
   </div>
 </div>
 
-<div id="bag-count">Tiles left: <span id="bag-num">100</span></div>
 <div id="ai-indicator">AI is thinking</div>
 <div id="aivai-controls" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:#1a1a2e;border-top:1px solid #333;padding:10px 16px;align-items:center;justify-content:space-between;gap:10px;">
   <span style="color:#aaa;font-size:0.8rem;font-weight:600;letter-spacing:0.05em;">AI VS AI</span>
@@ -1906,8 +1968,8 @@ function toggleExchangeMode() {
     }
     exchangeMode = true;
     exchangeSelectedIdxs = new Set();
-    document.getElementById('btn-exchange').textContent = 'Confirm';
-    document.getElementById('btn-exchange').classList.add('active');
+    document.getElementById('exchange-label').textContent = 'Confirm';
+    document.getElementById('btn-exchange').classList.add('active-exchange');
     showMsg('Click tiles to select them for exchange, then click Confirm.', 'info');
     renderRack();
   }
@@ -1917,7 +1979,9 @@ function cancelExchangeMode() {
   exchangeMode = false;
   exchangeSelectedIdxs = new Set();
   const btn = document.getElementById('btn-exchange');
-  if (btn) { btn.textContent = 'Exchange'; btn.classList.remove('active'); }
+  if (btn) { btn.classList.remove('active-exchange'); }
+  const lbl = document.getElementById('exchange-label');
+  if (lbl) lbl.textContent = 'Exchange';
 }
 
 function confirmExchange() {
@@ -3671,6 +3735,11 @@ function updateStrengthBar() {
   pct.textContent = currentScore > 0 ? pctVal + '%' : '—';
 }
 
+function handleShuffleOrRecall() {
+  const hasPlaced = Object.values(pendingPlacements).some(p => !p.isSwap);
+  if (hasPlaced) recallTiles(); else shuffleRack();
+}
+
 function updateUI() {
   // Safety net: end the game if bag is empty and at least one rack is empty
   if (!gameOver && bag.length === 0 && (playerRack.length === 0 || aiRack.length === 0)) {
@@ -3686,6 +3755,14 @@ function updateUI() {
   renderScorePreview();
   updateStrengthBar();
   updateResignButton();
+  // Play button opacity + Shuffle/Recall toggle
+  const hasPlaced = Object.values(pendingPlacements).some(p => !p.isSwap);
+  const playBtn = document.getElementById('btn-play');
+  if (playBtn) playBtn.classList.toggle('tiles-placed', hasPlaced);
+  const srIco = document.getElementById('shuffle-recall-ico');
+  const srLbl = document.getElementById('shuffle-recall-lbl');
+  if (srIco) srIco.textContent = hasPlaced ? '↩' : '↻';
+  if (srLbl) srLbl.textContent = hasPlaced ? 'Recall' : 'Shuffle';
   if (window._tutPostRender) window._tutPostRender();
 }
 

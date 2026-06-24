@@ -54,18 +54,63 @@ body {
   width: 100%;
   max-width: 520px;
   background: var(--header-bg);
-  padding: 10px 14px 8px;
+  padding: 10px 14px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 0;
   box-shadow: 0 3px 12px rgba(0,0,0,0.5);
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
+#scoreboard {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+#score-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+#score-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+}
+
+#btn-home {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 2px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 #game-title {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#game-logo-img {
+  width: 130px;
+  height: auto;
+  display: block;
+}
+
+#game-title-text {
   font-size: 1.6rem;
   font-weight: 900;
   letter-spacing: 2px;
@@ -75,61 +120,59 @@ body {
   background-clip: text;
 }
 
-#scoreboard {
-  display: flex;
-  width: 100%;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
 .score-panel {
-  background: rgba(255,255,255,0.08);
-  border-radius: 10px;
-  padding: 6px 16px;
-  text-align: center;
-  flex: 1;
-  border: 2px solid transparent;
-  transition: border-color 0.2s;
+  display: flex;
+  flex-direction: column;
 }
-.score-panel.active { border-color: #f72585; }
+#panel-ai { align-items: flex-end; }
+
+.score-panel .pts { font-size: 1.8rem; font-weight: 900; color: #fff; line-height: 1; }
+
 .score-panel .name {
-  font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px;
+  font-size: 0.68rem; color: #aaa; letter-spacing: 0.04em;
   cursor: pointer; display: flex; align-items: center; gap: 4px;
+  margin-top: 2px;
 }
 .score-panel .name:hover { color: #ddd; }
+
 .name-input {
   background: transparent;
   border: none;
   border-bottom: 1px solid #f72585;
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  width: 100%;
+  letter-spacing: 0.04em;
+  width: 80px;
   min-width: 0;
   outline: none;
   padding: 0;
 }
-.score-panel .pts { font-size: 1.5rem; font-weight: 900; color: #fff; }
 
-#turn-badge {
-  background: var(--btn-primary);
-  border-radius: 20px;
-  padding: 4px 10px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-align: center;
-  min-width: 70px;
-  letter-spacing: 0.5px;
+.ai-name-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  justify-content: flex-end;
 }
+.ai-name-lbl { font-size: 0.68rem; color: #aaa; letter-spacing: 0.04em; }
+
+#difficulty-badge {
+  background: #0d0920;
+  color: #bbb;
+  font-size: 0.48rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 2px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+#turn-badge { display: none; }
 @keyframes turnPulse {
   0%,100% { transform: scale(1);   box-shadow: 0 0 0 0 rgba(123,47,247,0.7); }
   50%      { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(123,47,247,0); }
-}
-#turn-badge.pulse {
-  animation: turnPulse 0.9s ease-in-out 3;
 }
 
 /* ── MESSAGE BAR ── */
@@ -1073,18 +1116,28 @@ body {
 <body>
 
 <div id="header">
-  <div id="game-title">REWORD</div>
   <div id="scoreboard">
-    <div class="score-panel active" id="panel-player">
-      <div class="name" id="player-name-display" onclick="startEditName()">
-        <span id="player-name-text">You</span> <span style="font-size:0.55rem;opacity:0.5">✎</span>
+    <div id="score-left">
+      <button id="btn-home" onclick="goHome()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25.68971 37.66273" width="14"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="23.18971 35.16273 2.5 18.83136 23.18971 2.5"/></svg></button>
+      <div class="score-panel" id="panel-player">
+        <div class="pts" id="score-player">0</div>
+        <div class="name" id="player-name-display" onclick="startEditName()">
+          <span id="player-name-text">You</span><span style="font-size:0.5rem;opacity:0.4;margin-left:3px">✎</span>
+        </div>
       </div>
-      <div class="pts" id="score-player">0</div>
     </div>
-    <div id="turn-badge">Your Turn</div>
-    <div class="score-panel" id="panel-ai">
-      <div class="name" id="ai-name-display">AI</div>
-      <div class="pts" id="score-ai">0</div>
+    <div id="game-title">
+      <img src="./reword_logo.png" id="game-logo-img" alt="REWORD" onerror="this.style.display='none';document.getElementById('game-title-text').style.display='block'">
+      <span id="game-title-text" style="display:none">REWORD</span>
+    </div>
+    <div id="score-right">
+      <div class="score-panel" id="panel-ai">
+        <div class="pts" id="score-ai">0</div>
+        <div class="ai-name-row">
+          <span class="ai-name-lbl" id="ai-name-display">AI</span>
+          <span id="difficulty-badge">HARD</span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -3613,19 +3666,17 @@ async function playRecall() {
 }
 
 function updateTurnBadge() {
-  const badge = document.getElementById('turn-badge');
-  const opName = isOnlineMode ? opponentOnlineName : 'AI';
-  if (aiVsAiMode) {
-    const label = currentPlayer === 'player' ? 'AI-1' : 'AI-2';
-    badge.textContent = `${label}'s Turn`;
-    badge.style.background = currentPlayer === 'player' ? 'var(--btn-primary)' : '#555';
-    document.getElementById('panel-player').classList.toggle('active', currentPlayer === 'player');
-    document.getElementById('panel-ai').classList.toggle('active', currentPlayer === 'ai');
+  // panel active borders removed in new design — no-op for those
+}
+
+function updateDifficultyBadge() {
+  const badge = document.getElementById('difficulty-badge');
+  if (!badge) return;
+  if (isOnlineMode) {
+    badge.style.display = 'none';
   } else {
-    badge.textContent = currentPlayer === 'player' ? 'Your Turn' : `${opName}'s Turn`;
-    badge.style.background = currentPlayer === 'player' ? 'var(--btn-primary)' : '#555';
-    document.getElementById('panel-player').classList.toggle('active', currentPlayer === 'player');
-    document.getElementById('panel-ai').classList.toggle('active', currentPlayer === 'ai');
+    badge.style.display = '';
+    badge.textContent = aiSkill === 'easy' ? 'EASY' : aiSkill === 'medium' ? 'MED' : 'HARD';
   }
 }
 
@@ -3773,6 +3824,7 @@ function setSkill(level) {
   aiSkill = level;
   document.querySelectorAll('.btn-skill').forEach(b => b.classList.remove('active'));
   document.getElementById(`skill-${level}`).classList.add('active');
+  updateDifficultyBadge();
 }
 
 let remainingVisible = false;
@@ -4254,6 +4306,7 @@ if (_urlGame) {
     loadAiGameState();
   }
   updateGamesBadge();
+  updateDifficultyBadge();
 }
 
 if ('serviceWorker' in navigator) {
@@ -4748,6 +4801,7 @@ async function loadOnlineGame(gameId, myRole) {
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
   startGame(); // reset board/scores to clean slate
   isOnlineMode = true; myOnlineRole = myRole; onlineGameId = gameId;
+  updateDifficultyBadge();
   updateResignButton();
   try {
     const snap = await db.collection('games').doc(gameId).get();
@@ -5128,6 +5182,7 @@ function startAiGame() {
   clearAiGameState();
   startGame();
   saveAiGameState();
+  updateDifficultyBadge();
 }
 
 function startAiVsAiGame() {
@@ -5984,6 +6039,13 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   } catch(e) {}
 })();
 // ── End tutorial system ────────────────────────────────────────────────────
+
+// ── Home navigation (placeholder until home screen is designed) ──────────
+function goHome() {
+  // TODO: navigate to home screen
+  showOtherGamesOverlay();
+}
+// ── End home navigation ───────────────────────────────────────────────────
 
 // ── Other Games overlay ───────────────────────────────────────────────────
 function showOtherGamesOverlay() {

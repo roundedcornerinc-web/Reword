@@ -474,12 +474,12 @@ body {
 .icon-btn:hover { background: rgba(255,255,255,0.07); }
 .icon-btn:active { background: rgba(255,255,255,0.12); }
 .icon-btn-ico {
-  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 28px;
-  color: #fff;
   flex-shrink: 0;
 }
-.icon-btn-ico svg { width: 100%; height: 100%; }
 .icon-btn-lbl {
   font-size: 0.58rem;
   font-weight: 700;
@@ -962,7 +962,7 @@ body {
 
 <div id="rack-area">
   <div id="strength-area">
-    <span id="strength-icon"><svg viewBox="0 0 16 12" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="0" width="3" height="12" rx="1"/></svg></span>
+    <span id="strength-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.53824 16.66408" width="12"><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1="15.596" y1=".94224" x2="15.596" y2="15.72184"/><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1="10.71143" y1="15.72184" x2="10.71143" y2="5.28656"/><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1="5.82683" y1="15.72184" x2="5.82683" y2="8.03606"/><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1=".94224" y1="15.72184" x2=".94224" y2="10.78556"/></svg></span>
     <span id="strength-label">Word Strength</span>
     <div id="strength-track"><div id="strength-fill"></div></div>
     <span id="strength-pct">—</span>
@@ -977,15 +977,15 @@ body {
 <div id="controls">
   <div id="controls-icons">
     <button class="icon-btn" id="btn-more" onclick="toggleMoreMenu(event)">
-      <span class="icon-btn-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span>
+      <span class="icon-btn-ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.08262 17.94747" width="20"><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.50168" x1=".75084" y1=".75084" x2="20.33178" y2=".75084"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.50168" x1="3.39096" y1="8.97373" x2="17.69165" y2="8.97373"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.50168" x1=".75084" y1="17.19663" x2="20.33178" y2="17.19663"/></svg></span>
       <span class="icon-btn-lbl">More</span>
     </button>
     <button class="icon-btn" id="btn-exchange" onclick="toggleExchangeMode()">
-      <span class="icon-btn-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="8" height="8" rx="2"/><rect x="14" y="14" width="8" height="8" rx="2"/><path d="M10 6h3.5M11 4l2.5 2-2.5 2"/><path d="M14 18h-3.5M13 16l-2.5 2 2.5 2"/></svg></span>
+      <span class="icon-btn-ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30.30599 25.53577" width="26"><rect fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.50168" x=".76113" y="11.62571" width="13.14894" height="13.14894" rx="3.316" ry="3.316" transform="translate(.0576 -.02311)"/><polygon fill="#fff" points="7.03185 .71069 10.00663 4.78466 4.03135 4.76576 7.03185 .71069"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2.11212" x1="7.00822" y1="8.18298" x2="7.02217" y2="3.76937"/><rect fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.50168" x="16.39592" y=".76113" width="13.14894" height="13.14894" rx="3.316" ry="3.316" transform="translate(45.91747 14.74381) rotate(-180)"/><polygon fill="#fff" points="23.27414 24.82509 20.29936 20.75111 26.27464 20.77001 23.27414 24.82509"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2.11212" x1="23.29778" y1="17.35279" x2="23.28382" y2="21.7664"/></svg></span>
       <span class="icon-btn-lbl" id="exchange-label">Exchange</span>
     </button>
     <button class="icon-btn" id="btn-shuffle-recall" onclick="handleShuffleOrRecall()">
-      <span class="icon-btn-ico" id="shuffle-recall-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg></span>
+      <span class="icon-btn-ico" id="shuffle-recall-ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34.23209 22.88277" width="32"><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" d="M.94224,3.36493h4.24195c2.14461,0,4.20139.9596,5.71786,2.66771l9.60906,10.82333c1.51647,1.7081,3.57325,2.66771,5.71786,2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" d="M18.80162,7.89138l1.70949-1.85874c1.51647-1.7081,3.57325-2.66771,5.71786-2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" d="M.94224,19.52367h4.24195c2.14461,0,4.20139-.9596,5.71786-2.66771l1.79259-2.01912"/><polygon fill="#fff" points="34.23209 3.42723 29.56953 6.85447 29.56953 0 34.23209 3.42723"/><polygon fill="#fff" points="34.23209 19.45554 29.56953 22.88277 29.56953 16.02831 34.23209 19.45554"/></svg></span>
       <span class="icon-btn-lbl" id="shuffle-recall-lbl">Shuffle</span>
     </button>
   </div>
@@ -3789,9 +3789,9 @@ function updateUI() {
   if (playBtn) playBtn.classList.toggle('tiles-placed', hasPlaced);
   const srIco = document.getElementById('shuffle-recall-ico');
   const srLbl = document.getElementById('shuffle-recall-lbl');
-  if (srIco) srIco.innerHTML = hasPlaced
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 22V12a3 3 0 0 1 6 0v3"/><path d="M12 22l-3-3 3-3"/></svg>'
-    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>';
+  const shuffleSVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34.23209 22.88277" width="32"><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" d="M.94224,3.36493h4.24195c2.14461,0,4.20139.9596,5.71786,2.66771l9.60906,10.82333c1.51647,1.7081,3.57325,2.66771,5.71786,2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" d="M18.80162,7.89138l1.70949-1.85874c1.51647-1.7081,3.57325-2.66771,5.71786-2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" d="M.94224,19.52367h4.24195c2.14461,0,4.20139-.9596,5.71786-2.66771l1.79259-2.01912"/><polygon fill="#fff" points="34.23209 3.42723 29.56953 6.85447 29.56953 0 34.23209 3.42723"/><polygon fill="#fff" points="34.23209 19.45554 29.56953 22.88277 29.56953 16.02831 34.23209 19.45554"/></svg>';
+  const recallSVG  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22.9623 24.99989" width="21"><polygon fill="#fff" points="19.47966 24.86524 22.9623 20.12729 15.99702 20.12729 19.47966 24.86524"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.50168" d="M.75084,24.24905l.05706-20.75049c.00481-1.52233,1.24281-2.75253,2.76515-2.74771l13.28802.02415c1.52233.00481,2.75253,1.24281,2.74771,2.76515l-.05706,18.04306"/></svg>';
+  if (srIco) srIco.innerHTML = hasPlaced ? recallSVG : shuffleSVG;
   if (srLbl) srLbl.textContent = hasPlaced ? 'Recall' : 'Shuffle';
   if (window._tutPostRender) window._tutPostRender();
 }
@@ -3830,8 +3830,8 @@ function toggleMoreMenu(e) {
   if (moreMenuOpen && btn) {
     const r = btn.getBoundingClientRect();
     menu.style.bottom = (window.innerHeight - r.top + 6) + 'px';
-    menu.style.right  = (window.innerWidth  - r.right) + 'px';
-    menu.style.left   = 'auto';
+    menu.style.left   = r.left + 'px';
+    menu.style.right  = 'auto';
     menu.style.top    = 'auto';
   }
   menu.classList.toggle('show', moreMenuOpen);

@@ -1279,7 +1279,7 @@ body {
   <div id="name-modal-inner">
     <h2 id="name-modal-title">What's your name?</h2>
     <p id="name-modal-subtitle">Your opponent will see this</p>
-    <input id="name-modal-input" type="text" maxlength="20" placeholder="Your name" autocomplete="off" />
+    <input id="name-modal-input" type="text" maxlength="10" placeholder="Your name" autocomplete="off" />
     <button id="name-modal-confirm-btn" class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="confirmNameModal()">Continue</button>
     <button class="btn btn-recall" style="width:100%" onclick="cancelNameModal()">Cancel</button>
   </div>
@@ -4064,7 +4064,7 @@ function startEditName() {
   display.innerHTML = '';
   const input = document.createElement('input');
   input.className = 'name-input';
-  input.maxLength = 12;
+  input.maxLength = 10;
   input.value = playerName === 'You' ? '' : playerName;
   input.placeholder = 'Your name';
   display.appendChild(input);
@@ -4990,7 +4990,7 @@ function confirmNameModal() {
   if (!val) { input.classList.add('error'); return; }
   input.classList.remove('error');
   // Save and apply as playerName
-  playerName = val;
+  playerName = val.slice(0, 10);
   localStorage.setItem('playerName', playerName);
   // Also update the in-game name display
   const nt = document.getElementById('player-name-text');

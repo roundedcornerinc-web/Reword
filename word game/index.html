@@ -491,6 +491,141 @@ body {
 .icon-btn.active-exchange .icon-btn-ico { color: #ffd050; }
 .icon-btn.active-exchange .icon-btn-lbl { color: #ffd050; }
 
+/* ── Other Games overlay ── */
+#other-games-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%;
+  max-width: 520px;
+  background: #1a1040;
+  border-radius: 18px 18px 0 0;
+  z-index: 350;
+  transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+}
+#other-games-overlay.show { transform: translateX(-50%) translateY(0); }
+#og-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 10px;
+}
+#og-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #aaa;
+  text-transform: uppercase;
+}
+#og-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 2px;
+  display: flex;
+  align-items: center;
+}
+#og-scroll {
+  display: flex;
+  gap: 10px;
+  padding: 0 16px 32px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#og-scroll::-webkit-scrollbar { display: none; }
+.og-card {
+  flex-shrink: 0;
+  width: 118px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.og-score { font-size: 1.7rem; font-weight: 700; color: var(--btn-primary); line-height: 1.1; }
+.og-you  { font-size: 0.52rem; color: #888; text-transform: uppercase; letter-spacing: 0.06em; }
+.og-vs   { font-size: 0.5rem;  color: #bbb; text-transform: uppercase; margin: 2px 0; }
+.og-opp  { font-size: 0.6rem;  color: #333; font-weight: 600; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.og-play-btn {
+  margin-top: 10px;
+  width: 100%;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--btn-primary);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  font-family: inherit;
+}
+.og-new-card {
+  flex-shrink: 0;
+  width: 100px;
+  background: var(--btn-primary);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  border: none;
+  padding: 14px 8px;
+  color: #fff;
+  font-family: inherit;
+  min-height: 168px;
+}
+.og-new-plus { font-size: 2.2rem; font-weight: 300; line-height: 1; }
+.og-new-lbl  { font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; text-align: center; line-height: 1.5; }
+
+/* new game choice overlay */
+#new-game-choice {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%;
+  max-width: 520px;
+  background: #1a1040;
+  border-radius: 18px 18px 0 0;
+  z-index: 360;
+  transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+  padding: 20px 20px 40px;
+}
+#new-game-choice.show { transform: translateX(-50%) translateY(0); }
+#ngc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+#ngc-title { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em; color: #aaa; text-transform: uppercase; }
+#ngc-close { background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; }
+.ngc-btn {
+  width: 100%;
+  height: 52px;
+  border-radius: 26px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  letter-spacing: 0.02em;
+}
+.ngc-btn-human { background: var(--btn-primary); color: #fff; }
+.ngc-btn-ai    { background: #2a1a5e; color: #aaa; }
+
 /* Play button — large pill */
 #btn-play {
   flex: 1;
@@ -1729,7 +1864,7 @@ function submitPlay() {
 
   auditTiles('commitPlay');
   checkGameOver();
-  if (isOnlineMode) { saveOnlineState(); return; }
+  if (isOnlineMode) { saveOnlineState(); if (!gameOver) setTimeout(showOtherGamesOverlay, 700); return; }
   saveAiGameState();
   if (!gameOver) setTimeout(doAiTurn, 1200);
 }
@@ -1744,7 +1879,7 @@ function passTurn() {
     showMsg('You passed your turn.', 'info');
     updateUI();
     checkGameOver();
-    if (isOnlineMode) { saveOnlineState(); return; }
+    if (isOnlineMode) { saveOnlineState(); if (!gameOver) setTimeout(showOtherGamesOverlay, 700); return; }
     saveAiGameState();
     if (!gameOver) setTimeout(doAiTurn, 800);
   });
@@ -3783,10 +3918,21 @@ function updateUI() {
   renderScorePreview();
   updateStrengthBar();
   updateResignButton();
-  // Play button opacity + Shuffle/Recall toggle
+  // Play button: toggle between Play and Other Games
   const hasPlaced = Object.values(pendingPlacements).some(p => !p.isSwap);
+  const waitingForOpponent = isOnlineMode && currentPlayer !== 'player' && !gameOver;
   const playBtn = document.getElementById('btn-play');
-  if (playBtn) playBtn.classList.toggle('tiles-placed', hasPlaced);
+  if (playBtn) {
+    if (waitingForOpponent) {
+      playBtn.textContent = 'Other Games';
+      playBtn.onclick = showOtherGamesOverlay;
+      playBtn.classList.add('tiles-placed');
+    } else {
+      playBtn.textContent = 'Play';
+      playBtn.onclick = submitPlay;
+      playBtn.classList.toggle('tiles-placed', hasPlaced);
+    }
+  }
   const srIco = document.getElementById('shuffle-recall-ico');
   const srLbl = document.getElementById('shuffle-recall-lbl');
   const shuffleSVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34.23209 22.88277" width="32"><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,3.36493h4.24195c2.14461,0,4.20139.9596,5.71786,2.66771l9.60906,10.82333c1.51647,1.7081,3.57325,2.66771,5.71786,2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M18.80162,7.89138l1.70949-1.85874c1.51647-1.7081,3.57325-2.66771,5.71786-2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,19.52367h4.24195c2.14461,0,4.20139-.9596,5.71786-2.66771l1.79259-2.01912"/><polygon fill="#fff" points="34.23209 3.42723 29.56953 6.85447 29.56953 0 34.23209 3.42723"/><polygon fill="#fff" points="34.23209 19.45554 29.56953 22.88277 29.56953 16.02831 34.23209 19.45554"/></svg>';
@@ -5838,7 +5984,133 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   } catch(e) {}
 })();
 // ── End tutorial system ────────────────────────────────────────────────────
+
+// ── Other Games overlay ───────────────────────────────────────────────────
+function showOtherGamesOverlay() {
+  const overlay = document.getElementById('other-games-overlay');
+  if (!overlay) return;
+  buildOtherGameCards();
+  overlay.classList.add('show');
+}
+
+function closeOtherGamesOverlay() {
+  const overlay = document.getElementById('other-games-overlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
+function showNewGameChoice() {
+  closeOtherGamesOverlay();
+  document.getElementById('new-game-choice').classList.add('show');
+}
+
+function closeNewGameChoice() {
+  document.getElementById('new-game-choice').classList.remove('show');
+}
+
+async function buildOtherGameCards() {
+  const scroll = document.getElementById('og-scroll');
+  if (!scroll) return;
+  scroll.innerHTML = '<div style="color:#777;font-size:0.8rem;padding:16px 0;flex-shrink:0">Loading…</div>';
+
+  const cards = [];
+
+  // AI game
+  try {
+    const aiRaw = localStorage.getItem('reword_ai_game');
+    if (aiRaw) {
+      const s = JSON.parse(aiRaw);
+      if (!s.gameOver) {
+        cards.push({
+          type: 'ai',
+          myScore: s.playerScore || 0,
+          opScore: s.aiScore || 0,
+          opName: 'AI (hard)',
+          isMyTurn: s.currentPlayer === 'player',
+        });
+      }
+    }
+  } catch(e) {}
+
+  // Online games
+  const stored = getStoredGames();
+  if (stored.length > 0) {
+    try {
+      const snaps = await Promise.all(stored.map(({gameId}) =>
+        db.collection('games').doc(gameId).get().catch(() => null)
+      ));
+      snaps.forEach((snap, i) => {
+        if (!snap || !snap.exists) return;
+        const data = snap.data();
+        if (data.status === 'cancelled' || data.gameOver) return;
+        const {gameId, myRole} = stored[i];
+        const opRole = myRole === 'p1' ? 'p2' : 'p1';
+        cards.push({
+          type: 'online',
+          gameId, myRole,
+          myScore: data.scores?.[myRole] ?? 0,
+          opScore: data.scores?.[opRole] ?? 0,
+          opName: data.players?.[opRole]?.name || 'Opponent',
+          isMyTurn: data.currentTurn === myRole,
+          isWaiting: data.status === 'waiting',
+        });
+      });
+    } catch(e) {}
+  }
+
+  const cardHTML = cards.map(card => {
+    const onclick = card.type === 'ai'
+      ? `closeOtherGamesOverlay();loadAiGameState()`
+      : `closeOtherGamesOverlay();loadOnlineGame('${card.gameId}','${card.myRole}')`;
+    return `<div class="og-card">
+      <div class="og-score">${card.myScore}</div>
+      <div class="og-you">You</div>
+      <div class="og-vs">vs</div>
+      <div class="og-opp">${card.opName}</div>
+      <div class="og-score">${card.opScore}</div>
+      <button class="og-play-btn" onclick="${onclick}">PLAY</button>
+    </div>`;
+  }).join('');
+
+  const newCard = `<button class="og-new-card" onclick="showNewGameChoice()">
+    <span class="og-new-plus">+</span>
+    <span class="og-new-lbl">Start New Game</span>
+  </button>`;
+
+  scroll.innerHTML = cardHTML + newCard;
+}
+
+// Close overlays when tapping outside
+document.addEventListener('click', e => {
+  const ogOverlay = document.getElementById('other-games-overlay');
+  const ngcOverlay = document.getElementById('new-game-choice');
+  if (ogOverlay && ogOverlay.classList.contains('show') && !ogOverlay.contains(e.target)) {
+    closeOtherGamesOverlay();
+  }
+  if (ngcOverlay && ngcOverlay.classList.contains('show') && !ngcOverlay.contains(e.target)) {
+    closeNewGameChoice();
+  }
+});
+// ── End Other Games overlay ───────────────────────────────────────────────
 </script>
 <div id="ad-banner"><span>Advertisement</span></div>
+<!-- ── Other Games overlay ── -->
+<div id="other-games-overlay">
+  <div id="og-header">
+    <span id="og-title">Other Games</span>
+    <button id="og-close" onclick="closeOtherGamesOverlay()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="35.16273 2.5 18.83136 23.18971 2.5 2.5"/></svg></button>
+  </div>
+  <div id="og-scroll"></div>
+</div>
+
+<!-- ── New Game choice overlay ── -->
+<div id="new-game-choice">
+  <div id="ngc-header">
+    <span id="ngc-title">Start New Game</span>
+    <button id="ngc-close" onclick="closeNewGameChoice()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="35.16273 2.5 18.83136 23.18971 2.5 2.5"/></svg></button>
+  </div>
+  <button class="ngc-btn ngc-btn-human" onclick="closeNewGameChoice();newOnlineGame()">Challenge a Friend</button>
+  <button class="ngc-btn ngc-btn-ai" onclick="closeNewGameChoice();startAiGame()">Play vs AI</button>
+</div>
+
 </body>
 </html>

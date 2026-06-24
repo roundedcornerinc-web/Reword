@@ -965,7 +965,7 @@ body {
     <span id="strength-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.53824 16.66408" width="12"><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1="15.596" y1=".94224" x2="15.596" y2="15.72184"/><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1="10.71143" y1="15.72184" x2="10.71143" y2="5.28656"/><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1="5.82683" y1="15.72184" x2="5.82683" y2="8.03606"/><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1=".94224" y1="15.72184" x2=".94224" y2="10.78556"/></svg></span>
     <span id="strength-label">Word Strength</span>
     <div id="strength-track"><div id="strength-fill"></div></div>
-    <span id="strength-pct">—</span>
+    <span id="strength-pct"></span>
     <span id="tiles-left-inline"><span id="bag-num">100</span> tiles left</span>
   </div>
   <div id="rack"></div>
@@ -3747,13 +3747,13 @@ function updateStrengthBar() {
   if (bestPossibleScore == null) {
     fill.style.width = '0%';
     fill.style.backgroundColor = 'rgba(255,255,255,0.15)';
-    pct.textContent = '…';
+    pct.textContent = '';
     return;
   }
   if (!bestPossibleScore) {
     fill.style.width = '0%';
     fill.style.backgroundColor = '#555';
-    pct.textContent = '—';
+    pct.textContent = '';
     return;
   }
   const ratio = Math.min(1, currentScore / bestPossibleScore);

@@ -5534,7 +5534,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     });
   }
 
-  var TUT_RACK_BASE = ['S','T','O','R','N','I','E'];
+  var TUT_RACK_BASE = ['S','R','T','I','L','E','D'];
 
   // Step 0: Welcome intro overlay
   function tutStep0() {
@@ -5579,7 +5579,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     var existing = document.getElementById('tut-fly');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
     clearBoard15();
-    board[7][6] = 'C'; board[7][7] = 'A'; board[7][8] = 'R'; board[7][9] = 'E';
+    board[7][6] = 'B'; board[7][7] = 'A'; board[7][8] = 'S'; board[7][9] = 'E';
     pendingPlacements = {};
     pendingRemovals = new Set();
     pendingRemovalInfo = {};
@@ -5596,8 +5596,8 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       var bCell = boardCell(7, 9);
       // Highlight both S in rack and E on board
       tutHighlight(rTile);
-      tutBubble(bCell, 'Drag the S onto<br>the E to steal it', true);
-      tutBar('Drag a rack tile onto a board tile to steal it — your tile takes its spot.', 'Next →');
+      tutBubble(bCell, 'Drag your S onto<br>the E to swap it', true);
+      tutBar('Your opponent has started the game by playing BASE. If you swap your S for the E, you can use all your tiles. Drag your S onto the E to swap it.', 'Next →');
       // Also add a blue highlight ring on the target E
       var ring2 = document.getElementById('tut-ring2');
       if (!ring2) {

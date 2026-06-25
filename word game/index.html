@@ -5642,7 +5642,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     swappedRackIndices = new Set([0]); // E at index 0 is purple — taken from board
     lastSwapKeys = []; lastSwapPairMap = {};
     lastMoveKeys = [];
-    playerRack = ['E','R','T','I','L','N','D'];
+    playerRack = ['E','R','T','I','L','E','D'];
     window._tutDraggableIdx = null;
     document.getElementById('tut-bar').style.display = 'none';
     renderBoard();
@@ -5663,8 +5663,8 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   }
 
   function tutRetailComplete() {
-    // RETAIL vertical at col 7: R(4,7) E(5,7) T(6,7) A(7,7-on board) I(8,7) L(9,7)
-    var needed = [['4,7','R'],['5,7','E'],['6,7','T'],['8,7','I'],['9,7','L']];
+    // RETAILED vertical at col 7: R(4,7) E(5,7) T(6,7) A(7,7-on board) I(8,7) L(9,7) E(10,7) D(11,7)
+    var needed = [['4,7','R'],['5,7','E'],['6,7','T'],['8,7','I'],['9,7','L'],['10,7','E'],['11,7','D']];
     return needed.every(function(pair) {
       var p = pendingPlacements[pair[0]];
       return p && p.letter && p.letter.toUpperCase() === pair[1];
@@ -5678,7 +5678,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     var boardEl2 = document.getElementById('board');
     boardEl2.style.position = 'relative';
     var topCell = boardCell(4, 7);
-    var botCell = boardCell(9, 7);
+    var botCell = boardCell(11, 7);
     if (!topCell || !botCell) return;
 
     var boardRect = boardEl2.getBoundingClientRect();
@@ -5748,7 +5748,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
         'background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:8px;' +
         'padding:8px 12px;color:#fff;font-size:0.75rem;line-height:1.5;' +
         'text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.6);';
-      lbl.innerHTML = 'The E must be used this turn.<br>Try spelling <strong>RETAIL</strong> here ↓';
+      lbl.innerHTML = 'Any swapped letters must be played on this turn (you can\'t save them in your rack for later). Play <strong>RETAILED</strong> here to use all your tiles and get a bonus.';
       boardEl2.appendChild(lbl);
 
       // Arrow tail

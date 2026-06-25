@@ -5449,13 +5449,13 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     return document.querySelector('#board [data-r="' + r + '"][data-c="' + c + '"]');
   }
 
-  function tutHighlight(el, blue) {
+  function tutHighlight(el, blue, yOffset) {
     if (!el) return;
     var r = el.getBoundingClientRect();
     var ring = document.getElementById('tut-ring');
     ring.style.transition = 'none';
     ring.style.left = (r.left - 3) + 'px';
-    ring.style.top = (r.top - 3) + 'px';
+    ring.style.top = (r.top - 3 + (yOffset || 0)) + 'px';
     ring.style.width = (r.width + 6) + 'px';
     ring.style.height = (r.height + 6) + 'px';
     ring.className = blue ? 'blue' : '';
@@ -5603,7 +5603,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     renderRack();
     after(300, function() {
       var bCell = boardCell(7, 9);
-      tutHighlight(bCell);
+      document.getElementById('tut-ring').style.display = 'none';
       tutHeader('Your opponent played BASE. Swap your S for the E and you can use all your tiles. Drag your S onto the E to swap it.');
       tutBubble(bCell, 'Drag S here', true);
       document.getElementById('tut-bar').style.display = 'none';

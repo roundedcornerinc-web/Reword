@@ -2526,9 +2526,9 @@ function onCellDrop(r, c, rackIdx) {
 // Move or swap a pending (not-yet-committed) tile to another board cell
 function onPendingTileDrop(r, c, fromKey) {
   if (currentPlayer !== 'player' || gameOver) return;
-  // Tutorial step 3 (RETAIL): only allow re-drops in col 7, rows 4–9 (excl. row 7)
+  // Tutorial step 3 (RETAILED): only allow re-drops in col 7, rows 4–11 (excl. row 7)
   if (window.tutorialMode && window._tutStep === 3) {
-    if (c !== 7 || r < 4 || r > 9 || r === 7) return;
+    if (c !== 7 || r < 4 || r > 11 || r === 7) return;
   }
   // Tutorial step 7 (SPRING): only allow re-drops in col 10, rows 0-3,5
   if (window.tutorialMode && window._tutStep === 7) {
@@ -5654,7 +5654,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     playerRack = ['E','R','T','I','L','E','D'];
     window._tutDraggableIdx = null;
     document.getElementById('tut-bar').style.display = 'none';
-    tutHeader('The E in your rack is purple — it was swapped from the board and must be played this turn. Spell RETAILED to use every tile and earn a bonus!');
+    tutHeader('The E is now in your tile rack and is purple along with the S on the board to indicate they\'ve been swapped. Any swapped tiles must be played this turn. Play RETAILED to use all your tiles and get a bonus.');
     renderBoard();
     renderRack();
     // Use a simple delay — onRelease listeners miss touchend since it already fired
@@ -5750,7 +5750,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
         'background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:8px;' +
         'padding:8px 12px;color:#fff;font-size:0.75rem;line-height:1.5;' +
         'text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.6);';
-      lbl.innerHTML = 'Spell <strong>RETAILED</strong> here ↓';
+      lbl.innerHTML = 'Spell <strong>RETAILED</strong> here';
       boardEl2.appendChild(lbl);
 
       // Arrow tail

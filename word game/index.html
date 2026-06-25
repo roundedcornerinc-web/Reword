@@ -5835,7 +5835,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     document.getElementById('tut-bar').style.display = 'none';
     renderBoard();
     renderRack();
-    tutHeader('Like swapped tiles, stolen tiles turn purple and must be played. When you steal a tile, the square they came from is blocked for that turn. Tap Recall to undo all swaps and steals and return original letters to your rack.' +
+    tutHeader('Like swapped tiles, stolen tiles turn purple and must be played. When you steal a tile, the square they came from is blocked for that turn. The Recall button will undo all swaps and steals and return original letters to your rack.' +
       '<br><span onclick="window._tutStep6b()" style="color:#f72585;font-weight:700;font-size:0.85rem;letter-spacing:0.08em;cursor:pointer;user-select:none;">NEXT →</span>');
     after(80, function() { tutStep6ShowX(); window._tutPostRender = tutStep6ShowX; });
   }

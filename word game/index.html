@@ -5868,17 +5868,6 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     bub.innerHTML = 'Swap your <strong>D</strong> for the <strong>R</strong> in CAR';
     boardEl2.appendChild(bub);
 
-    // Arrow ◀ at the left edge of the bubble, pointing toward R
-    var arr = document.createElement('div');
-    arr.className = 'tut-step6-bubble';
-    arr.style.cssText =
-      'position:absolute;z-index:15;pointer-events:none;border:none;animation:none;' +
-      'left:' + (localRight + 8) + 'px;top:' + localTop + 'px;' +
-      'transform:translateX(-100%) translateY(-50%);' +
-      'color:#b794f4;font-size:1.3rem;line-height:1;' +
-      'text-shadow:0 0 10px rgba(183,148,244,0.9);';
-    arr.textContent = '◀';
-    boardEl2.appendChild(arr);
 
     // Blue ring on the R cell
     var ring2 = document.getElementById('tut-ring2');

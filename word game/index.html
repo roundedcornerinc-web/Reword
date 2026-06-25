@@ -5457,7 +5457,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     ring.className = blue ? 'blue' : '';
   }
 
-  function tutBubble(el, text, above) {
+  function tutBubble(el, text, above, bw) {
     if (!el) return;
     var r = el.getBoundingClientRect();
     var bub = document.getElementById('tut-bubble');
@@ -5465,7 +5465,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     bub.innerHTML = (above ? '' : '<div id="tut-bubble-arrow" class="up"></div>') +
       '<div id="tut-bubble-inner">' + text + '</div>' +
       (above ? '<div id="tut-bubble-arrow" class="down"></div>' : '');
-    var bw = 190;
+    var bw = bw || 190;
     var left = r.left + r.width / 2 - bw / 2;
     left = Math.max(8, Math.min(left, window.innerWidth - bw - 8));
     bub.style.left = left + 'px';
@@ -5596,8 +5596,8 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       var bCell = boardCell(7, 9);
       // Highlight both S in rack and E on board
       tutHighlight(rTile);
-      tutBubble(bCell, 'Drag your S onto<br>the E to swap it', true);
-      tutBar('Your opponent has started the game by playing BASE. If you swap your S for the E, you can use all your tiles. Drag your S onto the E to swap it.', 'Next →');
+      tutBubble(bCell, 'Your opponent has started the game by playing BASE. If you swap your S for the E, you can use all your tiles. Drag your S onto the E to swap it.', true, 260);
+      document.getElementById('tut-bar').style.display = 'none';
       // Also add a blue highlight ring on the target E
       var ring2 = document.getElementById('tut-ring2');
       if (!ring2) {
@@ -5635,7 +5635,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     clearAnims();
     zoomBoardOut();
     // S stays committed on the board (not a pending placement)
-    board[7][6] = 'C'; board[7][8] = 'R'; board[7][9] = 'S';
+    board[7][6] = 'B'; board[7][8] = 'S'; board[7][9] = 'S';
     pendingPlacements = {};
     pendingRemovals = new Set();
     pendingRemovalInfo = {};

@@ -1153,6 +1153,7 @@ body {
       <div style="width:22px;flex-shrink:0;"></div>
     </div>
   </div>
+  <div id="tut-header-text" style="display:none;padding:10px 16px;font-size:0.88rem;color:#ddd;line-height:1.55;text-align:center;"></div>
 </div>
 
 <div id="msg-bar" class="hidden"></div>
@@ -5496,6 +5497,10 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     }
   }
 
+  function tutHeader(text) {
+    document.getElementById('tut-header-text').innerHTML = text;
+  }
+
   function clearBoard15() {
     for (var r = 0; r < 15; r++) {
       for (var c = 0; c < 15; c++) {
@@ -5599,7 +5604,8 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       var bCell = boardCell(7, 9);
       // Highlight both S in rack and E on board
       tutHighlight(rTile);
-      tutBubble(bCell, 'Your opponent has started the game by playing BASE. If you swap your S for the E, you can use all your tiles. Drag your S onto the E to swap it.', true, 260);
+      tutHeader('Your opponent played BASE. Swap your S for the E and you can use all your tiles. Drag your S onto the E to swap it.');
+      tutBubble(bCell, 'Drag S here', true);
       document.getElementById('tut-bar').style.display = 'none';
       // Also add a blue highlight ring on the target E
       var ring2 = document.getElementById('tut-ring2');
@@ -5648,6 +5654,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     playerRack = ['E','R','T','I','L','E','D'];
     window._tutDraggableIdx = null;
     document.getElementById('tut-bar').style.display = 'none';
+    tutHeader('The E in your rack is purple — it was swapped from the board and must be played this turn. Spell RETAILED to use every tile and earn a bonus!');
     renderBoard();
     renderRack();
     // Use a simple delay — onRelease listeners miss touchend since it already fired
@@ -5743,7 +5750,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
         'background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:8px;' +
         'padding:8px 12px;color:#fff;font-size:0.75rem;line-height:1.5;' +
         'text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.6);';
-      lbl.innerHTML = 'The E in your rack is purple — it was swapped from the board and must be played this turn. Spell <strong>RETAILED</strong> here to use every tile and earn a bonus!';
+      lbl.innerHTML = 'Spell <strong>RETAILED</strong> here ↓';
       boardEl2.appendChild(lbl);
 
       // Arrow tail
@@ -6039,6 +6046,8 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     aiVsAiMode = false;
     document.getElementById('controls').style.display = 'none';
     document.getElementById('tut-exit-row').style.display = 'block';
+    document.getElementById('scoreboard').style.display = 'none';
+    document.getElementById('tut-header-text').style.display = 'block';
     _tutStep = 0;
     tutorialAdvance();
   };
@@ -6054,6 +6063,8 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     document.getElementById('tut-ring').style.display = 'none';
     document.getElementById('tut-bubble').style.display = 'none';
     document.getElementById('tut-bar').style.display = 'none';
+    document.getElementById('tut-header-text').style.display = 'none';
+    document.getElementById('scoreboard').style.display = '';
     document.getElementById('controls').style.display = '';
     startAiGame();
     try { localStorage.setItem('tutorialSeen', '1'); } catch(e) {}

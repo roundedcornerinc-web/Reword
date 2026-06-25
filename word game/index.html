@@ -1174,7 +1174,9 @@ body {
   justify-content: center;
   gap: 8px;
   align-self: center;
+  min-width: 220px;
 }
+#home-body.no-games #btn-new-game { margin-top: 30px; }
 #btn-new-game:active { opacity: 0.8; }
 #btn-new-game .plus { font-size: 1.1rem; font-weight: 300; }
 
@@ -6280,7 +6282,10 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
 function syncHomeButtonWidth() {
   const logo = document.getElementById('home-logo');
   const btn = document.getElementById('btn-new-game');
-  if (logo && btn) btn.style.width = (logo.offsetWidth + 30) + 'px';
+  if (!logo || !btn) return;
+  function apply() { btn.style.width = Math.max(logo.offsetWidth + 30, 220) + 'px'; }
+  if (logo.complete && logo.naturalWidth > 0) { apply(); }
+  else { logo.onload = apply; }
 }
 
 function showHomeScreen() {
@@ -6330,8 +6335,10 @@ function buildHomeGamesList() {
   const games = window._homeGames || [];
   if (games.length === 0) {
     empty.style.display = 'block';
+    list.closest('#home-body').classList.add('no-games');
   } else {
     empty.style.display = 'none';
+    list.closest('#home-body').classList.remove('no-games');
     games.forEach(function(g) {
       const card = document.createElement('div');
       card.className = 'home-game-card';

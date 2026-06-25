@@ -5767,12 +5767,13 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     }
   }
 
-  // Full board state shared by steps 3 & 4: RETAIL + CARS + opponent's REIN
+  // Full board state shared by steps 3 & 4: RETAILED + CARS + opponent's REIN
   function tutSetFullBoard() {
     clearBoard15();
-    // RETAIL vertical (col 7, rows 4–9)
+    // RETAILED vertical (col 7, rows 4–11)
     board[4][7]='R'; board[5][7]='E'; board[6][7]='T';
     board[7][7]='A'; board[8][7]='I'; board[9][7]='L';
+    board[10][7]='E'; board[11][7]='D';
     // CARS horizontal (row 7) — A shared at (7,7)
     board[7][6]='C'; board[7][8]='R'; board[7][9]='S';
     // Opponent played REIN extending right from R at (4,7)
@@ -5800,9 +5801,10 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       after(1200, function() {
         showMsg('', 'info');
         var cell = boardCell(7, 9);
-        tutHighlight(cell);
-        tutBubble(cell, 'You can take letters from existing words as long as they remain valid.<br><br>Tap or drag the S to move it into your rack', true);
-        tutBar('Take a letter from an existing word — as long as it stays valid.', 'Remove it!');
+        document.getElementById('tut-ring').style.display = 'none';
+        tutHeader('Now that you know how to swap letters, let\'s steal one. The first or last letter from an existing word can be stolen by clicking on it, provided the remaining letters still form a valid word. Let\'s steal the S from CARS.');
+        tutBubble(cell, 'Tap or drag the S to move it into your rack', true);
+        document.getElementById('tut-bar').style.display = 'none';
       });
     });
   }
@@ -5819,6 +5821,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     clearBoard15();
     board[4][7]='R'; board[5][7]='E'; board[6][7]='T';
     board[7][7]='A'; board[8][7]='I'; board[9][7]='L';
+    board[10][7]='E'; board[11][7]='D';
     board[7][6]='C'; board[7][8]='R'; // CAR without S
     board[4][8]='E'; board[4][9]='I'; board[4][10]='N';
     pendingPlacements = {};

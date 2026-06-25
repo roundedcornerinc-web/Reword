@@ -1138,7 +1138,7 @@ body {
 #home-header {
   width: 100%;
   background: var(--header-bg);
-  padding: 48px 20px 16px;
+  padding: 52px 20px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1146,12 +1146,9 @@ body {
 }
 #home-header .home-menu-btn {
   background: none; border: none; cursor: pointer; padding: 4px;
-  display: flex; flex-direction: column; gap: 5px;
+  display: flex; flex-direction: column; gap: 5px; flex-shrink: 0;
 }
-#home-header .home-menu-btn span {
-  display: block; width: 22px; height: 2px; background: #a77ef8; border-radius: 2px;
-}
-#home-logo { height: 44px; width: auto; margin-bottom: 40px; }
+#home-logo { height: 62px; width: auto; }
 
 #home-body {
   flex: 1;
@@ -1283,7 +1280,7 @@ body {
       </svg>
     </button>
     <img src="./reword_logo.png" id="home-logo" alt="REWORD">
-    <div style="width:34px"></div>
+    <div style="width:41px;flex-shrink:0;"></div>
   </div>
   <div id="home-body">
     <button id="btn-new-game" onclick="homeStartNewGame()">
@@ -1291,7 +1288,7 @@ body {
     </button>
     <div id="home-games-list"></div>
     <div id="home-empty" style="display:none">
-      No active games.<br>Start one above!
+      You have no active games
     </div>
   </div>
   <nav id="home-nav">

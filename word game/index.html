@@ -5884,6 +5884,25 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     ring2.style.width  = (rr.width  + 6) + 'px';
     ring2.style.height = (rr.height + 6) + 'px';
     ring2.style.display = 'block';
+
+    // X marker over (7,9) — where S was, now blocked
+    var xCell = boardCell(7, 9);
+    if (xCell) {
+      var xr = xCell.getBoundingClientRect();
+      var xMark = document.getElementById('tut-x-mark');
+      if (!xMark) {
+        xMark = document.createElement('div');
+        xMark.id = 'tut-x-mark';
+        xMark.style.cssText = 'position:fixed;pointer-events:none;z-index:180;display:flex;align-items:center;justify-content:center;color:rgba(255,80,80,0.85);font-size:1.2rem;font-weight:700;line-height:1;';
+        document.body.appendChild(xMark);
+      }
+      xMark.textContent = '✕';
+      xMark.style.left   = xr.left + 'px';
+      xMark.style.top    = xr.top  + 'px';
+      xMark.style.width  = xr.width  + 'px';
+      xMark.style.height = xr.height + 'px';
+      xMark.style.display = 'flex';
+    }
   }
 
   // Step 6: Show SPRING at triple word bonus
@@ -5893,13 +5912,14 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     clearBoard15();
     board[4][7]='R'; board[5][7]='E'; board[6][7]='T';
     board[7][7]='A'; board[8][7]='I'; board[9][7]='L';
-    board[7][6]='C'; board[7][8]='D'; // CAD after swap
+    board[10][7]='E'; board[11][7]='D';
+    board[7][6]='C'; board[7][8]=null; // D is pending (purple), not committed
     board[4][8]='E'; board[4][9]='I'; board[4][10]='N';
-    pendingPlacements = {};
+    pendingPlacements = { '7,8': { letter: 'D', rackIdx: -1, isSwap: true } };
     pendingRemovals = new Set();
     pendingRemovalInfo = {};
     swappedRackIndices = new Set([0, 2]); // S (stolen) and R (swapped) stay purple
-    lastSwapKeys = ['7,8']; // D on board shows purple — just swapped in
+    lastSwapKeys = [];
     lastMoveKeys = [];
     playerRack = ['S','I','R','V','P','F','G','Z'];
     window._tutDraggableIdx = null;
@@ -5964,32 +5984,10 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       playBtn.textContent = 'Play →';
       playBtn.onclick = function() { tutorialAdvance(); };
       boardEl2.appendChild(playBtn);
-      // Arrow ▶ from Play button toward TW column
-      var arr2 = document.createElement('div');
-      arr2.className = 'tut-cell-outline';
-      arr2.style.cssText =
-        'position:absolute;border:none;animation:none;z-index:15;' +
-        'left:' + (colLeft - 8) + 'px;top:' + (localTop + cellH / 2) + 'px;' +
-        'transform:translateX(-100%) translateY(-50%);' +
-        'color:#f72585;font-size:1.1rem;line-height:1;' +
-        'text-shadow:0 0 8px rgba(247,37,133,0.8);';
-      arr2.textContent = '▶';
-      boardEl2.appendChild(arr2);
     } else {
       // Bubble top-aligned with TW square, to the left of column
       var lbl = document.createElement('div');
       lbl.className = 'tut-cell-outline';
-      // Arrow ▶ pointing right from bubble toward TW square (rendered first = under bubble)
-      var arr = document.createElement('div');
-      arr.className = 'tut-cell-outline';
-      arr.style.cssText =
-        'position:absolute;border:none;animation:none;z-index:13;' +
-        'left:' + (colLeft - 8) + 'px;top:' + (localTop + cellH / 2) + 'px;' +
-        'transform:translateX(-100%) translateY(-50%);' +
-        'color:#b794f4;font-size:1.3rem;line-height:1;' +
-        'text-shadow:0 0 10px rgba(183,148,244,0.9);';
-      arr.textContent = '▶';
-      boardEl2.appendChild(arr);
       var lbl = document.createElement('div');
       lbl.className = 'tut-cell-outline';
       lbl.style.cssText =

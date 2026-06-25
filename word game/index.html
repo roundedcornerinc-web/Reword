@@ -2439,9 +2439,9 @@ function onCellDrop(r, c, rackIdx) {
     return;
   }
   if (window.tutorialMode && window._tutStep === 2) return;
-  // Tutorial step 3 (RETAIL): only allow drops in col 7, rows 4–9 (excluding row 7 = committed A)
+  // Tutorial step 3 (RETAILED): only allow drops in col 7, rows 4–11 (excluding row 7 = committed A)
   if (window.tutorialMode && window._tutStep === 3) {
-    if (c !== 7 || r < 4 || r > 9 || r === 7) return;
+    if (c !== 7 || r < 4 || r > 11 || r === 7) return;
   }
   // Tutorial step 6: any rack tile dropped on R at (7,8) → advance
   if (window.tutorialMode && window._tutStep === 6) {

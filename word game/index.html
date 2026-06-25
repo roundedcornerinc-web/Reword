@@ -5601,7 +5601,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     currentPlayer = 'player';
     renderBoard();
     renderRack();
-    after(80, function() {
+    after(300, function() {
       var rTile = rackTile(0);
       var bCell = boardCell(7, 9);
       // Highlight both S in rack and E on board

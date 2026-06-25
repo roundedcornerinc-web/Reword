@@ -1121,10 +1121,218 @@ body {
 #tut-bubble-arrow.up { border-left:7px solid transparent; border-right:7px solid transparent; border-bottom:8px solid #7b2ff7; }
 .tut-cell-outline { pointer-events:none; border-radius:5px; border:2.5px dashed #fff; animation:tut-outline-pulse 1s ease infinite alternate; }
 @keyframes tut-outline-pulse { from { box-shadow:0 0 6px rgba(255,255,255,0.4); } to { box-shadow:0 0 16px rgba(255,255,255,0.75); } }
+
+/* ── HOME SCREEN ── */
+#home-screen {
+  display: none;
+  flex-direction: column;
+  width: 100%;
+  max-width: 520px;
+  min-height: 100vh;
+  background: var(--bg);
+}
+#home-screen.active { display: flex; }
+#game-screen { display: none; flex-direction: column; width: 100%; align-items: center; }
+#game-screen.active { display: flex; }
+
+#home-header {
+  width: 100%;
+  background: var(--header-bg);
+  padding: 48px 20px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+}
+#home-header .home-menu-btn {
+  background: none; border: none; cursor: pointer; padding: 4px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+#home-header .home-menu-btn span {
+  display: block; width: 22px; height: 2px; background: #a77ef8; border-radius: 2px;
+}
+#home-logo { height: 44px; width: auto; }
+
+#home-body {
+  flex: 1;
+  background: #2a1d6e;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#btn-new-game {
+  width: 100%;
+  background: #3d2b8a;
+  border: none;
+  border-radius: 30px;
+  padding: 14px 20px;
+  color: #c8b8f8;
+  font-size: 1rem;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: 0.01em;
+}
+#btn-new-game:active { opacity: 0.8; }
+#btn-new-game .plus { font-size: 1.2rem; font-weight: 300; }
+
+.home-game-card {
+  background: #3d2b8a;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.home-game-card:active { opacity: 0.8; }
+.home-game-card .hgc-left { display: flex; flex-direction: column; gap: 3px; }
+.home-game-card .hgc-opponent { font-size: 0.95rem; font-weight: 600; color: #fff; }
+.home-game-card .hgc-status { font-size: 0.75rem; color: #a77ef8; display: flex; align-items: center; gap: 5px; }
+.home-game-card .hgc-score { font-size: 1.1rem; font-weight: 700; color: #fff; }
+.home-game-card .hgc-score span { color: #a77ef8; font-size: 0.8rem; font-weight: 400; margin-left: 4px; }
+
+#home-empty {
+  text-align: center;
+  color: #7b6aaa;
+  font-size: 0.9rem;
+  margin-top: 30px;
+  line-height: 1.7;
+}
+
+#home-nav {
+  width: 100%;
+  background: #0e0825;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 12px 0 20px;
+  border-top: 1px solid rgba(167,126,248,0.15);
+}
+.home-nav-btn {
+  background: none; border: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  color: #a77ef8; font-size: 0.62rem; font-family: inherit;
+  font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 4px 16px;
+}
+.home-nav-btn svg { display: block; }
+
+/* ── WELCOME POPUP ── */
+#welcome-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(30,15,80,0.6);
+  align-items: center; justify-content: center;
+  padding: 24px;
+}
+#welcome-overlay.active { display: flex; }
+#welcome-card {
+  background: #fff;
+  border-radius: 22px;
+  padding: 36px 28px 28px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 12px 50px rgba(0,0,0,0.5);
+}
+#welcome-card h2 {
+  color: #1a1040;
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin-bottom: 14px;
+}
+#welcome-card p {
+  color: #3d2b6a;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+#welcome-card p strong { color: #1a1040; }
+#btn-lets-go {
+  display: block; width: 100%;
+  background: #5b2ee8;
+  color: #fff; font-weight: 800; font-size: 1rem;
+  font-family: inherit; letter-spacing: 0.06em;
+  border: none; border-radius: 30px;
+  padding: 14px 0; cursor: pointer; margin: 20px 0 16px;
+}
+#btn-lets-go:active { opacity: 0.85; }
+#btn-no-thanks {
+  background: none; border: none;
+  color: #3d2b6a; font-size: 0.9rem; font-weight: 600;
+  font-family: inherit; cursor: pointer;
+}
 </style>
 </head>
 <body>
 
+<!-- ── HOME SCREEN ── -->
+<div id="home-screen">
+  <div id="home-header">
+    <button class="home-menu-btn" onclick="toggleHomeMenu()">
+      <span></span><span></span><span></span>
+    </button>
+    <img src="./reword_logo.png" id="home-logo" alt="REWORD">
+    <div style="width:34px"></div>
+  </div>
+  <div id="home-body">
+    <button id="btn-new-game" onclick="homeStartNewGame()">
+      <span class="plus">+</span> Start New Game
+    </button>
+    <div id="home-games-list"></div>
+    <div id="home-empty" style="display:none">
+      No active games.<br>Start one above!
+    </div>
+  </div>
+  <nav id="home-nav">
+    <button class="home-nav-btn" onclick="homeNav('settings')">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.35327 22.06078" width="22" height="22" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="10.67664" cy="11.03039" r="3.79094"/>
+        <path d="M5.31848,16.97759c.82598.74206,1.80333,1.31466,2.8901,1.66018l.36198,2.92301h4.21216l.36198-2.92301c1.08677-.34552,2.06412-.91812,2.8901-1.66018l2.7124,1.146,2.10608-3.65602-2.35042-1.76878c.11765-.53969.17688-1.09582.17688-1.66841s-.05923-1.12872-.17688-1.66841l2.35042-1.76878-2.10608-3.65602-2.7124,1.146c-.82598-.74206-1.80333-1.31466-2.8901-1.66018l-.36198-2.92301h-4.21216l-.36198,2.92301c-1.08677.34552-2.06412.91812-2.8901,1.66018l-2.7124-1.146L.5,7.59321l2.35042,1.76878c-.11765.53969-.17688,1.09582-.17688,1.66841s.05923,1.12872.17688,1.66841l-2.35042,1.76878,2.10608,3.65602,2.7124-1.146Z"/>
+      </svg>
+      User Settings
+    </button>
+    <button class="home-nav-btn" onclick="homeNav('friends')">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26.88365 15.36974" width="28" height="22" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19.6189,14.86974v-2.01482c0-2.34199-1.7567-3.66154-4.07015-4.1309l-2.072,1.89016-2.07-1.88776c-2.31422.47411-4.07173,1.80237-4.07173,4.1285v2.01482"/>
+        <path d="M13.47675.5c-1.88337,0-3.41135,1.52717-3.41135,3.41176,0,1.88377,1.52798,3.41135,3.41135,3.41135,1.88418,0,3.41257-1.52758,3.41257-3.41135,0-1.88459-1.52839-3.41176-3.41257-3.41176Z"/>
+        <path d="M8.5975,9.9235c-.33638-.13096-.69738-.23442-1.07581-.31119l-1.77142,1.61573-1.76939-1.61333c-1.97831.4054-3.48088,1.5403-3.48088,3.5289v1.72296"/>
+        <path d="M5.75027,2.58191c-1.60979,0-2.91617,1.30561-2.91617,2.91617,0,1.61101,1.30638,2.91581,2.91617,2.91581,1.61061,0,2.9178-1.30479,2.9178-2.91581,0-1.61057-1.30719-2.91617-2.9178-2.91617Z"/>
+        <path d="M26.38365,14.86657v-1.72296c0-2.0025-1.5018-3.12903-3.4797-3.5313l-1.77097,1.61573-1.76944-1.61333c-.30893.06313-.60645.14403-.88843.24335"/>
+        <path d="M21.13298,2.58191c-1.6102,0-2.91662,1.30561-2.91662,2.91617,0,1.61101,1.30642,2.91581,2.91662,2.91581,1.61097,0,2.91739-1.30479,2.91739-2.91581,0-1.61057-1.30642-2.91617-2.91739-2.91617Z"/>
+      </svg>
+      Friends
+    </button>
+    <button class="home-nav-btn" onclick="homeNav('stats')">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15.22821 14.52285" width="20" height="22" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x=".5" y="5.00762" width="3.65868" height="9.01524"/>
+        <rect x="5.78476" y="7.26143" width="3.65868" height="6.76143"/>
+        <rect x="11.06952" y=".5" width="3.65868" height="13.52285"/>
+      </svg>
+      Stats
+    </button>
+  </nav>
+</div>
+
+<!-- ── WELCOME POPUP ── -->
+<div id="welcome-overlay">
+  <div id="welcome-card">
+    <h2>Welcome to Reword</h2>
+    <p>Reword is like Scrabble—but you can <strong>swap</strong> or <strong>steal</strong> tiles from the board to build new words.</p>
+    <p>This quick tutorial shows you the basics.</p>
+    <button id="btn-lets-go" onclick="welcomeStartTutorial()">LET'S GO</button>
+    <button id="btn-no-thanks" onclick="welcomeSkipTutorial()">No thanks. I know how to play.</button>
+  </div>
+</div>
+
+<div id="game-screen">
 <div id="header">
   <div id="scoreboard">
     <div id="score-left">
@@ -6060,22 +6268,87 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     document.getElementById('tut-header-text').style.display = 'none';
     document.getElementById('scoreboard').style.display = '';
     document.getElementById('controls').style.display = '';
-    startAiGame();
-    try { localStorage.setItem('tutorialSeen', '1'); } catch(e) {}
+    try { localStorage.setItem('reword_tutorial_done', '1'); } catch(e) {}
+    showHomeScreen();
   };
 
-  try {
-    if (!localStorage.getItem('tutorialSeen')) {
-      window.addEventListener('load', function() { setTimeout(showTutorial, 800); });
-    }
-  } catch(e) {}
+  window.addEventListener('load', function() { setTimeout(initApp, 300); });
 })();
 // ── End tutorial system ────────────────────────────────────────────────────
 
 // ── Home navigation (placeholder until home screen is designed) ──────────
+function showHomeScreen() {
+  document.getElementById('home-screen').classList.add('active');
+  document.getElementById('game-screen').classList.remove('active');
+  buildHomeGamesList();
+}
+
+function showGameScreen() {
+  document.getElementById('home-screen').classList.remove('active');
+  document.getElementById('game-screen').classList.add('active');
+}
+
 function goHome() {
-  // TODO: navigate to home screen
-  showOtherGamesOverlay();
+  showHomeScreen();
+}
+
+function homeStartNewGame() {
+  showGameScreen();
+  showNewGameChoice();
+}
+
+function homeNav(tab) {
+  // placeholder — settings/friends/stats screens come later
+}
+
+function toggleHomeMenu() {
+  // placeholder — hamburger menu
+}
+
+function welcomeStartTutorial() {
+  document.getElementById('welcome-overlay').classList.remove('active');
+  showGameScreen();
+  showTutorial();
+}
+
+function welcomeSkipTutorial() {
+  localStorage.setItem('reword_tutorial_done', '1');
+  document.getElementById('welcome-overlay').classList.remove('active');
+}
+
+function buildHomeGamesList() {
+  const list = document.getElementById('home-games-list');
+  const empty = document.getElementById('home-empty');
+  list.innerHTML = '';
+  // Gather online games from firebase if available
+  const games = window._homeGames || [];
+  if (games.length === 0) {
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    games.forEach(function(g) {
+      const card = document.createElement('div');
+      card.className = 'home-game-card';
+      const myTurn = g.currentPlayer === 'player';
+      card.innerHTML =
+        '<div class="hgc-left">' +
+          '<div class="hgc-opponent">' + (g.opponentName || 'Opponent') + '</div>' +
+          '<div class="hgc-status">' + (myTurn ? '● Your turn' : '○ Their turn') + '</div>' +
+        '</div>' +
+        '<div class="hgc-score">' + (g.playerScore||0) + ' – ' + (g.aiScore||0) + '</div>';
+      card.onclick = function() { loadOnlineGame(g.id); showGameScreen(); };
+      list.appendChild(card);
+    });
+  }
+}
+
+// Called on app init
+function initApp() {
+  const tutorialDone = localStorage.getItem('reword_tutorial_done');
+  showHomeScreen();
+  if (!tutorialDone) {
+    document.getElementById('welcome-overlay').classList.add('active');
+  }
 }
 // ── End home navigation ───────────────────────────────────────────────────
 
@@ -6205,6 +6478,8 @@ document.addEventListener('click', e => {
   <button class="ngc-btn ngc-btn-human" onclick="closeNewGameChoice();newOnlineGame()">Challenge a Friend</button>
   <button class="ngc-btn ngc-btn-ai" onclick="closeNewGameChoice();startAiGame()">Play vs AI</button>
 </div>
+
+</div><!-- #game-screen -->
 
 </body>
 </html>

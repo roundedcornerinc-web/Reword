@@ -5604,7 +5604,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     after(300, function() {
       var bCell = boardCell(7, 9);
       document.getElementById('tut-ring').style.display = 'none';
-      tutHeader('Your opponent played CARE. Swap your S for the E and you can use all your tiles. Drag your S onto the E to swap it.');
+      tutHeader('Your opponent played CARE. If you swap your S for the E, you will be able to play a word with all of your letters for a 35 point bonus. Drag the S from your tile rack over the E to make the swap.');
       tutBubble(bCell, 'Drag S here', true);
       document.getElementById('tut-bar').style.display = 'none';
       // Also add a blue highlight ring on the target E

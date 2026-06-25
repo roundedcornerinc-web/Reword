@@ -1229,8 +1229,9 @@ body {
   background: rgba(30,15,80,0.6);
   align-items: center; justify-content: center;
   padding: 24px;
+  pointer-events: none;
 }
-#welcome-overlay.active { display: flex; }
+#welcome-overlay.active { display: flex; pointer-events: auto; }
 #welcome-card {
   background: #fff;
   border-radius: 22px;
@@ -6305,7 +6306,8 @@ function goHome() {
 }
 
 function homeStartNewGame() {
-  showNewGameChoice();
+  const ngc = document.getElementById('new-game-choice');
+  if (ngc) ngc.classList.add('show');
 }
 
 function homeNav(tab) {

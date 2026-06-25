@@ -5835,34 +5835,58 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     document.getElementById('tut-bar').style.display = 'none';
     renderBoard();
     renderRack();
-    tutHeader('Like swapped tiles, stolen tiles will become purple to let you know they must be played that turn. You almost have what you need to use a triple word bonus. Try another swap.');
-    after(80, function() {
-      tutStep6DrawBubble();
-      window._tutPostRender = tutStep6DrawBubble;
-    });
+    tutHeader('Like swapped tiles, stolen tiles will become purple to indicate they must be played. When you steal a tile, the square on the board where it was becomes blocked out for that turn unless you hit Recall, which undoes all swaps and steals you have made and returns the original letters to your rack.' +
+      '<br><br><button onclick="tutStep6b()" style="background:linear-gradient(135deg,#7b2ff7,#f72585);color:#fff;font-weight:700;font-size:0.9rem;font-family:inherit;border:none;border-radius:10px;padding:9px 26px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.4);">Next →</button>');
+    after(80, function() { tutStep6ShowX(); window._tutPostRender = tutStep6ShowX; });
+  }
+
+  function tutStep6b() {
+    window._tutPostRender = tutStep6DrawBubble;
+    tutHeader('You almost have what you need to use a triple word bonus. Try another swap.');
+    after(80, function() { tutStep6DrawBubble(); });
+  }
+
+  function tutStep6ShowX() {
+    var xCell = boardCell(7, 9);
+    if (!xCell) return;
+    var xr = xCell.getBoundingClientRect();
+    var xMark = document.getElementById('tut-x-mark');
+    if (!xMark) {
+      xMark = document.createElement('div');
+      xMark.id = 'tut-x-mark';
+      xMark.style.cssText = 'position:fixed;pointer-events:none;z-index:180;display:flex;align-items:center;justify-content:center;color:rgba(255,80,80,0.85);font-size:1.2rem;font-weight:700;line-height:1;';
+      document.body.appendChild(xMark);
+    }
+    xMark.textContent = '✕';
+    xMark.style.left   = xr.left + 'px';
+    xMark.style.top    = xr.top  + 'px';
+    xMark.style.width  = xr.width  + 'px';
+    xMark.style.height = xr.height + 'px';
+    xMark.style.display = 'flex';
   }
 
   function tutStep6DrawBubble() {
+    tutStep6ShowX();
     document.querySelectorAll('.tut-step6-bubble').forEach(function(e) { if (e.parentNode) e.parentNode.removeChild(e); });
     var boardEl2 = document.getElementById('board');
     boardEl2.style.position = 'relative';
-    // Anchor to the RIGHT of R in CAR at (7,8) — bubble floats right of the word
+    // Bubble BELOW R in CAR at (7,8)
     var rCell = boardCell(7, 8);
     if (!rCell) return;
     var boardRect = boardEl2.getBoundingClientRect();
     var Sc = (boardEl2.offsetWidth > 0) ? boardRect.width / boardEl2.offsetWidth : 1;
     var rr = rCell.getBoundingClientRect();
-    var localRight  = (rr.right  - boardRect.left) / Sc;
-    var localTop    = (rr.top    - boardRect.top)  / Sc + rr.height / Sc / 2;
+    var localCenterX = (rr.left + rr.width / 2 - boardRect.left) / Sc;
+    var localBottom  = (rr.bottom - boardRect.top) / Sc;
 
-    // Bubble to the right of R, vertically centered
+    // Bubble below R, centered on it
     var bub = document.createElement('div');
     bub.className = 'tut-step6-bubble';
     bub.style.cssText =
       'position:absolute;z-index:14;pointer-events:auto;' +
-      'left:' + (localRight + 8) + 'px;top:' + localTop + 'px;' +
-      'transform:translateY(-50%);' +
-      'max-width:175px;background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:10px;' +
+      'left:' + localCenterX + 'px;top:' + (localBottom + 10) + 'px;' +
+      'transform:translateX(-50%);' +
+      'max-width:160px;background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:10px;' +
       'padding:10px 14px;color:#fff;font-size:0.78rem;line-height:1.5;' +
       'text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.65);';
     bub.innerHTML = 'Swap your <strong>D</strong> for the <strong>R</strong> in CAR';
@@ -5884,25 +5908,6 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     ring2.style.width  = (rr.width  + 6) + 'px';
     ring2.style.height = (rr.height + 6) + 'px';
     ring2.style.display = 'block';
-
-    // X marker over (7,9) — where S was, now blocked
-    var xCell = boardCell(7, 9);
-    if (xCell) {
-      var xr = xCell.getBoundingClientRect();
-      var xMark = document.getElementById('tut-x-mark');
-      if (!xMark) {
-        xMark = document.createElement('div');
-        xMark.id = 'tut-x-mark';
-        xMark.style.cssText = 'position:fixed;pointer-events:none;z-index:180;display:flex;align-items:center;justify-content:center;color:rgba(255,80,80,0.85);font-size:1.2rem;font-weight:700;line-height:1;';
-        document.body.appendChild(xMark);
-      }
-      xMark.textContent = '✕';
-      xMark.style.left   = xr.left + 'px';
-      xMark.style.top    = xr.top  + 'px';
-      xMark.style.width  = xr.width  + 'px';
-      xMark.style.height = xr.height + 'px';
-      xMark.style.display = 'flex';
-    }
   }
 
   // Step 6: Show SPRING at triple word bonus

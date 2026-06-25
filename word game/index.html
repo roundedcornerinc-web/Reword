@@ -1155,7 +1155,7 @@ body {
 
 #home-body {
   flex: 1;
-  background: #2a1d6e;
+  background: #fff;
   padding: 20px 16px;
   display: flex;
   flex-direction: column;
@@ -1218,8 +1218,8 @@ body {
 .home-nav-btn {
   background: none; border: none; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 5px;
-  color: #a77ef8; font-size: 0.62rem; font-family: inherit;
-  font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #fff; font-size: 7pt; font-family: 'Segoe UI', system-ui, sans-serif;
+  font-weight: 400; letter-spacing: 0.04em; text-transform: uppercase;
   padding: 4px 16px;
 }
 .home-nav-btn svg { display: block; }
@@ -1277,7 +1277,11 @@ body {
 <div id="home-screen">
   <div id="home-header">
     <button class="home-menu-btn" onclick="toggleHomeMenu()">
-      <span></span><span></span><span></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.08262 17.94747" width="33" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.50168">
+        <line x1=".75084" y1=".75084" x2="20.33178" y2=".75084"/>
+        <line x1="3.39096" y1="8.97373" x2="17.69165" y2="8.97373"/>
+        <line x1=".75084" y1="17.19663" x2="20.33178" y2="17.19663"/>
+      </svg>
     </button>
     <img src="./reword_logo.png" id="home-logo" alt="REWORD">
     <div style="width:34px"></div>
@@ -1293,14 +1297,14 @@ body {
   </div>
   <nav id="home-nav">
     <button class="home-nav-btn" onclick="homeNav('settings')">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.35327 22.06078" width="22" height="22" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.35327 22.06078" width="45" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="10.67664" cy="11.03039" r="3.79094"/>
         <path d="M5.31848,16.97759c.82598.74206,1.80333,1.31466,2.8901,1.66018l.36198,2.92301h4.21216l.36198-2.92301c1.08677-.34552,2.06412-.91812,2.8901-1.66018l2.7124,1.146,2.10608-3.65602-2.35042-1.76878c.11765-.53969.17688-1.09582.17688-1.66841s-.05923-1.12872-.17688-1.66841l2.35042-1.76878-2.10608-3.65602-2.7124,1.146c-.82598-.74206-1.80333-1.31466-2.8901-1.66018l-.36198-2.92301h-4.21216l-.36198,2.92301c-1.08677.34552-2.06412.91812-2.8901,1.66018l-2.7124-1.146L.5,7.59321l2.35042,1.76878c-.11765.53969-.17688,1.09582-.17688,1.66841s.05923,1.12872.17688,1.66841l-2.35042,1.76878,2.10608,3.65602,2.7124-1.146Z"/>
       </svg>
       User Settings
     </button>
     <button class="home-nav-btn" onclick="homeNav('friends')">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26.88365 15.36974" width="28" height="22" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26.88365 15.36974" width="65" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19.6189,14.86974v-2.01482c0-2.34199-1.7567-3.66154-4.07015-4.1309l-2.072,1.89016-2.07-1.88776c-2.31422.47411-4.07173,1.80237-4.07173,4.1285v2.01482"/>
         <path d="M13.47675.5c-1.88337,0-3.41135,1.52717-3.41135,3.41176,0,1.88377,1.52798,3.41135,3.41135,3.41135,1.88418,0,3.41257-1.52758,3.41257-3.41135,0-1.88459-1.52839-3.41176-3.41257-3.41176Z"/>
         <path d="M8.5975,9.9235c-.33638-.13096-.69738-.23442-1.07581-.31119l-1.77142,1.61573-1.76939-1.61333c-1.97831.4054-3.48088,1.5403-3.48088,3.5289v1.72296"/>
@@ -1311,7 +1315,7 @@ body {
       Friends
     </button>
     <button class="home-nav-btn" onclick="homeNav('stats')">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15.22821 14.52285" width="20" height="22" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15.22821 14.52285" width="39" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round">
         <rect x=".5" y="5.00762" width="3.65868" height="9.01524"/>
         <rect x="5.78476" y="7.26143" width="3.65868" height="6.76143"/>
         <rect x="11.06952" y=".5" width="3.65868" height="13.52285"/>

@@ -5453,12 +5453,14 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     if (!el) return;
     var r = el.getBoundingClientRect();
     var ring = document.getElementById('tut-ring');
-    ring.style.display = 'block';
+    ring.style.transition = 'none';
     ring.style.left = (r.left - 3) + 'px';
     ring.style.top = (r.top - 3) + 'px';
     ring.style.width = (r.width + 6) + 'px';
     ring.style.height = (r.height + 6) + 'px';
     ring.className = blue ? 'blue' : '';
+    ring.style.display = 'block';
+    requestAnimationFrame(function() { ring.style.transition = ''; });
   }
 
   function tutBubble(el, text, above, bw) {

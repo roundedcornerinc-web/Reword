@@ -5835,6 +5835,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     document.getElementById('tut-bar').style.display = 'none';
     renderBoard();
     renderRack();
+    tutHeader('Like swapped tiles, stolen tiles will become purple to let you know they must be played that turn. You almost have what you need to use a triple word bonus. Try another swap.');
     after(80, function() {
       tutStep6DrawBubble();
       window._tutPostRender = tutStep6DrawBubble;
@@ -5864,9 +5865,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       'max-width:175px;background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:10px;' +
       'padding:10px 14px;color:#fff;font-size:0.78rem;line-height:1.5;' +
       'text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.65);';
-    bub.innerHTML =
-      'Now you almost have what you need to use a triple word bonus.<br><br>' +
-      'Try swapping your <strong>D</strong> for the <strong>R</strong> in CAR.';
+    bub.innerHTML = 'Swap your <strong>D</strong> for the <strong>R</strong> in CAR';
     boardEl2.appendChild(bub);
 
     // Arrow ◀ at the left edge of the bubble, pointing toward R

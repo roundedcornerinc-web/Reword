@@ -5633,13 +5633,13 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     });
   }
 
-  // Step 2: Show the swap result — let user place RETAIL, then click Play
+  // Step 2: Show the swap result — let user place RETAILED, then click Play
   function tutStep3() {
     clearAnims();
     zoomBoardOut();
-    // S stays committed on the board (not a pending placement)
-    board[7][6] = 'B'; board[7][8] = 'S'; board[7][9] = 'S';
-    pendingPlacements = {};
+    board[7][6] = 'B'; board[7][8] = 'S';
+    board[7][9] = null; // S rendered via pendingPlacements so it shows purple
+    pendingPlacements = { '7,9': { letter: 'S', rackIdx: -1, isSwap: true } };
     pendingRemovals = new Set();
     pendingRemovalInfo = {};
     swappedRackIndices = new Set([0]); // E at index 0 is purple — taken from board
@@ -5650,19 +5650,11 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     document.getElementById('tut-bar').style.display = 'none';
     renderBoard();
     renderRack();
-    // Wait for the user to release the drag before showing the overlay
-    function onRelease() {
-      document.removeEventListener('dragend',   onRelease);
-      document.removeEventListener('mouseup',   onRelease);
-      document.removeEventListener('touchend',  onRelease);
-      after(80, function() {
-        tutStep3DrawOverlay();
-        window._tutPostRender = tutStep3DrawOverlay;
-      });
-    }
-    document.addEventListener('dragend',  onRelease, { once: true });
-    document.addEventListener('mouseup',  onRelease, { once: true });
-    document.addEventListener('touchend', onRelease, { once: true });
+    // Use a simple delay — onRelease listeners miss touchend since it already fired
+    after(120, function() {
+      tutStep3DrawOverlay();
+      window._tutPostRender = tutStep3DrawOverlay;
+    });
   }
 
   function tutRetailComplete() {
@@ -5751,7 +5743,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
         'background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:8px;' +
         'padding:8px 12px;color:#fff;font-size:0.75rem;line-height:1.5;' +
         'text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.6);';
-      lbl.innerHTML = 'Any swapped letters must be played on this turn (you can\'t save them in your rack for later). Play <strong>RETAILED</strong> here to use all your tiles and get a bonus.';
+      lbl.innerHTML = 'The E in your rack is purple — it was swapped from the board and must be played this turn. Spell <strong>RETAILED</strong> here to use every tile and earn a bonus!';
       boardEl2.appendChild(lbl);
 
       // Arrow tail

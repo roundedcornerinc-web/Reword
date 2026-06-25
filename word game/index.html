@@ -1160,13 +1160,12 @@ body {
 }
 
 #btn-new-game {
-  width: 100%;
   background: #7234ee;
   border: none;
   border-radius: 30px;
   padding: 14px 20px;
   color: #fff;
-  font-size: 13pt;
+  font-size: 17pt;
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-weight: 400;
   cursor: pointer;
@@ -1174,6 +1173,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  align-self: center;
 }
 #btn-new-game:active { opacity: 0.8; }
 #btn-new-game .plus { font-size: 1.1rem; font-weight: 300; }
@@ -1197,7 +1197,7 @@ body {
 #home-empty {
   text-align: center;
   color: #1a1040;
-  font-size: 11pt;
+  font-size: 15pt;
   margin-top: 30px;
   line-height: 1.7;
 }
@@ -6277,10 +6277,17 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
 // ── End tutorial system ────────────────────────────────────────────────────
 
 // ── Home navigation (placeholder until home screen is designed) ──────────
+function syncHomeButtonWidth() {
+  const logo = document.getElementById('home-logo');
+  const btn = document.getElementById('btn-new-game');
+  if (logo && btn) btn.style.width = (logo.offsetWidth + 30) + 'px';
+}
+
 function showHomeScreen() {
   document.getElementById('home-screen').classList.add('active');
   document.getElementById('game-screen').classList.remove('active');
   buildHomeGamesList();
+  requestAnimationFrame(syncHomeButtonWidth);
 }
 
 function showGameScreen() {

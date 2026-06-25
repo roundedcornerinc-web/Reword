@@ -2664,9 +2664,8 @@ function onTouchMove(e) {
         if (!board[r][c] && !(pendingPlacements[key]?.isSwap)) cell.classList.add('drop-target');
       }
     } else if (window.tutorialMode && window._tutStep === 2 && r === 7 && c === 9) {
-      // Tutorial: highlight and auto-advance when S hovers over E
+      // Tutorial: highlight E as valid drop target
       cell.classList.add('drop-target');
-      if (touchDragIdx != null) { tutorialAdvance(); touchDragIdx = null; dragRackIdx = null; }
     } else if (window.tutorialMode && window._tutStep === 6 && r === 7 && c === 8) {
       // Tutorial step 6: highlight R cell as valid drop target
       cell.classList.add('drop-target');
@@ -2715,6 +2714,9 @@ function onTouchEnd(e) {
   const cell = el?.closest?.('.cell');
   if (cell) {
     const r = +cell.dataset.r, c = +cell.dataset.c;
+    if (window.tutorialMode && window._tutStep === 2 && r === 7 && c === 9 && touchDragIdx != null) {
+      touchDragIdx = null; tutorialAdvance(); return;
+    }
     if (touchPendingKey != null) {
       const dx = t.clientX - touchPendingStartX;
       const dy = t.clientY - touchPendingStartY;

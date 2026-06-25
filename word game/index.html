@@ -5589,7 +5589,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     var existing = document.getElementById('tut-fly');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
     clearBoard15();
-    board[7][6] = 'B'; board[7][7] = 'A'; board[7][8] = 'S'; board[7][9] = 'E';
+    board[7][6] = 'C'; board[7][7] = 'A'; board[7][8] = 'R'; board[7][9] = 'E';
     pendingPlacements = {};
     pendingRemovals = new Set();
     pendingRemovalInfo = {};
@@ -5604,7 +5604,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     after(300, function() {
       var bCell = boardCell(7, 9);
       document.getElementById('tut-ring').style.display = 'none';
-      tutHeader('Your opponent played BASE. Swap your S for the E and you can use all your tiles. Drag your S onto the E to swap it.');
+      tutHeader('Your opponent played CARE. Swap your S for the E and you can use all your tiles. Drag your S onto the E to swap it.');
       tutBubble(bCell, 'Drag S here', true);
       document.getElementById('tut-bar').style.display = 'none';
       // Also add a blue highlight ring on the target E
@@ -5643,7 +5643,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   function tutStep3() {
     clearAnims();
     zoomBoardOut();
-    board[7][6] = 'B'; board[7][8] = 'S';
+    board[7][6] = 'C'; board[7][8] = 'R';
     board[7][9] = null; // S rendered via pendingPlacements so it shows purple
     pendingPlacements = { '7,9': { letter: 'S', rackIdx: -1, isSwap: true } };
     pendingRemovals = new Set();

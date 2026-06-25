@@ -4860,14 +4860,18 @@ function showInviteModal(gameId) {
   document.getElementById('online-modal-link').value = link;
   document.getElementById('online-modal-code').textContent = gameId;
   document.getElementById('online-modal-status').textContent = 'Waiting for opponent to join…';
-  document.getElementById('online-modal').classList.remove('hidden');
 
   if (navigator.share) {
     navigator.share({
       title: 'Play Reword with me!',
       text: `${playerName} challenged you to a game of Reword. Tap the link to join!`,
       url: link
-    }).catch(() => {}); // dismissed by user — modal stays open as fallback
+    }).catch(() => {
+      // User dismissed share sheet — show custom modal as fallback
+      document.getElementById('online-modal').classList.remove('hidden');
+    });
+  } else {
+    document.getElementById('online-modal').classList.remove('hidden');
   }
 }
 function hideInviteModal() {

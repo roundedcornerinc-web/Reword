@@ -5602,10 +5602,8 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     renderBoard();
     renderRack();
     after(300, function() {
-      var rTile = rackTile(0);
       var bCell = boardCell(7, 9);
-      // Highlight both S in rack and E on board
-      tutHighlight(rTile);
+      tutHighlight(bCell);
       tutHeader('Your opponent played BASE. Swap your S for the E and you can use all your tiles. Drag your S onto the E to swap it.');
       tutBubble(bCell, 'Drag S here', true);
       document.getElementById('tut-bar').style.display = 'none';

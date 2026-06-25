@@ -4777,8 +4777,9 @@ async function createOnlineGame() {
     startOnlineListener(gameId);
     showNotifPrompt();
   } catch(e) {
-    showMsg('Error creating game. Check your connection.', 'bad');
-    removeStoredGame(gameId); // creation failed — don't leave a ghost entry in localStorage
+    showMsg('Error: ' + (e.code || e.message || e), 'bad');
+    console.error('[createOnlineGame]', e);
+    removeStoredGame(gameId);
     isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
   }
 }

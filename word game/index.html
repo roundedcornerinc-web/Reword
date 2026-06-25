@@ -3399,11 +3399,9 @@ function renderBoard() {
       // Drag-and-drop drop target
       cell.addEventListener('dragover', e => {
         if (dragRackIdx == null && dragPendingKey == null) return;
-        // Tutorial step 1: advancing as soon as S hovers over E
-        if (window.tutorialMode && window._tutStep === 2 && r === 7 && c === 9 && dragRackIdx != null) {
-          e.preventDefault();
-          cell.classList.add('drop-target');
-          tutorialAdvance(); dragRackIdx = null;
+        // Tutorial step 1: allow hover highlight over E only
+        if (window.tutorialMode && window._tutStep === 2 && dragRackIdx != null) {
+          if (r === 7 && c === 9) { e.preventDefault(); cell.classList.add('drop-target'); }
           return;
         }
         if (window.tutorialMode && window._tutStep === 2) return;
@@ -3424,6 +3422,9 @@ function renderBoard() {
       cell.addEventListener('drop', e => {
         e.preventDefault();
         cell.classList.remove('drop-target');
+        if (window.tutorialMode && window._tutStep === 2 && r === 7 && c === 9 && dragRackIdx != null) {
+          dragRackIdx = null; tutorialAdvance(); return;
+        }
         if (dragPendingKey != null) { onPendingTileDrop(r, c, dragPendingKey); dragPendingKey = null; }
         else if (dragRackIdx != null) { onCellDrop(r, c, dragRackIdx); dragRackIdx = null; }
       });

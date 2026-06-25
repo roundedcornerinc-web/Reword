@@ -1286,7 +1286,7 @@ body {
     <div style="width:41px;flex-shrink:0;"></div>
   </div>
   <div id="home-body">
-    <button id="btn-new-game" onclick="homeStartNewGame()">
+    <button id="btn-new-game" onclick="homeStartNewGame(event)">
       <span class="plus">+</span> Start New Game
     </button>
     <div id="home-games-list"></div>
@@ -6305,7 +6305,8 @@ function goHome() {
   showHomeScreen();
 }
 
-function homeStartNewGame() {
+function homeStartNewGame(e) {
+  if (e) e.stopPropagation();
   const ngc = document.getElementById('new-game-choice');
   if (ngc) ngc.classList.add('show');
 }

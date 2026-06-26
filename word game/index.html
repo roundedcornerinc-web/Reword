@@ -4980,8 +4980,7 @@ function showInviteModal(gameId) {
       text: `${playerName} challenged you to a game of Reword. Tap the link to join!`,
       url: link
     }).catch(() => {
-      // User dismissed share sheet — show custom modal as fallback
-      document.getElementById('online-modal').classList.remove('hidden');
+      // User dismissed share — game is still active, no action needed
     });
   } else {
     document.getElementById('online-modal').classList.remove('hidden');

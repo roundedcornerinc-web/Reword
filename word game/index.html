@@ -6428,6 +6428,8 @@ function showHomeScreen() {
 }
 
 async function loadHomeGames() {
+  // Wait for Firebase auth before making any Firestore reads
+  await authReady;
   const stored = getStoredGames();
   // Also query recently completed games from Firestore (last 5, capped)
   const uid = getPlayerId();

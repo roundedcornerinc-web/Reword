@@ -5202,7 +5202,6 @@ async function loadOnlineGame(gameId, myRole) {
     } else {
       applyOnlineState(data);
       startOnlineListener(gameId);
-      if (data.status === 'waiting') showInviteModal(gameId);
     }
   } catch(e) {
     showMsg('Error loading game. Check your connection.', 'bad');
@@ -6441,6 +6440,7 @@ async function loadHomeGames() {
       const opRole = myRole === 'p1' ? 'p2' : 'p1';
       window._homeGames.push({
         id: snap.id,
+        myRole,
         currentPlayer: d.currentTurn === myRole ? 'player' : 'ai',
         playerScore: d.scores?.[myRole] ?? 0,
         aiScore: d.scores?.[opRole] ?? 0,
@@ -6610,7 +6610,7 @@ function buildHomeGamesList() {
   (window._homeGames || []).forEach(function(g) {
     const myTurn = g.currentPlayer === 'player';
     const ago = g.updatedAt ? timeAgo(g.updatedAt) : '';
-    const resume = function() { loadOnlineGame(g.id); showGameScreen(); };
+    const resume = function() { loadOnlineGame(g.id, g.myRole); showGameScreen(); };
     const opp = g.opponentName || 'Opponent';
     if (myTurn) {
       myMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, 'PLAY', resume));

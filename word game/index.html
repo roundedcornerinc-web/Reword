@@ -1183,28 +1183,45 @@ body {
 #btn-new-game:active { opacity: 0.8; }
 #btn-new-game .plus { font-size: 1.1rem; font-weight: 300; }
 
-.home-game-card {
-  background: #f4f0ff;
-  border-radius: 14px;
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
+.home-section-header {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #1a1040;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  padding: 18px 0 8px;
 }
-.home-game-card:active { opacity: 0.8; }
-.home-game-card .hgc-left { display: flex; flex-direction: column; gap: 3px; }
-.home-game-card .hgc-opponent { font-size: 0.95rem; font-weight: 600; color: #1a1040; }
-.home-game-card .hgc-status { font-size: 0.75rem; color: #7234ee; display: flex; align-items: center; gap: 5px; }
-.home-game-card .hgc-score { font-size: 1.1rem; font-weight: 700; color: #1a1040; }
-.home-game-card .hgc-score span { color: #7234ee; font-size: 0.8rem; font-weight: 400; margin-left: 4px; }
+.home-section-group {
+  background: #f0eeff; border-radius: 14px; overflow: hidden;
+  margin-bottom: 6px;
+}
+.home-game-card {
+  padding: 12px 14px;
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 10px;
+  cursor: pointer; font-family: 'Segoe UI', system-ui, sans-serif;
+  border-bottom: 1px solid rgba(114,52,238,0.1);
+}
+.home-game-card:last-child { border-bottom: none; }
+.home-game-card:active { background: rgba(114,52,238,0.08); }
+.hgc-left { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.hgc-time { font-size: 0.72rem; color: #888; display: flex; align-items: center; gap: 4px; }
+.hgc-time svg { flex-shrink: 0; }
+.hgc-score-line { font-size: 1rem; line-height: 1.2; color: #444;
+  font-family: 'Segoe UI', system-ui, sans-serif; }
+.hgc-score-line strong { font-size: 1.15rem; font-weight: 800; color: #5b2ee8; }
+.hgc-result-label { font-size: 0.72rem; color: #888; }
+.hgc-action-btn {
+  border: 1.5px solid #7234ee; background: none;
+  color: #7234ee; font-size: 0.65rem; font-weight: 700;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.08em; padding: 6px 12px;
+  border-radius: 20px; cursor: pointer; flex-shrink: 0;
+  white-space: nowrap;
+}
+.hgc-action-btn:active { background: #7234ee; color: #fff; }
 
 #home-empty {
-  text-align: center;
-  color: #1a1040;
-  font-size: 15pt;
-  margin-top: 30px;
-  line-height: 1.7;
+  text-align: center; color: #1a1040;
+  font-size: 15pt; margin-top: 30px; line-height: 1.7;
 }
 
 #home-nav {
@@ -6488,51 +6505,89 @@ function buildHomeGamesList() {
   const list = document.getElementById('home-games-list');
   const empty = document.getElementById('home-empty');
   list.innerHTML = '';
-  const cards = [];
 
-  // AI game from localStorage
+  const clockSVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10.83067 10.83065" width="11" height="11" fill="none" stroke="#888" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"><circle cx="5.41534" cy="5.41532" r="5.04033"/><rect x="4.62651" y="3.89868" width=".00448" height="2.22838" transform="translate(-2.18891 4.74125) rotate(-44.99997)"/><rect x="4.9248" y="4.61735" width="3.3407" height=".00447" transform="translate(-.21894 8.90967) rotate(-67.20348)"/></svg>';
+
+  function makeSection(title, cards) {
+    if (!cards.length) return null;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = '<div class="home-section-header">' + title + '</div>';
+    const group = document.createElement('div');
+    group.className = 'home-section-group';
+    cards.forEach(function(c) { group.appendChild(c); });
+    wrap.appendChild(group);
+    return wrap;
+  }
+
+  function scoreCard(myScore, oppScore, oppName, timeStr, btnText, onclick) {
+    const card = document.createElement('div');
+    card.className = 'home-game-card';
+    card.innerHTML =
+      '<div class="hgc-left">' +
+        '<div class="hgc-time">' + clockSVG + timeStr + '</div>' +
+        '<div class="hgc-score-line"><strong>' + myScore + '</strong> to <strong>' + oppScore + '</strong> vs ' + oppName + '</div>' +
+      '</div>' +
+      '<button class="hgc-action-btn">' + btnText + '</button>';
+    card.querySelector('button').onclick = function(e) { e.stopPropagation(); onclick(); };
+    card.onclick = onclick;
+    return card;
+  }
+
+  function resultCard(myScore, oppScore, oppName, resultLabel, onclick) {
+    const card = document.createElement('div');
+    card.className = 'home-game-card';
+    card.innerHTML =
+      '<div class="hgc-left">' +
+        '<div class="hgc-result-label">' + resultLabel + '</div>' +
+        '<div class="hgc-score-line"><strong>' + myScore + '</strong> to <strong>' + oppScore + '</strong> vs ' + oppName + '</div>' +
+      '</div>' +
+      '<button class="hgc-action-btn">VIEW</button>';
+    card.querySelector('button').onclick = function(e) { e.stopPropagation(); onclick(); };
+    card.onclick = onclick;
+    return card;
+  }
+
+  const myMoveCards = [];
+  const theirMoveCards = [];
+
+  // AI game
   try {
     const raw = localStorage.getItem(AI_SAVE_KEY);
     if (raw) {
       const s = JSON.parse(raw);
       if (!s.gameOver) {
-        const pName = localStorage.getItem('playerName') || 'You';
-        const card = document.createElement('div');
-        card.className = 'home-game-card';
-        card.innerHTML =
-          '<div class="hgc-left">' +
-            '<div class="hgc-opponent">AI</div>' +
-            '<div class="hgc-status">● Your turn</div>' +
-          '</div>' +
-          '<div class="hgc-score">' + (s.playerScore||0) + ' – ' + (s.aiScore||0) + '</div>';
-        card.onclick = function() { showGameScreen(); loadAiGameState(); };
-        cards.push(card);
+        const diff = s.aiSkill === 'easy' ? 'easy' : s.aiSkill === 'medium' ? 'medium' : 'hard';
+        const resume = function() { showGameScreen(); loadAiGameState(); };
+        myMoveCards.push(scoreCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', 'just now', 'PLAY', resume));
       }
     }
   } catch(e) {}
 
   // Online games
   (window._homeGames || []).forEach(function(g) {
-    const card = document.createElement('div');
-    card.className = 'home-game-card';
     const myTurn = g.currentPlayer === 'player';
-    card.innerHTML =
-      '<div class="hgc-left">' +
-        '<div class="hgc-opponent">' + (g.opponentName || 'Opponent') + '</div>' +
-        '<div class="hgc-status">' + (myTurn ? '● Your turn' : '○ Their turn') + '</div>' +
-      '</div>' +
-      '<div class="hgc-score">' + (g.playerScore||0) + ' – ' + (g.aiScore||0) + '</div>';
-    card.onclick = function() { loadOnlineGame(g.id); showGameScreen(); };
-    cards.push(card);
+    const ago = g.updatedAt ? timeAgo(g.updatedAt) : '';
+    const resume = function() { loadOnlineGame(g.id); showGameScreen(); };
+    const opp = g.opponentName || 'Opponent';
+    if (myTurn) {
+      myMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, 'PLAY', resume));
+    } else {
+      theirMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, 'NUDGE', resume));
+    }
   });
 
-  if (cards.length === 0) {
+  const sections = [
+    makeSection('Your Move', myMoveCards),
+    makeSection('Their Move', theirMoveCards),
+  ].filter(Boolean);
+
+  if (sections.length === 0) {
     empty.style.display = 'block';
     list.closest('#home-body').classList.add('no-games');
   } else {
     empty.style.display = 'none';
     list.closest('#home-body').classList.remove('no-games');
-    cards.forEach(function(c) { list.appendChild(c); });
+    sections.forEach(function(s) { list.appendChild(s); });
   }
 }
 

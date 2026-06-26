@@ -1193,6 +1193,9 @@ body {
   background: #f0eeff; border-radius: 14px; overflow: hidden;
   margin-bottom: 6px;
 }
+.home-section-group.gray {
+  background: #f2f2f2;
+}
 .home-game-card {
   padding: 12px 14px;
   display: flex; align-items: flex-end;
@@ -6426,38 +6429,70 @@ function showHomeScreen() {
 
 async function loadHomeGames() {
   const stored = getStoredGames();
-  if (stored.length === 0) {
-    window._homeGames = [];
-    buildHomeGamesList();
-    return;
+  // Also query recently completed games from Firestore (last 5, capped)
+  const uid = getPlayerId();
+  let completedSnaps = [];
+  if (uid) {
+    try {
+      const [c1, c2] = await Promise.all([
+        db.collection('games').where('players.p1.id', '==', uid).where('gameOver', '==', true).orderBy('lastUpdated', 'desc').limit(5).get(),
+        db.collection('games').where('players.p2.id', '==', uid).where('gameOver', '==', true).orderBy('lastUpdated', 'desc').limit(5).get(),
+      ]);
+      c1.forEach(d => completedSnaps.push({snap: d, myRole: 'p1'}));
+      c2.forEach(d => completedSnaps.push({snap: d, myRole: 'p2'}));
+      // sort by lastUpdated desc, cap at 5
+      completedSnaps.sort((a, b) => (b.snap.data().lastUpdated?.toMillis?.() || 0) - (a.snap.data().lastUpdated?.toMillis?.() || 0));
+      completedSnaps = completedSnaps.slice(0, 5);
+    } catch(e) { /* index may not exist yet */ }
   }
-  try {
-    const snaps = await Promise.all(stored.map(({gameId}) => db.collection('games').doc(gameId).get()));
-    window._homeGames = [];
-    snaps.forEach((snap, i) => {
-      if (!snap.exists) return;
-      const d = snap.data();
-      if (d.gameOver) return;
-      const myRole = stored[i].myRole;
-      const opRole = myRole === 'p1' ? 'p2' : 'p1';
-      const isWaiting = d.status === 'waiting';
-      if (d.status === 'cancelled') return;
-      window._homeGames.push({
-        id: snap.id,
-        myRole,
-        isWaiting,
-        // waiting games always show under Your Move (you're waiting for someone to join)
-        currentPlayer: isWaiting ? 'player' : (d.currentTurn === myRole ? 'player' : 'ai'),
-        playerScore: d.scores?.[myRole] ?? 0,
-        aiScore: d.scores?.[opRole] ?? 0,
-        opponentName: isWaiting ? 'a friend' : (d.players?.[opRole]?.name || 'Opponent'),
-        updatedAt: d.lastUpdated?.toMillis?.() || null
+
+  window._homeGames = [];
+
+  if (stored.length > 0) {
+    try {
+      const snaps = await Promise.all(stored.map(({gameId}) => db.collection('games').doc(gameId).get()));
+      snaps.forEach((snap, i) => {
+        if (!snap.exists) return;
+        const d = snap.data();
+        if (d.status === 'cancelled') return;
+        const myRole = stored[i].myRole;
+        const opRole = myRole === 'p1' ? 'p2' : 'p1';
+        const isWaiting = d.status === 'waiting';
+        window._homeGames.push({
+          id: snap.id,
+          myRole,
+          isWaiting,
+          gameOver: !!d.gameOver,
+          currentPlayer: isWaiting ? 'player' : (d.currentTurn === myRole ? 'player' : 'ai'),
+          playerScore: d.scores?.[myRole] ?? 0,
+          aiScore: d.scores?.[opRole] ?? 0,
+          opponentName: isWaiting ? 'a friend' : (d.players?.[opRole]?.name || 'Opponent'),
+          updatedAt: d.lastUpdated?.toMillis?.() || null
+        });
       });
-    });
-    buildHomeGamesList();
-  } catch(e) {
-    console.warn('[HomeGames] failed to load:', e);
+    } catch(e) { console.warn('[HomeGames] failed to load active:', e); }
   }
+
+  // Add completed games (avoid duplicates)
+  const activeIds = new Set(window._homeGames.map(g => g.id));
+  completedSnaps.forEach(({snap, myRole}) => {
+    if (activeIds.has(snap.id)) return;
+    const d = snap.data();
+    const opRole = myRole === 'p1' ? 'p2' : 'p1';
+    window._homeGames.push({
+      id: snap.id,
+      myRole,
+      isWaiting: false,
+      gameOver: true,
+      currentPlayer: 'ai',
+      playerScore: d.scores?.[myRole] ?? 0,
+      aiScore: d.scores?.[opRole] ?? 0,
+      opponentName: d.players?.[opRole]?.name || 'Opponent',
+      updatedAt: d.lastUpdated?.toMillis?.() || null
+    });
+  });
+
+  buildHomeGamesList();
 }
 
 function showGameScreen() {
@@ -6547,12 +6582,12 @@ function buildHomeGamesList() {
 
   const clockSVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10.83067 10.83065" width="11" height="11" fill="none" stroke="#888" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"><circle cx="5.41534" cy="5.41532" r="5.04033"/><rect x="4.62651" y="3.89868" width=".00448" height="2.22838" transform="translate(-2.18891 4.74125) rotate(-44.99997)"/><rect x="4.9248" y="4.61735" width="3.3407" height=".00447" transform="translate(-.21894 8.90967) rotate(-67.20348)"/></svg>';
 
-  function makeSection(title, cards) {
+  function makeSection(title, cards, gray) {
     if (!cards.length) return null;
     const wrap = document.createElement('div');
     wrap.innerHTML = '<div class="home-section-header">' + title + '</div>';
     const group = document.createElement('div');
-    group.className = 'home-section-group';
+    group.className = 'home-section-group' + (gray ? ' gray' : '');
     cards.forEach(function(c) { group.appendChild(c); });
     wrap.appendChild(group);
     return wrap;
@@ -6598,6 +6633,7 @@ function buildHomeGamesList() {
 
   const myMoveCards = [];
   const theirMoveCards = [];
+  const completedCards = [];
 
   // AI game
   try {
@@ -6614,21 +6650,27 @@ function buildHomeGamesList() {
 
   // Online games
   (window._homeGames || []).forEach(function(g) {
-    const myTurn = g.currentPlayer === 'player';
     const ago = g.updatedAt ? timeAgo(g.updatedAt) : '';
     const resume = function() { loadOnlineGame(g.id, g.myRole); showGameScreen(); };
     const opp = g.opponentName || 'Opponent';
-    const btnLabel = g.isWaiting ? 'SHARE' : (myTurn ? 'PLAY' : 'NUDGE');
-    if (myTurn) {
-      myMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, resume));
+    if (g.gameOver) {
+      const label = g.playerScore > g.aiScore ? 'You won!' : g.playerScore < g.aiScore ? 'You lost' : 'Tie game';
+      completedCards.push(resultCard(g.playerScore||0, g.aiScore||0, opp, label, resume));
     } else {
-      theirMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, resume));
+      const myTurn = g.currentPlayer === 'player';
+      const btnLabel = g.isWaiting ? 'SHARE' : (myTurn ? 'PLAY' : 'NUDGE');
+      if (myTurn) {
+        myMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, resume));
+      } else {
+        theirMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, resume));
+      }
     }
   });
 
   const sections = [
-    makeSection('Your Move', myMoveCards),
-    makeSection('Their Move', theirMoveCards),
+    makeSection('Your Move', myMoveCards, false),
+    makeSection('Their Move', theirMoveCards, true),
+    makeSection('Completed Games', completedCards, true),
   ].filter(Boolean);
 
   if (sections.length === 0) {

@@ -6464,7 +6464,7 @@ async function loadHomeGames() {
           myRole,
           isWaiting,
           gameOver: !!d.gameOver,
-          currentPlayer: isWaiting ? 'player' : (d.currentTurn === myRole ? 'player' : 'ai'),
+          currentPlayer: isWaiting ? 'ai' : (d.currentTurn === myRole ? 'player' : 'ai'),
           playerScore: d.scores?.[myRole] ?? 0,
           aiScore: d.scores?.[opRole] ?? 0,
           opponentName: isWaiting ? 'a friend' : (d.players?.[opRole]?.name || 'Opponent'),

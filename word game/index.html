@@ -1205,17 +1205,17 @@ body {
 .hgc-left { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
 .hgc-time { font-size: 0.72rem; color: #888; display: flex; align-items: center; gap: 4px; }
 .hgc-time svg { flex-shrink: 0; }
-.hgc-score-line { font-size: 1rem; line-height: 1.2; color: #444;
-  font-family: 'Segoe UI', system-ui, sans-serif; }
-.hgc-score-line strong { font-size: 1.15rem; font-weight: 800; color: #5b2ee8; }
+.hgc-score-line { font-size: 1rem; line-height: 1.2; color: #5b2ee8;
+  font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; }
+.hgc-score-line .hgc-skill { font-size: 0.85rem; font-weight: 400; color: #888; }
 .hgc-result-label { font-size: 0.72rem; color: #888; }
 .hgc-action-btn {
   border: 1.5px solid #7234ee; background: none;
   color: #7234ee; font-size: 0.65rem; font-weight: 700;
   font-family: 'Segoe UI', system-ui, sans-serif;
-  letter-spacing: 0.08em; padding: 6px 12px;
+  letter-spacing: 0.08em; padding: 7px 20px;
   border-radius: 20px; cursor: pointer; flex-shrink: 0;
-  white-space: nowrap;
+  white-space: nowrap; min-width: 64px;
 }
 .hgc-action-btn:active { background: #7234ee; color: #fff; }
 
@@ -6519,13 +6519,17 @@ function buildHomeGamesList() {
     return wrap;
   }
 
+  function formatOppName(name) {
+    return name.replace(/(\s*\([^)]+\))/, '<span class="hgc-skill">$1</span>');
+  }
+
   function scoreCard(myScore, oppScore, oppName, timeStr, btnText, onclick) {
     const card = document.createElement('div');
     card.className = 'home-game-card';
     card.innerHTML =
       '<div class="hgc-left">' +
         '<div class="hgc-time">' + clockSVG + timeStr + '</div>' +
-        '<div class="hgc-score-line"><strong>' + myScore + '</strong> to <strong>' + oppScore + '</strong> vs ' + oppName + '</div>' +
+        '<div class="hgc-score-line">' + myScore + ' to ' + oppScore + ' vs ' + formatOppName(oppName) + '</div>' +
       '</div>' +
       '<button class="hgc-action-btn">' + btnText + '</button>';
     card.querySelector('button').onclick = function(e) { e.stopPropagation(); onclick(); };
@@ -6539,7 +6543,7 @@ function buildHomeGamesList() {
     card.innerHTML =
       '<div class="hgc-left">' +
         '<div class="hgc-result-label">' + resultLabel + '</div>' +
-        '<div class="hgc-score-line"><strong>' + myScore + '</strong> to <strong>' + oppScore + '</strong> vs ' + oppName + '</div>' +
+        '<div class="hgc-score-line">' + myScore + ' to ' + oppScore + ' vs ' + formatOppName(oppName) + '</div>' +
       '</div>' +
       '<button class="hgc-action-btn">VIEW</button>';
     card.querySelector('button').onclick = function(e) { e.stopPropagation(); onclick(); };

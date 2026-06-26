@@ -1225,6 +1225,86 @@ body {
 }
 .home-nav-btn svg { display: block; }
 
+/* ── FRIENDS OVERLAY ── */
+#friends-overlay {
+  position: fixed; inset: 0; z-index: 400;
+  pointer-events: none;
+}
+#friends-overlay.active { pointer-events: auto; }
+#friends-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0);
+  transition: background 0.3s ease;
+}
+#friends-overlay.active #friends-backdrop { background: rgba(0,0,0,0.4); }
+#friends-panel {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 92%; max-width: 360px;
+  background: #fff;
+  transform: translateX(100%);
+  transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+  display: flex; flex-direction: column;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+#friends-overlay.active #friends-panel { transform: translateX(0); }
+#friends-header {
+  padding: 56px 20px 16px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+}
+#friends-header h2 {
+  font-size: 1.1rem; font-weight: 500;
+  color: #1a1040; margin: 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+#friends-list {
+  flex: 1; overflow-y: auto;
+  padding: 0 20px;
+}
+.friend-row {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-bottom: 1px solid #eee;
+}
+.friend-row:last-child { border-bottom: none; }
+.friend-info { display: flex; flex-direction: column; gap: 2px; }
+.friend-name {
+  font-size: 1rem; font-weight: 700;
+  color: #3a2e71;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.friend-meta {
+  font-size: 0.78rem; color: #999;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.friend-play-btn {
+  border: 1.5px solid #7234ee; background: none;
+  color: #7234ee; font-size: 0.7rem; font-weight: 700;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.08em; padding: 6px 14px;
+  border-radius: 20px; cursor: pointer;
+}
+.friend-play-btn:active { background: #7234ee; color: #fff; }
+#friends-footer {
+  padding: 20px;
+  border-top: 1px solid #eee;
+}
+#btn-add-friend {
+  width: 100%; background: #7234ee; border: none;
+  border-radius: 30px; padding: 14px;
+  color: #fff; font-size: 1rem; font-weight: 500;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  cursor: pointer; display: flex; align-items: center;
+  justify-content: center; gap: 6px;
+}
+#btn-add-friend:active { opacity: 0.85; }
+#friends-empty {
+  padding: 40px 0; text-align: center;
+  color: #999; font-size: 0.9rem;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
 /* ── WELCOME POPUP ── */
 #welcome-overlay {
   display: none;
@@ -1325,6 +1405,18 @@ body {
       Stats
     </button>
   </nav>
+</div>
+
+<!-- ── FRIENDS OVERLAY ── -->
+<div id="friends-overlay">
+  <div id="friends-backdrop" onclick="closeFriends()"></div>
+  <div id="friends-panel">
+    <div id="friends-header"><h2>Friends</h2></div>
+    <div id="friends-list"></div>
+    <div id="friends-footer">
+      <button id="btn-add-friend" onclick="addFriend()">+ Add a Friend</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── WELCOME POPUP ── -->
@@ -6328,7 +6420,53 @@ function homeStartNewGame(e) {
 }
 
 function homeNav(tab) {
-  // placeholder — settings/friends/stats screens come later
+  if (tab === 'friends') openFriends();
+}
+
+function openFriends() {
+  buildFriendsList();
+  document.getElementById('friends-overlay').classList.add('active');
+}
+
+function closeFriends() {
+  document.getElementById('friends-overlay').classList.remove('active');
+}
+
+function buildFriendsList() {
+  const list = document.getElementById('friends-list');
+  const friends = window._friends || [];
+  if (friends.length === 0) {
+    list.innerHTML = '<div id="friends-empty">No friends yet.<br>Add one to start playing!</div>';
+    return;
+  }
+  list.innerHTML = friends.map(f => {
+    const ago = f.lastPlayed ? timeAgo(f.lastPlayed) : 'Never played';
+    return `<div class="friend-row">
+      <div class="friend-info">
+        <div class="friend-name">${f.name}</div>
+        <div class="friend-meta">Last played ${ago}</div>
+      </div>
+      <button class="friend-play-btn" onclick="friendPlay('${f.id}')">PLAY</button>
+    </div>`;
+  }).join('');
+}
+
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + ' minutes ago';
+  if (diff < 86400) return Math.floor(diff/3600) + ' hours ago';
+  return Math.floor(diff/86400) + ' days ago';
+}
+
+function friendPlay(friendId) {
+  closeFriends();
+  homeStartNewGame(null);
+}
+
+function addFriend() {
+  // placeholder — will use invite flow once friends system is built
+  homeStartNewGame(null);
 }
 
 function toggleHomeMenu() {

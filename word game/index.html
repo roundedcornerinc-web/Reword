@@ -5107,13 +5107,15 @@ async function syncGamesFromFirestore() {
       ]);
       directQueriesOk = true;
       snap1.forEach(d => {
-        if (!d.data().gameOver) {
+        const dd = d.data();
+        if (!dd.gameOver && dd.status !== 'cancelled') {
           activeIds.add(d.id);
           if (!remote.find(g => g.gameId === d.id)) remote.push({ gameId: d.id, myRole: 'p1' });
         }
       });
       snap2.forEach(d => {
-        if (!d.data().gameOver) {
+        const dd = d.data();
+        if (!dd.gameOver && dd.status !== 'cancelled') {
           activeIds.add(d.id);
           if (!remote.find(g => g.gameId === d.id)) remote.push({ gameId: d.id, myRole: 'p2' });
         }
@@ -6438,13 +6440,17 @@ async function loadHomeGames() {
       if (d.gameOver) return;
       const myRole = stored[i].myRole;
       const opRole = myRole === 'p1' ? 'p2' : 'p1';
+      const isWaiting = d.status === 'waiting';
+      if (d.status === 'cancelled') return;
       window._homeGames.push({
         id: snap.id,
         myRole,
-        currentPlayer: d.currentTurn === myRole ? 'player' : 'ai',
+        isWaiting,
+        // waiting games always show under Your Move (you're waiting for someone to join)
+        currentPlayer: isWaiting ? 'player' : (d.currentTurn === myRole ? 'player' : 'ai'),
         playerScore: d.scores?.[myRole] ?? 0,
         aiScore: d.scores?.[opRole] ?? 0,
-        opponentName: d.players?.[opRole]?.name || 'Waiting for opponent…',
+        opponentName: isWaiting ? 'a friend' : (d.players?.[opRole]?.name || 'Opponent'),
         updatedAt: d.lastUpdated?.toMillis?.() || null
       });
     });
@@ -6612,10 +6618,11 @@ function buildHomeGamesList() {
     const ago = g.updatedAt ? timeAgo(g.updatedAt) : '';
     const resume = function() { loadOnlineGame(g.id, g.myRole); showGameScreen(); };
     const opp = g.opponentName || 'Opponent';
+    const btnLabel = g.isWaiting ? 'SHARE' : (myTurn ? 'PLAY' : 'NUDGE');
     if (myTurn) {
-      myMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, 'PLAY', resume));
+      myMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, resume));
     } else {
-      theirMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, 'NUDGE', resume));
+      theirMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, resume));
     }
   });
 

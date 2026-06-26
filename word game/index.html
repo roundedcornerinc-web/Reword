@@ -1520,16 +1520,12 @@ body {
   </div>
   <button id="btn-play" onclick="submitPlay()">Play</button>
   <div id="more-menu">
-    <button class="more-item" onclick="showTutorial();closeMoreMenu()">How to Play</button>
     <button class="more-item" onclick="toggleRemaining();closeMoreMenu()">Tile Bag</button>
     <button class="more-item pass-item" onclick="passTurn();closeMoreMenu()">Pass</button>
-    <div class="more-divider"></div>
-    <button class="more-item" onclick="showGamesModal();closeMoreMenu()" style="position:relative">My Games<span id="games-modal-badge"></span></button>
-    <button class="more-item" onclick="newOnlineGame();closeMoreMenu()">New vs Friend</button>
-    <button class="more-item" onclick="showJoinByCodeUI();closeMoreMenu()">Join with Code</button>
-    <button class="more-item" onclick="startAiGame();closeMoreMenu()">New vs AI</button>
-    <button class="more-item" onclick="startAiVsAiGame();closeMoreMenu()">Watch AI vs AI</button>
     <button class="more-item" id="menu-resign" style="display:none;color:#f72585" onclick="resignOnlineGame();closeMoreMenu()">Resign Game</button>
+    <div class="more-divider"></div>
+    <button class="more-item" onclick="showJoinByCodeUI();closeMoreMenu()">Join with Code</button>
+    <button class="more-item" onclick="startAiVsAiGame();closeMoreMenu()">Watch AI vs AI</button>
     <div class="more-divider"></div>
     <div class="more-section-label">AI Level</div>
     <div class="more-skills">

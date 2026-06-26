@@ -6418,8 +6418,40 @@ function syncHomeButtonWidth() {
 function showHomeScreen() {
   document.getElementById('home-screen').classList.add('active');
   document.getElementById('game-screen').classList.remove('active');
-  buildHomeGamesList();
+  buildHomeGamesList(); // immediate render (AI game + cached _homeGames)
+  loadHomeGames();      // async fetch from Firestore, re-renders when ready
   requestAnimationFrame(syncHomeButtonWidth);
+}
+
+async function loadHomeGames() {
+  const stored = getStoredGames();
+  if (stored.length === 0) {
+    window._homeGames = [];
+    buildHomeGamesList();
+    return;
+  }
+  try {
+    const snaps = await Promise.all(stored.map(({gameId}) => db.collection('games').doc(gameId).get()));
+    window._homeGames = [];
+    snaps.forEach((snap, i) => {
+      if (!snap.exists) return;
+      const d = snap.data();
+      if (d.gameOver) return;
+      const myRole = stored[i].myRole;
+      const opRole = myRole === 'p1' ? 'p2' : 'p1';
+      window._homeGames.push({
+        id: snap.id,
+        currentPlayer: d.currentTurn === myRole ? 'player' : 'ai',
+        playerScore: d.scores?.[myRole] ?? 0,
+        aiScore: d.scores?.[opRole] ?? 0,
+        opponentName: d.players?.[opRole]?.name || 'Waiting for opponent…',
+        updatedAt: d.lastUpdated?.toMillis?.() || null
+      });
+    });
+    buildHomeGamesList();
+  } catch(e) {
+    console.warn('[HomeGames] failed to load:', e);
+  }
 }
 
 function showGameScreen() {

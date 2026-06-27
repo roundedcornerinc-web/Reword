@@ -869,7 +869,7 @@ body {
 .btn-more.active { color: #fff; background: rgba(255,255,255,0.12); outline: none; }
 
 /* ── MORE MENU ── */
-/* overlay covers only from screen-top to board-bottom (bottom set by JS) */
+/* overlay dims the board area; bottom set by JS to match board bottom */
 #more-overlay {
   display: none;
   position: fixed;
@@ -878,11 +878,11 @@ body {
   z-index: 399;
 }
 #more-overlay.show { display: block; }
-/* clip container spans from board-bottom to screen-bottom; masks the sliding menu */
+/* clip container covers board area; menu slides up within it from the board's bottom edge */
 #more-menu-clip {
   position: fixed;
-  left: 0; right: 0; bottom: 0;
-  top: 60%; /* overridden by JS */
+  left: 0; right: 0; top: 0;
+  bottom: 40%; /* overridden by JS to (screenHeight - boardBottom) */
   overflow: hidden;
   pointer-events: none;
   z-index: 400;
@@ -4503,8 +4503,9 @@ function toggleMoreMenu(e) {
   const clip    = document.getElementById('more-menu-clip');
   const board   = document.getElementById('board-wrapper');
   const boardBottom = board ? board.getBoundingClientRect().bottom : window.innerHeight * 0.6;
-  if (clip) clip.style.top = boardBottom + 'px';
-  if (overlay) overlay.style.bottom = (window.innerHeight - boardBottom) + 'px';
+  const belowBoard = window.innerHeight - boardBottom;
+  if (clip) clip.style.bottom = belowBoard + 'px';
+  if (overlay) overlay.style.bottom = belowBoard + 'px';
   menu.style.transform = moreMenuOpen ? 'translateY(0)' : 'translateY(100%)';
   menu.classList.toggle('show', moreMenuOpen);
   overlay.classList.toggle('show', moreMenuOpen);

@@ -4430,6 +4430,8 @@ function updateUI() {
   document.getElementById('score-player').textContent = playerScore;
   document.getElementById('score-ai').textContent = aiScore;
   document.getElementById('bag-num').textContent = bag.length + playerRack.length + aiRack.length;
+  const _nameDisp = document.getElementById('ai-name-display');
+  if (_nameDisp) _nameDisp.textContent = isOnlineMode ? opponentOnlineName : 'AI';
   updateTurnBadge();
   renderBoard();
   renderRack();

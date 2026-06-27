@@ -5279,9 +5279,10 @@ async function syncGamesFromFirestore() {
       });
       localStorage.setItem('reword_games', JSON.stringify(merged));
       updateGamesBadge();
-    } else if (directQueriesOk) {
-      // Direct queries confirmed no active games — remove any stale local entries
-      // so the next page load goes straight to loadAiGameState().
+    } else if (directQueriesOk && activeIds.size > 0) {
+      // Only clean up stale local entries when we have at least one confirmed active
+      // game — a zero result might mean the auth UID changed (Safari ITP), not that
+      // the games are truly gone.
       const stale = getStoredGames().filter(g => !activeIds.has(g.gameId));
       if (stale.length > 0) {
         const cleaned = getStoredGames().filter(g => activeIds.has(g.gameId));

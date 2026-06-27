@@ -4406,12 +4406,10 @@ function toggleMoreMenu(e) {
   const overlay = document.getElementById('more-overlay');
   const btn     = document.getElementById('btn-more');
   if (moreMenuOpen) {
-    // Position menu so its bottom edge sits at the bottom of the board
-    const rack     = document.getElementById('rack-area');
-    const controls = document.getElementById('controls');
-    const rackH    = rack     ? rack.offsetHeight     : 0;
-    const ctrlH    = controls ? controls.offsetHeight : 0;
-    menu.style.bottom = (rackH + ctrlH) + 'px';
+    // Anchor menu bottom to the bottom edge of the board
+    const board = document.getElementById('board-wrapper');
+    const boardBottom = board ? board.getBoundingClientRect().bottom : window.innerHeight * 0.6;
+    menu.style.bottom = (window.innerHeight - boardBottom) + 'px';
   }
   menu.classList.toggle('show', moreMenuOpen);
   overlay.classList.toggle('show', moreMenuOpen);

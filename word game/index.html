@@ -869,47 +869,60 @@ body {
 .btn-more.active { color: #fff; background: rgba(255,255,255,0.12); outline: none; }
 
 /* ── MORE MENU ── */
-#controls { position: relative; }
+#more-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 399;
+}
+#more-overlay.show { display: block; }
 #more-menu {
   position: fixed;
-  background: #2d1b69;
-  border-radius: 12px;
-  padding: 8px;
-  min-width: 170px;
-  box-shadow: 0 -4px 24px rgba(0,0,0,0.65);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #1a1040;
+  border-radius: 20px 20px 0 0;
+  padding: 10px 0 calc(16px + env(safe-area-inset-bottom, 0px));
   z-index: 400;
-  display: none;
+  display: flex;
   flex-direction: column;
-  gap: 3px;
-  border: 1px solid rgba(255,255,255,0.08);
+  gap: 0;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.6);
 }
-#more-menu.show { display: flex; }
+#more-menu.show { transform: translateY(0); }
+#more-menu-handle {
+  width: 36px;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
+  margin: 0 auto 10px;
+}
 .more-item {
-  background: rgba(255,255,255,0.06);
+  background: none;
   color: #ddd;
   border: none;
-  border-radius: 8px;
-  padding: 9px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding: 16px 24px;
   text-align: left;
-  font-size: 0.84rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   width: 100%;
-  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: inherit;
 }
-.more-item:hover { background: rgba(255,255,255,0.14); color: #fff; }
-.more-item.pass-item { color: #ff9090; }
-.more-item.pass-item:hover { background: rgba(230,57,70,0.18); color: #ffb0b0; }
-.more-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 3px 0; }
-.more-section-label {
-  font-size: 0.6rem;
-  color: #777;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  padding: 4px 6px 2px;
-}
-.more-skills { display: flex; gap: 4px; padding: 2px 4px 4px; }
-.more-skills .btn-skill { flex: 1; text-align: center; }
+.more-item:last-child { border-bottom: none; }
+.more-item:active { background: rgba(255,255,255,0.07); }
+.more-item svg { flex-shrink: 0; width: 22px; height: 22px; }
+.more-item.pass-item { color: #ddd; }
+.more-item.resign-item { color: #f72585; }
+.more-item.resign-item svg .st0 { stroke: #f72585; }
 
 /* ── TILE BAG ── */
 #bag-count {
@@ -1537,20 +1550,23 @@ body {
   </div>
   <button id="btn-play" onclick="submitPlay()">Play</button>
   <div id="more-menu">
-    <button class="more-item" onclick="toggleRemaining();closeMoreMenu()">Tile Bag</button>
-    <button class="more-item pass-item" onclick="passTurn();closeMoreMenu()">Pass</button>
-    <button class="more-item" id="menu-resign" style="display:none;color:#f72585" onclick="resignOnlineGame();closeMoreMenu()">Resign Game</button>
-    <div class="more-divider"></div>
-    <div class="more-divider"></div>
-    <div class="more-section-label">AI Level</div>
-    <div class="more-skills">
-      <button class="btn-skill"         id="skill-easy"   onclick="setSkill('easy')">Easy</button>
-      <button class="btn-skill"         id="skill-medium" onclick="setSkill('medium')">Medium</button>
-      <button class="btn-skill active"  id="skill-hard"   onclick="setSkill('hard')">Hard</button>
-    </div>
+    <div id="more-menu-handle"></div>
+    <button class="more-item" onclick="toggleRemaining();closeMoreMenu()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.69 20.24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M8.34,19.74c4.55,0,7.84-2.5,7.84-6.07,0-4.38-5.72-8.02-5.72-9.09,0-2,3.22-4.08,1.17-4.08-1.71,0-3.33.64-3.33.64,0,0-1.55-.64-3.26-.64-2.05,0,1.17,2.08,1.17,4.08,0,1.07-5.72,4.71-5.72,9.09,0,3.56,3.29,6.07,7.84,6.07Z"/><rect x="6.22" y="4.56" width="4.24" height=".04"/><path d="M5.64,10.12s.8-.93,1.26-1.88,1.12-3.66,1.12-3.66c0,0,2.74,3.45,2.74,5.54"/></svg>
+      Tile Bag
+    </button>
+    <button class="more-item pass-item" onclick="passTurn();closeMoreMenu()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.69 20.24" fill="none" stroke="#ddd" stroke-linecap="round" stroke-linejoin="round"><path d="M8.34,19.74c4.55,0,7.84-2.5,7.84-6.07,0-4.38-5.72-8.02-5.72-9.09,0-2,3.22-4.08,1.17-4.08-1.71,0-3.33.64-3.33.64,0,0-1.55-.64-3.26-.64-2.05,0,1.17,2.08,1.17,4.08,0,1.07-5.72,4.71-5.72,9.09,0,3.56,3.29,6.07,7.84,6.07Z"/><rect x="6.22" y="4.56" width="4.24" height=".04"/><path d="M5.64,10.12s.8-.93,1.26-1.88,1.12-3.66,1.12-3.66c0,0,2.74,3.45,2.74,5.54"/></svg>
+      Pass Turn
+    </button>
+    <button class="more-item resign-item" id="menu-resign" style="display:none;" onclick="resignOnlineGame();closeMoreMenu()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14.86 18.7" fill="none" stroke="#f72585" stroke-linecap="round" stroke-linejoin="round"><path d="M.5,3.07c3.06-.74,3.98-.78,7.08,0v1.57c3.08.74,3.67.73,6.78,0v8.77c-2.52.82-3.54.86-5.71.21"/><path d="M7.58,4.64v7.2c-3.09-.67-4.05-.59-7.08,0"/><line x1=".5" y1="18.2" x2=".5" y2=".5"/></svg>
+      Resign Game
+    </button>
   </div>
 </div>
 
+<div id="more-overlay" onclick="closeMoreMenu()"></div>
 <div id="ai-indicator">AI is thinking</div>
 <div id="aivai-controls" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:#1a1a2e;border-top:1px solid #333;padding:10px 16px;align-items:center;justify-content:space-between;gap:10px;">
   <span style="color:#aaa;font-size:0.8rem;font-weight:600;letter-spacing:0.05em;">AI VS AI</span>
@@ -4386,31 +4402,22 @@ let moreMenuOpen = false;
 function toggleMoreMenu(e) {
   e?.stopPropagation();
   moreMenuOpen = !moreMenuOpen;
-  const menu = document.getElementById('more-menu');
-  const btn  = document.getElementById('btn-more');
-  if (moreMenuOpen && btn) {
-    const r = btn.getBoundingClientRect();
-    menu.style.bottom = (window.innerHeight - r.top + 6) + 'px';
-    menu.style.left   = r.left + 'px';
-    menu.style.right  = 'auto';
-    menu.style.top    = 'auto';
-  }
+  const menu    = document.getElementById('more-menu');
+  const overlay = document.getElementById('more-overlay');
+  const btn     = document.getElementById('btn-more');
   menu.classList.toggle('show', moreMenuOpen);
+  overlay.classList.toggle('show', moreMenuOpen);
   btn.classList.toggle('active', moreMenuOpen);
 }
 function closeMoreMenu() {
   moreMenuOpen = false;
-  const menu = document.getElementById('more-menu');
-  const btn  = document.getElementById('btn-more');
-  if (menu) menu.classList.remove('show');
-  if (btn)  btn.classList.remove('active');
+  const menu    = document.getElementById('more-menu');
+  const overlay = document.getElementById('more-overlay');
+  const btn     = document.getElementById('btn-more');
+  if (menu)    menu.classList.remove('show');
+  if (overlay) overlay.classList.remove('show');
+  if (btn)     btn.classList.remove('active');
 }
-document.addEventListener('click', e => {
-  if (!moreMenuOpen) return;
-  const menu = document.getElementById('more-menu');
-  const btn  = document.getElementById('btn-more');
-  if (menu && !menu.contains(e.target) && e.target !== btn) closeMoreMenu();
-});
 
 // ── Player name ──
 let playerName = localStorage.getItem('playerName') || 'You';

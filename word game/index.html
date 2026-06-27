@@ -5104,6 +5104,7 @@ async function joinOnlineGame(gameId) {
 
     applyOnlineState(data);
     startOnlineListener(gameId.toUpperCase());
+    showGameScreen();
     showNotifPrompt();
   } catch(e) {
     showMsg('Error joining game. Check your connection.', 'bad');

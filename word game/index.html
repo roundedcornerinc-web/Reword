@@ -458,25 +458,13 @@ body {
   flex-wrap: nowrap;
   gap: 8px;
   padding: 10px 12px;
-  padding-bottom: calc(10px + 50px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   background: #110b2e;
   align-items: center;
 }
 
 #ad-banner {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: calc(50px + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: #0a0720;
-  border-top: 1px solid #2a1f55;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 150;
-  pointer-events: none;
+  display: none;
 }
 #ad-banner span {
   font-size: 0.6rem;

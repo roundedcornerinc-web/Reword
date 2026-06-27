@@ -6856,10 +6856,11 @@ function buildHomeGamesList() {
     } else {
       const myTurn = g.currentPlayer === 'player';
       const btnLabel = g.isWaiting ? 'RESEND' : (myTurn ? 'PLAY' : 'NUDGE');
+      const action = g.isWaiting ? function() { resendInvite(g.id); } : resume;
       if (myTurn) {
-        myMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, resume));
+        myMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action));
       } else {
-        theirMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, resume));
+        theirMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action));
       }
     }
   });

@@ -869,27 +869,34 @@ body {
 .btn-more.active { color: #fff; background: rgba(255,255,255,0.12); outline: none; }
 
 /* ── MORE MENU ── */
+/* overlay covers only from screen-top to board-bottom (bottom set by JS) */
 #more-overlay {
   display: none;
   position: fixed;
-  inset: 0;
+  left: 0; right: 0; top: 0;
   background: rgba(0,0,0,0.3);
   z-index: 399;
 }
 #more-overlay.show { display: block; }
-#more-menu {
+/* clip container spans from board-bottom to screen-bottom; masks the sliding menu */
+#more-menu-clip {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 0; right: 0; bottom: 0;
+  top: 60%; /* overridden by JS */
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 400;
+}
+#more-menu {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
   background: #110b2f;
   border-radius: 16px 16px 0 0;
   padding: 6px 0 8px;
-  z-index: 400;
   display: flex;
   flex-direction: column;
   gap: 0;
-  /* translateY(100%) = fully off screen below; overridden by JS when opening */
+  pointer-events: auto;
   transform: translateY(100%);
   transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
   box-shadow: 0 -6px 24px rgba(0,0,0,0.7);
@@ -1607,6 +1614,10 @@ body {
     </button>
   </div>
   <button id="btn-play" onclick="submitPlay()">Play</button>
+</div>
+
+<div id="more-overlay" onclick="closeMoreMenu()"></div>
+<div id="more-menu-clip">
   <div id="more-menu">
     <div id="more-menu-handle"></div>
     <button class="more-item" onclick="toggleRemaining();closeMoreMenu()">
@@ -1623,8 +1634,6 @@ body {
     </button>
   </div>
 </div>
-
-<div id="more-overlay" onclick="closeMoreMenu()"></div>
 <div id="confirm-overlay" onclick="closeConfirmSheet()"></div>
 <div id="confirm-sheet">
   <div id="confirm-sheet-msg"></div>
@@ -4488,14 +4497,12 @@ function toggleMoreMenu(e) {
   const menu    = document.getElementById('more-menu');
   const overlay = document.getElementById('more-overlay');
   const btn     = document.getElementById('btn-more');
-  if (moreMenuOpen) {
-    const board = document.getElementById('board-wrapper');
-    const boardBottom = board ? board.getBoundingClientRect().bottom : window.innerHeight * 0.6;
-    const offset = window.innerHeight - boardBottom;
-    menu.style.transform = `translateY(-${offset}px)`;
-  } else {
-    menu.style.transform = 'translateY(100%)';
-  }
+  const clip    = document.getElementById('more-menu-clip');
+  const board   = document.getElementById('board-wrapper');
+  const boardBottom = board ? board.getBoundingClientRect().bottom : window.innerHeight * 0.6;
+  if (clip) clip.style.top = boardBottom + 'px';
+  if (overlay) overlay.style.bottom = (window.innerHeight - boardBottom) + 'px';
+  menu.style.transform = moreMenuOpen ? 'translateY(0)' : 'translateY(100%)';
   menu.classList.toggle('show', moreMenuOpen);
   overlay.classList.toggle('show', moreMenuOpen);
   btn.classList.toggle('active', moreMenuOpen);

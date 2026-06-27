@@ -4755,6 +4755,7 @@ let opponentPushSub = null; // opponent's push subscription (read from Firestore
 const _urlGame = new URLSearchParams(window.location.search).get('game');
 if (_urlGame) {
   startGame();
+  showGameScreen(); // show board immediately while async join resolves
   // Check localStorage first — if we already have this game, we're the creator
   const _existingGame = getStoredGames().find(g => g.gameId === _urlGame);
   if (_existingGame) {

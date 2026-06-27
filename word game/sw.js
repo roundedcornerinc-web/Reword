@@ -1,4 +1,4 @@
-const CACHE = 'reword-v67';
+const CACHE = 'reword-v68';
 
 self.addEventListener('install', e => {
   self.skipWaiting();

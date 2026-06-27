@@ -4779,7 +4779,6 @@ if (_urlGame) {
     });
   }
 } else {
-  startGame();
   // Migrate legacy single-game storage to new multi-game array
   const _legacy = JSON.parse(localStorage.getItem('reword_active_game') || 'null');
   if (_legacy?.gameId) {
@@ -4788,13 +4787,15 @@ if (_urlGame) {
   }
   const _storedGames = getStoredGames();
   if (_storedGames.length === 1) {
-    // Single game — auto-resume silently
+    // Single game — loadOnlineGame handles full reset without drawing random tiles
     loadOnlineGame(_storedGames[0].gameId, _storedGames[0].myRole);
   } else if (_storedGames.length > 1) {
     // Multiple games — show picker
+    startGame();
     showGamesModal();
   } else {
     // No online games — restore AI game if one was in progress
+    startGame();
     loadAiGameState();
   }
   updateGamesBadge();

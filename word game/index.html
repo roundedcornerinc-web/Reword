@@ -4788,8 +4788,7 @@ if (_urlGame) {
   }
   const _storedGames = getStoredGames();
   if (_storedGames.length === 1) {
-    // Single game — auto-resume silently; clear random tiles drawn by startGame
-    playerRack = []; aiRack = []; updateUI();
+    // Single game — auto-resume silently
     loadOnlineGame(_storedGames[0].gameId, _storedGames[0].myRole);
   } else if (_storedGames.length > 1) {
     // Multiple games — show picker
@@ -5317,11 +5316,17 @@ async function updateGamesBadge() {
 async function loadOnlineGame(gameId, myRole) {
   dismissNextGamePrompt(); // hide any pending next-game banner
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
-  // Preserve opponent name across startGame() reset so scoreboard doesn't flash "Opponent"
-  const _cachedOppName = (window._homeGames || []).find(g => g.id === gameId)?.opponentName || opponentOnlineName;
-  startGame(); // reset board/scores to clean slate
-  playerRack = []; aiRack = []; // clear random tiles while Firestore loads
-  opponentOnlineName = _cachedOppName;
+  // Reset game state without drawing random tiles (applyOnlineState will supply real tiles)
+  document.getElementById('overlay').classList.remove('show');
+  board = Array.from({length:BS}, ()=>Array(BS).fill(null));
+  boardSwapPositions = new Set();
+  bag = buildBag();
+  playerRack = []; aiRack = [];
+  playerScore = 0; aiScore = 0; passCount = 0;
+  aiNoMoveCount = 0; playerNoMoveCount = 0;
+  lastPlayScore = null; currentPlayer = 'player'; gameOver = false;
+  resetPending(); showMsg('', 'info');
+  opponentOnlineName = (window._homeGames || []).find(g => g.id === gameId)?.opponentName || opponentOnlineName;
   const _nameEl = document.getElementById('ai-name-display');
   if (_nameEl) _nameEl.textContent = opponentOnlineName;
   isOnlineMode = true; myOnlineRole = myRole; onlineGameId = gameId;

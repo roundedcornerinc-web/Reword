@@ -4788,7 +4788,8 @@ if (_urlGame) {
   }
   const _storedGames = getStoredGames();
   if (_storedGames.length === 1) {
-    // Single game — auto-resume silently
+    // Single game — auto-resume silently; clear random tiles drawn by startGame
+    playerRack = []; aiRack = []; updateUI();
     loadOnlineGame(_storedGames[0].gameId, _storedGames[0].myRole);
   } else if (_storedGames.length > 1) {
     // Multiple games — show picker

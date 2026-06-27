@@ -1644,6 +1644,10 @@ body {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14.86 18.7" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M.5,3.07c3.06-.74,3.98-.78,7.08,0v1.57c3.08.74,3.67.73,6.78,0v8.77c-2.52.82-3.54.86-5.71.21"/><path d="M7.58,4.64v7.2c-3.09-.67-4.05-.59-7.08,0"/><line x1=".5" y1="18.2" x2=".5" y2=".5"/></svg>
       <span id="menu-resign-label">Resign Game</span>
     </button>
+    <button class="more-item resign-item" id="menu-cancel-game" style="display:none;" onclick="closeMoreMenu();showConfirmSheet('Cancel this game?','The game will be deleted for both players.','Cancel Game',cancelOnlineGame,toggleMoreMenu)">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg>
+      Cancel Game
+    </button>
   </div>
 </div>
 <div id="confirm-overlay" onclick="closeConfirmSheet()"></div>
@@ -4792,9 +4796,8 @@ if (_urlGame) {
     // Single game — loadOnlineGame handles full reset without drawing random tiles
     loadOnlineGame(_storedGames[0].gameId, _storedGames[0].myRole);
   } else if (_storedGames.length > 1) {
-    // Multiple games — show picker
+    // Multiple games — let home screen handle selection
     startGame();
-    showGamesModal();
   } else {
     // No online games — restore AI game if one was in progress
     startGame();
@@ -5159,11 +5162,14 @@ function cancelOnlineGame() {
 function updateResignButton() {
   const btn = document.getElementById('menu-resign');
   const lbl = document.getElementById('menu-resign-label');
+  const cancelBtn = document.getElementById('menu-cancel-game');
   if (!btn) return;
   const inAiGame = !isOnlineMode && !gameOver && localStorage.getItem(AI_SAVE_KEY);
   const inOnlineGame = isOnlineMode && !gameOver;
-  btn.style.display = (inAiGame || inOnlineGame) ? 'flex' : 'none';
+  const canCancel = inOnlineGame && playerScore === 0 && aiScore === 0;
+  btn.style.display = (inAiGame || (inOnlineGame && !canCancel)) ? 'flex' : 'none';
   if (lbl) lbl.textContent = inOnlineGame ? 'Resign Game' : 'End AI Game';
+  if (cancelBtn) cancelBtn.style.display = canCancel ? 'flex' : 'none';
 }
 
 // ── Resign current online game ─────────────────────────
@@ -5200,6 +5206,18 @@ async function resignOnlineGame() {
   startGame();
   loadAiGameState();
   showMsg('You resigned.', 'info');
+}
+
+// ── Cancel online game (only when score is 0-0) ────────
+async function cancelOnlineGame() {
+  if (!onlineGameId) return;
+  const gid = onlineGameId;
+  try {
+    await db.collection('games').doc(gid).update({ status: 'cancelled' });
+  } catch(e) {}
+  removeStoredGame(gid);
+  isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+  showHomeScreen();
 }
 
 // ── Multi-game storage helpers ─────────────────────────

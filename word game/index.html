@@ -6893,7 +6893,8 @@ function initApp() {
 // ── End home navigation ───────────────────────────────────────────────────
 
 // ── Other Games overlay ───────────────────────────────────────────────────
-function showOtherGamesOverlay() {
+function showOtherGamesOverlay(e) {
+  e?.stopPropagation();
   const overlay = document.getElementById('other-games-overlay');
   if (!overlay) return;
   buildOtherGameCards();

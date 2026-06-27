@@ -5340,10 +5340,11 @@ async function loadOnlineGame(gameId, myRole) {
   try {
     const snap = await db.collection('games').doc(gameId).get();
     if (!snap.exists) {
-      showMsg('Game not found — it may have been cancelled.', 'bad');
-      removeStoredGame(gameId);
+      // Don't immediately wipe the stored game — the document may be
+      // temporarily unavailable. Only remove it if the game is explicitly
+      // cancelled or the user requests it.
+      showMsg('Could not load game. Check your connection and try again.', 'bad');
       isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
-      loadAiGameState();
       return;
     }
     const data = snap.data();

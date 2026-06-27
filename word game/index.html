@@ -4491,6 +4491,7 @@ function saveAiGameState() {
       lastSwapKeys: [...lastSwapKeys],
       lastSwapPairMap: {...lastSwapPairMap},
       aiSkill,
+      lastUpdated: Date.now(),
     }));
   } catch {}
 }
@@ -6663,7 +6664,8 @@ function buildHomeGamesList() {
       if (!s.gameOver) {
         const diff = s.aiSkill === 'easy' ? 'easy' : s.aiSkill === 'medium' ? 'medium' : 'hard';
         const resume = function() { showGameScreen(); loadAiGameState(); };
-        myMoveCards.push(scoreCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', 'just now', 'PLAY', resume));
+        const aiAgo = s.lastUpdated ? timeAgo(s.lastUpdated) : 'just now';
+        myMoveCards.push(scoreCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', aiAgo, 'PLAY', resume));
       }
     }
   } catch(e) {}

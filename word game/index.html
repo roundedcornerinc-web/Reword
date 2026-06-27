@@ -6853,10 +6853,11 @@ function buildHomeGamesList() {
 
 // Called on app init
 function initApp() {
+  // If arriving via invite link, the URL handler manages screen transitions — don't override
+  if (new URLSearchParams(window.location.search).get('game')) return;
   const tutorialDone = localStorage.getItem('reword_tutorial_done');
   showHomeScreen();
-  // Don't show tutorial welcome if user arrived via an invite link
-  if (!tutorialDone && !new URLSearchParams(window.location.search).get('game')) {
+  if (!tutorialDone) {
     document.getElementById('welcome-overlay').classList.add('active');
   }
 }

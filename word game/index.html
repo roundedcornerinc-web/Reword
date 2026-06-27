@@ -4779,7 +4779,13 @@ if (_urlGame) {
           }
         }
       } catch(e) {}
-      showNameModal('Join the Game', 'Your opponent will see this', 'Join Game', () => joinOnlineGame(_urlGame));
+      const _storedName = localStorage.getItem('playerName');
+      if (_storedName && _storedName !== 'You') {
+        playerName = _storedName;
+        joinOnlineGame(_urlGame);
+      } else {
+        showNameModal('Join the Game', 'Your opponent will see this', 'Join Game', () => joinOnlineGame(_urlGame));
+      }
     });
   }
 } else {
@@ -5192,6 +5198,8 @@ async function resignOnlineGame() {
     });
   } catch(e) { /* best-effort */ }
   removeStoredGame(gid);
+  // Remove from cached home list immediately so stale render doesn't show it
+  if (window._homeGames) window._homeGames = window._homeGames.filter(g => g.id !== gid);
   isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
   opponentOnlineName = 'Opponent';
   document.title = 'Reword';
@@ -6580,8 +6588,8 @@ async function loadHomeGames() {
   if (uid) {
     try {
       const [c1, c2] = await Promise.all([
-        db.collection('games').where('players.p1.id', '==', uid).where('gameOver', '==', true).orderBy('lastUpdated', 'desc').limit(5).get(),
-        db.collection('games').where('players.p2.id', '==', uid).where('gameOver', '==', true).orderBy('lastUpdated', 'desc').limit(5).get(),
+        db.collection('games').where('players.p1.id', '==', uid).where('gameOver', '==', true).get(),
+        db.collection('games').where('players.p2.id', '==', uid).where('gameOver', '==', true).get(),
       ]);
       c1.forEach(d => completedSnaps.push({snap: d, myRole: 'p1'}));
       c2.forEach(d => completedSnaps.push({snap: d, myRole: 'p2'}));
@@ -6633,7 +6641,8 @@ async function loadHomeGames() {
       playerScore: d.scores?.[myRole] ?? 0,
       aiScore: d.scores?.[opRole] ?? 0,
       opponentName: d.players?.[opRole]?.name || 'Opponent',
-      updatedAt: d.lastUpdated?.toMillis?.() || null
+      updatedAt: d.lastUpdated?.toMillis?.() || null,
+      resignedBy: d.resignedBy || null
     });
   });
 
@@ -6808,7 +6817,12 @@ function buildHomeGamesList() {
     const resume = function() { loadOnlineGame(g.id, g.myRole); showGameScreen(); };
     const opp = g.opponentName || 'Opponent';
     if (g.gameOver) {
-      const label = g.playerScore > g.aiScore ? 'You won!' : g.playerScore < g.aiScore ? 'You lost' : 'Tie game';
+      let label;
+      if (g.resignedBy === g.myRole) label = 'You resigned';
+      else if (g.resignedBy) label = 'Opponent resigned';
+      else if (g.playerScore > g.aiScore) label = 'You won!';
+      else if (g.playerScore < g.aiScore) label = 'You lost';
+      else label = 'Tie game';
       completedCards.push(resultCard(g.playerScore||0, g.aiScore||0, opp, label, resume));
     } else {
       const myTurn = g.currentPlayer === 'player';

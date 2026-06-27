@@ -2373,7 +2373,7 @@ function submitPlay() {
 
   auditTiles('commitPlay');
   checkGameOver();
-  if (isOnlineMode) { saveOnlineState(); if (!gameOver) setTimeout(showOtherGamesOverlay, 700); return; }
+  if (isOnlineMode) { saveOnlineState(); return; }
   saveAiGameState();
   if (!gameOver) setTimeout(doAiTurn, 1200);
 }
@@ -2388,7 +2388,7 @@ function passTurn() {
     showMsg('You passed your turn.', 'info');
     updateUI();
     checkGameOver();
-    if (isOnlineMode) { saveOnlineState(); if (!gameOver) setTimeout(showOtherGamesOverlay, 700); return; }
+    if (isOnlineMode) { saveOnlineState(); return; }
     saveAiGameState();
     if (!gameOver) setTimeout(doAiTurn, 800);
   });

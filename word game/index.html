@@ -881,17 +881,17 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 0; /* overridden by JS to sit at board bottom */
   background: #1a1040;
-  border-radius: 20px 20px 0 0;
-  padding: 10px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+  border-radius: 16px 16px 0 0;
+  padding: 6px 0 8px;
   z-index: 400;
   display: flex;
   flex-direction: column;
   gap: 0;
   transform: translateY(100%);
   transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
-  box-shadow: 0 -8px 32px rgba(0,0,0,0.6);
+  box-shadow: 0 -6px 24px rgba(0,0,0,0.7);
 }
 #more-menu.show { transform: translateY(0); }
 #more-menu-handle {
@@ -899,17 +899,19 @@ body {
   height: 4px;
   background: rgba(255,255,255,0.2);
   border-radius: 2px;
-  margin: 0 auto 10px;
+  margin: 0 auto 6px;
 }
 .more-item {
   background: none;
-  color: #ddd;
+  color: #fff;
   border: none;
   border-bottom: 1px solid rgba(255,255,255,0.07);
-  padding: 16px 24px;
+  padding: 14px 24px;
   text-align: left;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
   width: 100%;
   display: flex;
@@ -920,9 +922,7 @@ body {
 .more-item:last-child { border-bottom: none; }
 .more-item:active { background: rgba(255,255,255,0.07); }
 .more-item svg { flex-shrink: 0; width: 22px; height: 22px; }
-.more-item.pass-item { color: #ddd; }
 .more-item.resign-item { color: #f72585; }
-.more-item.resign-item svg .st0 { stroke: #f72585; }
 
 /* ── TILE BAG ── */
 #bag-count {
@@ -1555,13 +1555,13 @@ body {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.69 20.24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M8.34,19.74c4.55,0,7.84-2.5,7.84-6.07,0-4.38-5.72-8.02-5.72-9.09,0-2,3.22-4.08,1.17-4.08-1.71,0-3.33.64-3.33.64,0,0-1.55-.64-3.26-.64-2.05,0,1.17,2.08,1.17,4.08,0,1.07-5.72,4.71-5.72,9.09,0,3.56,3.29,6.07,7.84,6.07Z"/><rect x="6.22" y="4.56" width="4.24" height=".04"/><path d="M5.64,10.12s.8-.93,1.26-1.88,1.12-3.66,1.12-3.66c0,0,2.74,3.45,2.74,5.54"/></svg>
       Tile Bag
     </button>
-    <button class="more-item pass-item" onclick="passTurn();closeMoreMenu()">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.12 18.11" fill="none" stroke="#ddd" stroke-linecap="round" stroke-linejoin="round"><path d="M15.11,3.01c-1.55-1.55-3.69-2.51-6.06-2.51C4.33.5.5,4.33.5,9.05s3.83,8.55,8.55,8.55c2.37,0,4.51-.96,6.06-2.51"/><polyline points="15.62 .81 15.62 3.61 12.83 3.61"/></svg>
+    <button class="more-item" onclick="passTurn();closeMoreMenu()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.12 18.11" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M15.11,3.01c-1.55-1.55-3.69-2.51-6.06-2.51C4.33.5.5,4.33.5,9.05s3.83,8.55,8.55,8.55c2.37,0,4.51-.96,6.06-2.51"/><polyline points="15.62 .81 15.62 3.61 12.83 3.61"/></svg>
       Pass Turn
     </button>
     <button class="more-item resign-item" id="menu-resign" style="display:none;" onclick="resignOnlineGame();closeMoreMenu()">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14.86 18.7" fill="none" stroke="#f72585" stroke-linecap="round" stroke-linejoin="round"><path d="M.5,3.07c3.06-.74,3.98-.78,7.08,0v1.57c3.08.74,3.67.73,6.78,0v8.77c-2.52.82-3.54.86-5.71.21"/><path d="M7.58,4.64v7.2c-3.09-.67-4.05-.59-7.08,0"/><line x1=".5" y1="18.2" x2=".5" y2=".5"/></svg>
-      Resign Game
+      <span id="menu-resign-label">Resign Game</span>
     </button>
   </div>
 </div>
@@ -4405,6 +4405,14 @@ function toggleMoreMenu(e) {
   const menu    = document.getElementById('more-menu');
   const overlay = document.getElementById('more-overlay');
   const btn     = document.getElementById('btn-more');
+  if (moreMenuOpen) {
+    // Position menu so its bottom edge sits at the bottom of the board
+    const rack     = document.getElementById('rack-area');
+    const controls = document.getElementById('controls');
+    const rackH    = rack     ? rack.offsetHeight     : 0;
+    const ctrlH    = controls ? controls.offsetHeight : 0;
+    menu.style.bottom = (rackH + ctrlH) + 'px';
+  }
   menu.classList.toggle('show', moreMenuOpen);
   overlay.classList.toggle('show', moreMenuOpen);
   btn.classList.toggle('active', moreMenuOpen);
@@ -5035,11 +5043,12 @@ function cancelOnlineGame() {
 // ── Show/hide resign button ────────────────────────────
 function updateResignButton() {
   const btn = document.getElementById('menu-resign');
+  const lbl = document.getElementById('menu-resign-label');
   if (!btn) return;
   const inAiGame = !isOnlineMode && !gameOver && localStorage.getItem(AI_SAVE_KEY);
   const inOnlineGame = isOnlineMode && !gameOver;
-  btn.style.display = (inAiGame || inOnlineGame) ? 'block' : 'none';
-  btn.textContent = inOnlineGame ? 'Resign Game' : 'End AI Game';
+  btn.style.display = (inAiGame || inOnlineGame) ? 'flex' : 'none';
+  if (lbl) lbl.textContent = inOnlineGame ? 'Resign Game' : 'End AI Game';
 }
 
 // ── Resign current online game ─────────────────────────

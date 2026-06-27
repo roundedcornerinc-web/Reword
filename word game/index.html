@@ -881,19 +881,19 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0; /* overridden by JS to sit at board bottom */
-  background: #1a1040;
+  bottom: 0;
+  background: #110b2f;
   border-radius: 16px 16px 0 0;
   padding: 6px 0 8px;
   z-index: 400;
   display: flex;
   flex-direction: column;
   gap: 0;
+  /* translateY(100%) = fully off screen below; overridden by JS when opening */
   transform: translateY(100%);
   transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
   box-shadow: 0 -6px 24px rgba(0,0,0,0.7);
 }
-#more-menu.show { transform: translateY(0); }
 #more-menu-handle {
   width: 36px;
   height: 4px;
@@ -4489,10 +4489,12 @@ function toggleMoreMenu(e) {
   const overlay = document.getElementById('more-overlay');
   const btn     = document.getElementById('btn-more');
   if (moreMenuOpen) {
-    // Anchor menu bottom to the bottom edge of the board
     const board = document.getElementById('board-wrapper');
     const boardBottom = board ? board.getBoundingClientRect().bottom : window.innerHeight * 0.6;
-    menu.style.bottom = (window.innerHeight - boardBottom) + 'px';
+    const offset = window.innerHeight - boardBottom;
+    menu.style.transform = `translateY(-${offset}px)`;
+  } else {
+    menu.style.transform = 'translateY(100%)';
   }
   menu.classList.toggle('show', moreMenuOpen);
   overlay.classList.toggle('show', moreMenuOpen);
@@ -4503,7 +4505,7 @@ function closeMoreMenu() {
   const menu    = document.getElementById('more-menu');
   const overlay = document.getElementById('more-overlay');
   const btn     = document.getElementById('btn-more');
-  if (menu)    menu.classList.remove('show');
+  if (menu)    { menu.classList.remove('show'); menu.style.transform = 'translateY(100%)'; }
   if (overlay) overlay.classList.remove('show');
   if (btn)     btn.classList.remove('active');
 }

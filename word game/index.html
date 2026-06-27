@@ -924,6 +924,64 @@ body {
 .more-item svg { flex-shrink: 0; width: 22px; height: 22px; }
 .more-item.resign-item { color: #fff; }
 
+/* ── CONFIRM SHEET ── */
+#confirm-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 500;
+}
+#confirm-overlay.show { display: block; }
+#confirm-sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: #1a1040;
+  border-radius: 20px 20px 0 0;
+  padding: 24px 24px calc(32px + env(safe-area-inset-bottom, 0px));
+  z-index: 501;
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(0.22,1,0.36,1);
+  text-align: center;
+}
+#confirm-sheet.show { transform: translateY(0); }
+#confirm-sheet-msg {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+#confirm-sheet-sub {
+  color: #aaa;
+  font-size: 0.8rem;
+  margin-bottom: 24px;
+}
+#confirm-sheet-btns { display: flex; gap: 12px; }
+#confirm-sheet-cancel {
+  flex: 1;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+#confirm-sheet-ok {
+  flex: 1;
+  background: #7b2ff7;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
 /* ── TILE BAG ── */
 #bag-count {
   font-size: 0.7rem;
@@ -1555,11 +1613,11 @@ body {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.69 20.24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M8.34,19.74c4.55,0,7.84-2.5,7.84-6.07,0-4.38-5.72-8.02-5.72-9.09,0-2,3.22-4.08,1.17-4.08-1.71,0-3.33.64-3.33.64,0,0-1.55-.64-3.26-.64-2.05,0,1.17,2.08,1.17,4.08,0,1.07-5.72,4.71-5.72,9.09,0,3.56,3.29,6.07,7.84,6.07Z"/><rect x="6.22" y="4.56" width="4.24" height=".04"/><path d="M5.64,10.12s.8-.93,1.26-1.88,1.12-3.66,1.12-3.66c0,0,2.74,3.45,2.74,5.54"/></svg>
       Tile Bag
     </button>
-    <button class="more-item" onclick="passTurn();closeMoreMenu()">
+    <button class="more-item" onclick="closeMoreMenu();showConfirmSheet('Pass your turn?','You won\'t score any points this turn.','Pass',passTurn)">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.12 18.11" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M15.11,3.01c-1.55-1.55-3.69-2.51-6.06-2.51C4.33.5.5,4.33.5,9.05s3.83,8.55,8.55,8.55c2.37,0,4.51-.96,6.06-2.51"/><polyline points="15.62 .81 15.62 3.61 12.83 3.61"/></svg>
       Pass Turn
     </button>
-    <button class="more-item resign-item" id="menu-resign" style="display:none;" onclick="resignOnlineGame();closeMoreMenu()">
+    <button class="more-item resign-item" id="menu-resign" style="display:none;" onclick="closeMoreMenu();showConfirmSheet('End this game?','Your progress will be lost.','End Game',resignOnlineGame)">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14.86 18.7" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M.5,3.07c3.06-.74,3.98-.78,7.08,0v1.57c3.08.74,3.67.73,6.78,0v8.77c-2.52.82-3.54.86-5.71.21"/><path d="M7.58,4.64v7.2c-3.09-.67-4.05-.59-7.08,0"/><line x1=".5" y1="18.2" x2=".5" y2=".5"/></svg>
       <span id="menu-resign-label">Resign Game</span>
     </button>
@@ -1567,6 +1625,15 @@ body {
 </div>
 
 <div id="more-overlay" onclick="closeMoreMenu()"></div>
+<div id="confirm-overlay" onclick="closeConfirmSheet()"></div>
+<div id="confirm-sheet">
+  <div id="confirm-sheet-msg"></div>
+  <div id="confirm-sheet-sub"></div>
+  <div id="confirm-sheet-btns">
+    <button id="confirm-sheet-cancel" onclick="closeConfirmSheet()">Cancel</button>
+    <button id="confirm-sheet-ok"></button>
+  </div>
+</div>
 <div id="ai-indicator">AI is thinking</div>
 <div id="aivai-controls" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:#1a1a2e;border-top:1px solid #333;padding:10px 16px;align-items:center;justify-content:space-between;gap:10px;">
   <span style="color:#aaa;font-size:0.8rem;font-weight:600;letter-spacing:0.05em;">AI VS AI</span>
@@ -4399,6 +4466,22 @@ function showScorePopup(pts) {
 //  MORE MENU
 // ═══════════════════════════════════════════════════════
 let moreMenuOpen = false;
+function showConfirmSheet(msg, sub, okLabel, onOk) {
+  const overlay = document.getElementById('confirm-overlay');
+  const sheet   = document.getElementById('confirm-sheet');
+  document.getElementById('confirm-sheet-msg').textContent = msg;
+  document.getElementById('confirm-sheet-sub').textContent = sub;
+  const okBtn = document.getElementById('confirm-sheet-ok');
+  okBtn.textContent = okLabel;
+  okBtn.onclick = () => { closeConfirmSheet(); onOk(); };
+  overlay.classList.add('show');
+  sheet.classList.add('show');
+}
+function closeConfirmSheet() {
+  document.getElementById('confirm-overlay').classList.remove('show');
+  document.getElementById('confirm-sheet').classList.remove('show');
+}
+
 function toggleMoreMenu(e) {
   e?.stopPropagation();
   moreMenuOpen = !moreMenuOpen;
@@ -5054,14 +5137,12 @@ async function resignOnlineGame() {
   if (!isOnlineMode && !localStorage.getItem(AI_SAVE_KEY)) return;
   // AI game resign
   if (!isOnlineMode) {
-    if (!confirm('End this AI game and start fresh?')) return;
     clearAiGameState();
     startGame();
     updateResignButton();
     showMsg('AI game ended.', 'info');
     return;
   }
-  if (!confirm('Resign this game? Your opponent will win.')) return;
   const gid = onlineGameId;
   // Stop listening before we write so we don't re-process our own update
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }

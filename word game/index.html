@@ -5317,9 +5317,15 @@ async function updateGamesBadge() {
 async function loadOnlineGame(gameId, myRole) {
   dismissNextGamePrompt(); // hide any pending next-game banner
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+  // Preserve opponent name across startGame() reset so scoreboard doesn't flash "Opponent"
+  const _cachedOppName = (window._homeGames || []).find(g => g.id === gameId)?.opponentName || opponentOnlineName;
   startGame(); // reset board/scores to clean slate
-  playerRack = []; aiRack = []; updateUI(); // clear random tiles while Firestore loads
+  playerRack = []; aiRack = []; // clear random tiles while Firestore loads
+  opponentOnlineName = _cachedOppName;
+  const _nameEl = document.getElementById('ai-name-display');
+  if (_nameEl) _nameEl.textContent = opponentOnlineName;
   isOnlineMode = true; myOnlineRole = myRole; onlineGameId = gameId;
+  updateUI();
   updateDifficultyBadge();
   updateResignButton();
   try {
@@ -6875,6 +6881,9 @@ function buildHomeGamesList() {
 function initApp() {
   // If arriving via invite link, the URL handler manages screen transitions — don't override
   if (new URLSearchParams(window.location.search).get('game')) return;
+  // If a single online game is being auto-resumed, stay on game screen
+  const _initStored = getStoredGames();
+  if (_initStored.length === 1) { showGameScreen(); return; }
   const tutorialDone = localStorage.getItem('reword_tutorial_done');
   showHomeScreen();
   if (!tutorialDone) {

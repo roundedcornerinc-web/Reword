@@ -5411,6 +5411,18 @@ async function showGamesModal() {
     const cls = isMyTurn ? 'turn-yes' : isWaiting || isOver ? 'turn-waiting' : 'turn-no';
     const rowCls = isMyTurn ? 'game-row your-turn' : 'game-row';
     const vsText = opName ? `vs <strong>${opName}</strong>` : '<em style="color:#777">Waiting for opponent…</em>';
+    if (isWaiting) {
+      return `<div class="${rowCls}" style="flex-direction:column;align-items:stretch;gap:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="game-row-vs">${vsText}</div>
+          <div class="game-row-status ${cls}">${label}</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="event.stopPropagation();resendInvite('${gameId}')" style="flex:1;background:#7b2ff7;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Resend Invite</button>
+          <button onclick="event.stopPropagation();cancelWaitingGame('${gameId}')" style="background:rgba(255,255,255,0.08);color:#f72585;border:none;border-radius:8px;padding:7px 12px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>
+        </div>
+      </div>`;
+    }
     return `<div class="${rowCls}" onclick="loadOnlineGame('${gameId}','${myRole}');hideGamesModal()">
       <div class="game-row-vs">${vsText}</div>
       <div class="game-row-status ${cls}">${label}</div>
@@ -5420,6 +5432,23 @@ async function showGamesModal() {
 function hideGamesModal() {
   document.getElementById('games-modal').classList.add('hidden');
   if (!isOnlineMode) loadAiGameState();
+}
+function resendInvite(gameId) {
+  const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
+  const link = `${base}?game=${gameId}`;
+  if (navigator.share) {
+    navigator.share({ title: 'Play Reword with me!', text: `${playerName} challenged you to a game of Reword. Tap the link to join!`, url: link }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(link).catch(() => {});
+    showMsg('Invite link copied!', 'good');
+  }
+}
+async function cancelWaitingGame(gameId) {
+  try {
+    await db.collection('games').doc(gameId).update({ status: 'cancelled' });
+  } catch(e) {}
+  removeStoredGame(gameId);
+  showGamesModal();
 }
 
 function showJoinByCodeUI() {
@@ -6825,7 +6854,7 @@ function buildHomeGamesList() {
       completedCards.push(resultCard(g.playerScore||0, g.aiScore||0, opp, label, resume));
     } else {
       const myTurn = g.currentPlayer === 'player';
-      const btnLabel = g.isWaiting ? 'SHARE' : (myTurn ? 'PLAY' : 'NUDGE');
+      const btnLabel = g.isWaiting ? 'RESEND' : (myTurn ? 'PLAY' : 'NUDGE');
       if (myTurn) {
         myMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, resume));
       } else {

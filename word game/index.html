@@ -5317,6 +5317,7 @@ async function loadOnlineGame(gameId, myRole) {
   dismissNextGamePrompt(); // hide any pending next-game banner
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
   startGame(); // reset board/scores to clean slate
+  playerRack = []; aiRack = []; updateUI(); // clear random tiles while Firestore loads
   isOnlineMode = true; myOnlineRole = myRole; onlineGameId = gameId;
   updateDifficultyBadge();
   updateResignButton();

@@ -5166,10 +5166,9 @@ function updateResignButton() {
   if (!btn) return;
   const inAiGame = !isOnlineMode && !gameOver && localStorage.getItem(AI_SAVE_KEY);
   const inOnlineGame = isOnlineMode && !gameOver;
-  const canCancel = inOnlineGame && playerScore === 0 && aiScore === 0;
-  btn.style.display = (inAiGame || (inOnlineGame && !canCancel)) ? 'flex' : 'none';
+  btn.style.display = (inAiGame || inOnlineGame) ? 'flex' : 'none';
   if (lbl) lbl.textContent = inOnlineGame ? 'Resign Game' : 'End AI Game';
-  if (cancelBtn) cancelBtn.style.display = canCancel ? 'flex' : 'none';
+  if (cancelBtn) cancelBtn.style.display = 'none';
 }
 
 // ── Resign current online game ─────────────────────────
@@ -6832,6 +6831,25 @@ function buildHomeGamesList() {
     return card;
   }
 
+  function cancelableCard(myScore, oppScore, oppName, timeStr, playLabel, onPlay, onCancel) {
+    const card = document.createElement('div');
+    card.className = 'home-game-card';
+    card.style.cssText = 'flex-direction:column;align-items:stretch;gap:8px;';
+    card.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+        '<div class="hgc-left">' +
+          '<div class="hgc-time">' + clockSVG + timeStr + '</div>' +
+          '<div class="hgc-score-line">' + scoreLine(myScore, oppScore, oppName) + '</div>' +
+        '</div>' +
+        '<button class="hgc-action-btn">' + playLabel + '</button>' +
+      '</div>' +
+      '<button style="width:100%;background:none;border:1px solid rgba(247,37,133,0.5);color:#f72585;border-radius:10px;padding:8px;font-size:0.78rem;font-weight:700;letter-spacing:0.06em;cursor:pointer;font-family:inherit;">CANCEL GAME</button>';
+    card.querySelectorAll('button')[0].onclick = function(e) { e.stopPropagation(); onPlay(); };
+    card.querySelectorAll('button')[1].onclick = function(e) { e.stopPropagation(); onCancel(); };
+    card.onclick = onPlay;
+    return card;
+  }
+
   function resultCard(myScore, oppScore, oppName, resultLabel, onclick) {
     const card = document.createElement('div');
     card.className = 'home-game-card';
@@ -6881,10 +6899,18 @@ function buildHomeGamesList() {
       const myTurn = g.currentPlayer === 'player';
       const btnLabel = g.isWaiting ? 'RESEND' : (myTurn ? 'PLAY' : 'NUDGE');
       const action = g.isWaiting ? function() { resendInvite(g.id); return; } : resume;
+      const isZeroZero = !g.isWaiting && (g.playerScore||0) === 0 && (g.aiScore||0) === 0;
+      const cancelAction = (function(gid) { return function() {
+        cancelWaitingGame(gid);
+      }; })(g.id);
       if (myTurn) {
-        myMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action));
+        myMoveCards.push(isZeroZero
+          ? cancelableCard(0, 0, opp, ago, btnLabel, action, cancelAction)
+          : scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action));
       } else {
-        theirMoveCards.push(scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action));
+        theirMoveCards.push(isZeroZero
+          ? cancelableCard(0, 0, opp, ago, btnLabel, action, cancelAction)
+          : scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action));
       }
     }
   });

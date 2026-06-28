@@ -2836,7 +2836,15 @@ function endGame(reason) {
     if (g) { _rematchOppId = g.opponentId || null; _rematchOppName = g.opponentName || opponentOnlineName; }
     removeStoredGame(onlineGameId); updateGamesBadge();
   } else {
-    clearAiGameState();
+    // Save final state so home screen can show it in Completed Games
+    try {
+      const existing = JSON.parse(localStorage.getItem(AI_SAVE_KEY) || '{}');
+      localStorage.setItem(AI_SAVE_KEY, JSON.stringify({
+        ...existing,
+        playerScore, aiScore, gameOver: true,
+        lastUpdated: Date.now(),
+      }));
+    } catch(e) {}
   }
   const playerDeduct = playerRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
   const aiDeduct     = aiRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
@@ -7251,11 +7259,18 @@ function buildHomeGamesList() {
     const raw = localStorage.getItem(AI_SAVE_KEY);
     if (raw) {
       const s = JSON.parse(raw);
+      const diff = s.aiSkill === 'easy' ? 'easy' : s.aiSkill === 'medium' ? 'medium' : 'hard';
+      const aiAgo = s.lastUpdated ? timeAgo(s.lastUpdated) : 'just now';
       if (!s.gameOver) {
-        const diff = s.aiSkill === 'easy' ? 'easy' : s.aiSkill === 'medium' ? 'medium' : 'hard';
         const resume = function() { showGameScreen(); loadAiGameState(); };
-        const aiAgo = s.lastUpdated ? timeAgo(s.lastUpdated) : 'just now';
         myMoveCards.push(scoreCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', aiAgo, 'PLAY', resume));
+      } else {
+        let label;
+        if (s.playerScore > s.aiScore) label = 'You won!';
+        else if (s.playerScore < s.aiScore) label = 'You lost';
+        else label = 'Tie game';
+        const view = function() { showGameScreen(); loadAiGameState(); };
+        completedCards.push(resultCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', label, view));
       }
     }
   } catch(e) {}

@@ -2835,6 +2835,8 @@ function endGame(reason) {
     const g = (window._homeGames || []).find(x => x.id === onlineGameId);
     if (g) { _rematchOppId = g.opponentId || null; _rematchOppName = g.opponentName || opponentOnlineName; }
     removeStoredGame(onlineGameId); updateGamesBadge();
+  } else {
+    clearAiGameState();
   }
   const playerDeduct = playerRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
   const aiDeduct     = aiRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);

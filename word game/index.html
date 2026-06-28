@@ -2757,6 +2757,9 @@ function endGame(reason) {
   const aiDeduct     = aiRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
   playerScore -= playerDeduct;
   aiScore     -= aiDeduct;
+  // Player who goes out gains the opponent's remaining tile values (standard Scrabble rule)
+  if (playerRack.length === 0 && aiDeduct > 0) playerScore += aiDeduct;
+  else if (aiRack.length === 0 && playerDeduct > 0) aiScore += playerDeduct;
   const opLabel = isOnlineMode ? opponentOnlineName : 'AI';
   showWinnerModal({
     myScore: playerScore, oppScore: aiScore,
@@ -4993,6 +4996,7 @@ function buildOnlinePayload(nextTurn) {
     currentTurn: nextTurn,
     passCount,
     gameOver,
+    ...(gameOver ? { endedBy: myOnlineRole } : {}),
     lastPlayScore: lastPlayScore ?? null,
     boardSwapPositions: [...boardSwapPositions],
     lastMoveKeys: [...lastMoveKeys],
@@ -5323,6 +5327,7 @@ async function resignOnlineGame() {
     await db.collection('games').doc(gid).update({
       gameOver: true,
       resignedBy: myOnlineRole,
+      endedBy: myOnlineRole,
       currentTurn: null,
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -6810,7 +6815,7 @@ async function loadHomeGames() {
           updatedAt: d.lastUpdated?.toMillis?.() || null,
           rematchChallenge: !!(d.rematchChallenge && d.currentTurn === myRole),
           rematchChallengerName: d.rematchChallengerName || null,
-          lastMoveByOpponent: !!d.gameOver && d.currentTurn === myRole,
+          lastMoveByOpponent: !!d.gameOver && !!d.endedBy && d.endedBy !== myRole,
         });
       });
     } catch(e) { console.warn('[HomeGames] failed to load active:', e); }
@@ -6834,7 +6839,7 @@ async function loadHomeGames() {
       updatedAt: d.lastUpdated?.toMillis?.() || null,
       resignedBy: d.resignedBy || null,
       rematchDeclined: !!d.rematchDeclined,
-      lastMoveByOpponent: d.currentTurn === myRole,
+      lastMoveByOpponent: !!d.endedBy && d.endedBy !== myRole,
     });
   });
 

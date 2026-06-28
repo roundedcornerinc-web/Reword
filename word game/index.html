@@ -2836,13 +2836,22 @@ function endGame(reason) {
     if (g) { _rematchOppId = g.opponentId || null; _rematchOppName = g.opponentName || opponentOnlineName; }
     removeStoredGame(onlineGameId); updateGamesBadge();
   } else {
-    // Save final state so home screen can show it in Completed Games
+    // Save full final state so home screen can show it in Completed Games
     try {
-      const existing = JSON.parse(localStorage.getItem(AI_SAVE_KEY) || '{}');
       localStorage.setItem(AI_SAVE_KEY, JSON.stringify({
-        ...existing,
-        playerScore, aiScore, gameOver: true,
-        lastUpdated: Date.now(),
+        board: board.flat().map(c => c === null ? '' : c),
+        bag: [...bag],
+        playerRack: [...playerRack],
+        aiRack: [...aiRack],
+        playerScore, aiScore, passCount,
+        aiNoMoveCount, playerNoMoveCount,
+        currentPlayer, gameOver: true,
+        lastPlayScore: lastPlayScore ?? null,
+        boardSwapPositions: [...boardSwapPositions],
+        lastMoveKeys: [...lastMoveKeys],
+        lastSwapKeys: [...lastSwapKeys],
+        lastSwapPairMap: {...lastSwapPairMap},
+        aiSkill, lastUpdated: Date.now(),
       }));
     } catch(e) {}
   }

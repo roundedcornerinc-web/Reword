@@ -4495,9 +4495,9 @@ let _rematchOppId = null;   // opponent's player ID for human rematch
 let _rematchOppName = null;
 let _rematchOppRole = null; // 'p1' or 'p2' — opponent's role in the finished game
 
-function showWinnerModal({ myScore, oppScore, myName, oppName, myDeduct, oppDeduct, reason, isOnline }) {
-  const myWins  = myScore > oppScore;
-  const oppWins = oppScore > myScore;
+function showWinnerModal({ myScore, oppScore, myName, oppName, myDeduct, oppDeduct, reason, isOnline, forceResult }) {
+  const myWins  = forceResult ? forceResult === 'win' : myScore > oppScore;
+  const oppWins = forceResult ? forceResult === 'loss' : oppScore > myScore;
   const emoji   = myWins ? '🎉' : oppWins ? '😔' : '🤝';
   const title   = myWins ? 'You Won!' : oppWins ? `${oppName} Won!` : "It's a Tie!";
 
@@ -5321,6 +5321,10 @@ async function resignOnlineGame() {
     return;
   }
   const gid = onlineGameId;
+  const oppName = opponentOnlineName;
+  // Cache opponent info for rematch before clearing state
+  const g = (window._homeGames || []).find(x => x.id === gid);
+  if (g) { _rematchOppId = g.opponentId || null; _rematchOppName = g.opponentName || oppName; }
   // Stop listening before we write so we don't re-process our own update
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
   try {
@@ -5333,17 +5337,15 @@ async function resignOnlineGame() {
     });
   } catch(e) { /* best-effort */ }
   removeStoredGame(gid);
-  // Remove from cached home list immediately so stale render doesn't show it
   if (window._homeGames) window._homeGames = window._homeGames.filter(g => g.id !== gid);
-  isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
-  opponentOnlineName = 'Opponent';
-  document.title = 'Reword';
-  const el = document.getElementById('ai-name-display');
-  if (el) el.textContent = 'AI';
+  gameOver = true;
   updateGamesBadge();
-  startGame();
-  loadAiGameState();
-  showMsg('You resigned.', 'info');
+  showWinnerModal({
+    myScore: playerScore, oppScore: aiScore,
+    myName: playerName || 'You', oppName,
+    myDeduct: 0, oppDeduct: 0,
+    isOnline: true, forceResult: 'loss',
+  });
 }
 
 // ── Cancel online game (only when score is 0-0) ────────

@@ -1326,6 +1326,9 @@ body {
 .hgc-score-label { font-size: 13pt; font-weight: 600; color: #291b62; }
 .hgc-skill { font-size: 13pt; font-weight: 300; color: #291b62; }
 .hgc-result-label { font-size: 0.72rem; color: #888; }
+.hgc-result-outcome { font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 2px; }
+.hgc-result-won { color: #5b2ee8; }
+.hgc-result-lost { color: #888; }
 .hgc-action-btn {
   border: 1.5px solid #886ecc; background: none;
   color: #291b62; font-size: 0.65rem; font-weight: 700;
@@ -4719,6 +4722,12 @@ function startGame() {
 
 // ── AI game persistence ────────────────────────────────
 const AI_SAVE_KEY = 'reword_ai_game';
+const VIEWED_RESULTS_KEY = 'reword_viewed_results';
+function getViewedResults() { return new Set(JSON.parse(localStorage.getItem(VIEWED_RESULTS_KEY) || '[]')); }
+function markResultViewed(gameId) {
+  const v = getViewedResults(); v.add(gameId);
+  localStorage.setItem(VIEWED_RESULTS_KEY, JSON.stringify([...v]));
+}
 
 function saveAiGameState() {
   if (isOnlineMode || gameOver) return;
@@ -6801,6 +6810,7 @@ async function loadHomeGames() {
           updatedAt: d.lastUpdated?.toMillis?.() || null,
           rematchChallenge: !!(d.rematchChallenge && d.currentTurn === myRole),
           rematchChallengerName: d.rematchChallengerName || null,
+          lastMoveByOpponent: !!d.gameOver && d.currentTurn === myRole,
         });
       });
     } catch(e) { console.warn('[HomeGames] failed to load active:', e); }
@@ -6824,6 +6834,7 @@ async function loadHomeGames() {
       updatedAt: d.lastUpdated?.toMillis?.() || null,
       resignedBy: d.resignedBy || null,
       rematchDeclined: !!d.rematchDeclined,
+      lastMoveByOpponent: d.currentTurn === myRole,
     });
   });
 
@@ -6993,9 +7004,28 @@ function buildHomeGamesList() {
     return card;
   }
 
+  function resultNotifCard(myScore, oppScore, oppName, won, onclick) {
+    const card = document.createElement('div');
+    card.className = 'home-game-card';
+    const outcomeLabel = won
+      ? '<span class="hgc-result-outcome hgc-result-won">You Won!</span>'
+      : '<span class="hgc-result-outcome hgc-result-lost">You Lost</span>';
+    card.innerHTML =
+      '<div class="hgc-left">' +
+        outcomeLabel +
+        '<div class="hgc-score-line">' + scoreLine(myScore, oppScore, oppName) + '</div>' +
+      '</div>' +
+      '<button class="hgc-action-btn">VIEW</button>';
+    card.querySelector('button').onclick = function(e) { e.stopPropagation(); onclick(); };
+    card.onclick = onclick;
+    return card;
+  }
+
+  const resultsCards = [];
   const myMoveCards = [];
   const theirMoveCards = [];
   const completedCards = [];
+  const viewedResults = getViewedResults();
 
   // AI game
   try {
@@ -7042,14 +7072,25 @@ function buildHomeGamesList() {
     const resume = function() { loadOnlineGame(g.id, g.myRole); showGameScreen(); };
     const opp = g.opponentName || 'Opponent';
     if (g.gameOver) {
-      let label;
-      if (g.rematchDeclined) label = 'You declined';
-      else if (g.resignedBy === g.myRole) label = 'You resigned';
-      else if (g.resignedBy) label = 'Opponent resigned';
-      else if (g.playerScore > g.aiScore) label = 'You won!';
-      else if (g.playerScore < g.aiScore) label = 'You lost';
-      else label = 'Tie game';
-      completedCards.push(resultCard(g.playerScore||0, g.aiScore||0, opp, label, resume));
+      const showAsResult = g.lastMoveByOpponent && !viewedResults.has(g.id);
+      if (showAsResult) {
+        const won = g.playerScore > g.aiScore;
+        const viewAction = (function(gid) { return function() {
+          markResultViewed(gid);
+          loadOnlineGame(gid, g.myRole);
+          showGameScreen();
+        }; })(g.id);
+        resultsCards.push(resultNotifCard(g.playerScore||0, g.aiScore||0, opp, won, viewAction));
+      } else {
+        let label;
+        if (g.rematchDeclined) label = 'You declined';
+        else if (g.resignedBy === g.myRole) label = 'You resigned';
+        else if (g.resignedBy) label = 'Opponent resigned';
+        else if (g.playerScore > g.aiScore) label = 'You won!';
+        else if (g.playerScore < g.aiScore) label = 'You lost';
+        else label = 'Tie game';
+        completedCards.push(resultCard(g.playerScore||0, g.aiScore||0, opp, label, resume));
+      }
     } else {
       const myTurn = g.currentPlayer === 'player';
       const btnLabel = g.isWaiting ? 'RESEND' : (myTurn ? 'PLAY' : 'NUDGE');
@@ -7071,6 +7112,7 @@ function buildHomeGamesList() {
   });
 
   const sections = [
+    makeSection('Results', resultsCards, false),
     makeSection('Your Move', myMoveCards, false),
     makeSection('Their Move', theirMoveCards, true),
     makeSection('Completed Games', completedCards, true),

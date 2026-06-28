@@ -1049,42 +1049,55 @@ body {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.75);
   z-index: 200;
   align-items: center;
   justify-content: center;
 }
 #overlay.show { display: flex; }
 #modal {
-  background: var(--header-bg);
-  border-radius: 16px;
-  padding: 30px 28px;
+  background: linear-gradient(180deg, #100b2c 0%, #2a1c64 100%);
+  border-radius: 20px;
+  padding: 32px 28px 28px;
   max-width: 340px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.8);
 }
-#modal h2 { font-size: 1.7rem; margin-bottom: 18px; }
-#modal .btn { font-size: 0.95rem; padding: 11px 32px; margin-top: 20px; }
+#modal h2 { font-size: 1.5rem; font-weight: 600; color: #fff; margin: 0 0 6px; }
+#modal .go-emoji { font-size: 2rem; display: block; margin-bottom: 8px; }
 .go-scores {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin: 18px 0 18px;
 }
 .go-score {
-  background: rgba(255,255,255,0.07);
-  border-radius: 10px;
-  padding: 10px 18px;
-  min-width: 90px;
+  padding: 12px 18px;
+  min-width: 96px;
+  flex: 1;
 }
-.go-score.winner { background: rgba(80,200,80,0.15); border: 1px solid rgba(80,200,80,0.35); }
-.go-label { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.1em; color: #aaa; text-transform: uppercase; margin-bottom: 4px; }
-.go-pts { font-size: 1.8rem; font-weight: 900; color: #fff; line-height: 1; }
-.go-deduct { font-size: 0.65rem; color: #888; margin-top: 3px; }
-.go-vs { font-size: 0.75rem; color: #666; font-weight: 700; }
-.go-reason { font-size: 0.78rem; color: #999; line-height: 1.4; margin: 0; }
+.go-score.winner .go-label { color: #a77ef8; }
+.go-score.winner .go-pts   { color: #a77ef8; }
+.go-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 4px; }
+.go-pts { font-size: 2.2rem; font-weight: 600; color: #fff; line-height: 1; }
+.go-deduct { font-size: 0.6rem; color: rgba(255,255,255,0.35); margin-top: 3px; }
+.go-vs-circle { width: 36px; height: 36px; border-radius: 50%; background: #443e5f; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.65rem; font-weight:700; color:rgba(255,255,255,0.6); letter-spacing:0.04em; }
+.go-reason { font-size: 0.75rem; color: rgba(255,255,255,0.4); line-height: 1.4; margin: 0 0 20px; }
+.go-rematch-btn { display:block; width:100%; background:#7b2ff7; color:#fff; border:none; border-radius:999px; padding:15px; font-size:1rem; font-weight:600; cursor:pointer; font-family:inherit; margin-bottom:0; letter-spacing:0.02em; }
+.go-rematch-btn:active { transform:scale(0.97); }
+.go-nothanks-btn { display:block; width:100%; background:none; border:none; color:#bdbbca; font-size:0.9rem; font-weight:600; cursor:pointer; font-family:inherit; padding:24px 6px 6px; letter-spacing:0.01em; }
+/* rematch difficulty picker */
+.go-skill-row { display:flex; gap:8px; margin-bottom:16px; }
+.go-skill-btn { flex:1; background:none; border:none; color:rgba(255,255,255,0.4); padding:8px 4px; font-size:0.85rem; font-weight:600; cursor:pointer; font-family:inherit; }
+.go-skill-btn.selected { color:#a77ef8; }
+/* rematch challenge card on home screen */
+.rematch-challenge-card { background:#7234ee; border-radius:12px; padding:14px 16px; margin-bottom:4px; }
+.rematch-challenge-text { font-size:0.88rem; font-weight:700; color:#fff; margin-bottom:10px; line-height:1.4; }
+.rematch-challenge-btns { display:flex; align-items:center; justify-content:space-between; }
+.rematch-accept-btn { background:none; color:#fff; border:1.5px solid #fff; border-radius:20px; padding:5px 14px; font-size:0.72rem; font-weight:700; cursor:pointer; font-family:inherit; letter-spacing:0.06em; text-transform:uppercase; }
+.rematch-decline-btn { background:none; border:none; color:rgba(255,255,255,0.5); font-size:0.82rem; font-weight:600; cursor:pointer; font-family:inherit; padding:4px; }
 
 /* ── AI THINKING ── */
 #ai-indicator {
@@ -1290,7 +1303,7 @@ body {
   padding: 18px 0 8px;
 }
 .home-section-group {
-  background: #f0eeff; border-radius: 14px; overflow: hidden;
+  background: #f0eafd; border-radius: 14px; overflow: hidden;
   margin-bottom: 6px;
 }
 .home-section-group.gray {
@@ -1309,9 +1322,9 @@ body {
 .hgc-time { font-size: 0.72rem; color: #888; display: flex; align-items: center; gap: 4px; }
 .hgc-time svg { flex-shrink: 0; }
 .hgc-score-line { line-height: 1.3; font-family: 'Segoe UI', system-ui, sans-serif; }
-.hgc-score-num { font-size: 20pt; font-weight: 600; color: #5b2ee8; }
-.hgc-score-label { font-size: 17pt; font-weight: 600; color: #291b62; }
-.hgc-skill { font-size: 17pt; font-weight: 300; color: #291b62; }
+.hgc-score-num { font-size: 15pt; font-weight: 600; color: #5b2ee8; }
+.hgc-score-label { font-size: 13pt; font-weight: 600; color: #291b62; }
+.hgc-skill { font-size: 13pt; font-weight: 300; color: #291b62; }
 .hgc-result-label { font-size: 0.72rem; color: #888; }
 .hgc-action-btn {
   border: 1.5px solid #886ecc; background: none;
@@ -1698,9 +1711,11 @@ body {
 
 <div id="overlay">
   <div id="modal">
+    <span class="go-emoji" id="modal-emoji"></span>
     <h2 id="modal-title"></h2>
     <div id="modal-body"></div>
-    <button class="btn btn-play" onclick="playAgain()">Play Again?</button>
+    <button class="go-rematch-btn" id="modal-rematch-btn"></button>
+    <button class="go-nothanks-btn" id="modal-nothanks-btn">No Thanks</button>
   </div>
 </div>
 
@@ -2729,34 +2744,23 @@ function checkGameOver() {
 
 function endGame(reason) {
   gameOver = true;
-  // Remove from active games list immediately so the initiating player's list also cleans up
-  if (isOnlineMode && onlineGameId) { removeStoredGame(onlineGameId); updateGamesBadge(); }
+  if (isOnlineMode && onlineGameId) {
+    // Cache opponent info for rematch before removing the game
+    const g = (window._homeGames || []).find(x => x.id === onlineGameId);
+    if (g) { _rematchOppId = g.opponentId || null; _rematchOppName = g.opponentName || opponentOnlineName; }
+    removeStoredGame(onlineGameId); updateGamesBadge();
+  }
   const playerDeduct = playerRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
   const aiDeduct     = aiRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
   playerScore -= playerDeduct;
   aiScore     -= aiDeduct;
-
-  const playerWins = playerScore > aiScore;
-  const oppWins    = aiScore > playerScore;
-  const opLabel    = isOnlineMode ? opponentOnlineName : 'AI';
-  const title = playerWins ? 'You Win! 🎉' : oppWins ? `${opLabel} Wins!` : "It's a Tie!";
-
-  const body = `
-    <div class="go-scores">
-      <div class="go-score${playerWins ? ' winner' : ''}">
-        <div class="go-label">You</div>
-        <div class="go-pts">${playerScore}</div>
-        ${playerDeduct ? `<div class="go-deduct">−${playerDeduct} tiles</div>` : ''}
-      </div>
-      <div class="go-vs">vs</div>
-      <div class="go-score${oppWins ? ' winner' : ''}">
-        <div class="go-label">${opLabel}</div>
-        <div class="go-pts">${aiScore}</div>
-        ${aiDeduct ? `<div class="go-deduct">−${aiDeduct} tiles</div>` : ''}
-      </div>
-    </div>
-    <p class="go-reason">${reason.charAt(0).toUpperCase() + reason.slice(1)}</p>`;
-  showModal(title, body);
+  const opLabel = isOnlineMode ? opponentOnlineName : 'AI';
+  showWinnerModal({
+    myScore: playerScore, oppScore: aiScore,
+    myName: playerName || 'You', oppName: opLabel,
+    myDeduct: playerDeduct, oppDeduct: aiDeduct,
+    reason, isOnline: isOnlineMode,
+  });
   updateUI();
 }
 
@@ -4479,6 +4483,125 @@ function showModal(title, body) {
   document.getElementById('overlay').classList.add('show');
 }
 
+// ── Winner / game-over modal ───────────────────────────
+let _rematchSkill = 'hard'; // selected difficulty for AI rematch
+let _rematchOppId = null;   // opponent's player ID for human rematch
+let _rematchOppName = null;
+let _rematchOppRole = null; // 'p1' or 'p2' — opponent's role in the finished game
+
+function showWinnerModal({ myScore, oppScore, myName, oppName, myDeduct, oppDeduct, reason, isOnline }) {
+  const myWins  = myScore > oppScore;
+  const oppWins = oppScore > myScore;
+  const emoji   = myWins ? '🎉' : oppWins ? '😔' : '🤝';
+  const title   = myWins ? 'You Won!' : oppWins ? `${oppName} Won!` : "It's a Tie!";
+
+  document.getElementById('modal-emoji').textContent = emoji;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="go-scores">
+      <div class="go-score${myWins ? ' winner' : ''}">
+        <div class="go-label">${myName}</div>
+        <div class="go-pts">${myScore}</div>
+        ${myDeduct ? `<div class="go-deduct">−${myDeduct} tiles</div>` : ''}
+      </div>
+      <div class="go-vs-circle">vs</div>
+      <div class="go-score${oppWins ? ' winner' : ''}">
+        <div class="go-label">${oppName}</div>
+        <div class="go-pts">${oppScore}</div>
+        ${oppDeduct ? `<div class="go-deduct">−${oppDeduct} tiles</div>` : ''}
+      </div>
+    </div>
+    ${!isOnline ? `<div class="go-skill-row">
+      <button class="go-skill-btn${_rematchSkill==='easy'?' selected':''}" onclick="setRematchSkill('easy',this)">Easy</button>
+      <button class="go-skill-btn${_rematchSkill==='medium'?' selected':''}" onclick="setRematchSkill('medium',this)">Medium</button>
+      <button class="go-skill-btn${_rematchSkill==='hard'?' selected':''}" onclick="setRematchSkill('hard',this)">Hard</button>
+    </div>` : ''}`;
+
+  const rematchBtn  = document.getElementById('modal-rematch-btn');
+  const nothanksBtn = document.getElementById('modal-nothanks-btn');
+  rematchBtn.textContent = 'Rematch';
+  rematchBtn.onclick = isOnline ? startOnlineRematch : startAiRematch;
+  nothanksBtn.onclick = () => { document.getElementById('overlay').classList.remove('show'); showHomeScreen(); };
+  document.getElementById('overlay').classList.add('show');
+}
+
+function setRematchSkill(skill, btn) {
+  _rematchSkill = skill;
+  btn.closest('.go-skill-row').querySelectorAll('.go-skill-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function startAiRematch() {
+  document.getElementById('overlay').classList.remove('show');
+  aiSkill = _rematchSkill;
+  startGame();
+  updateDifficultyBadge();
+  showGameScreen();
+}
+
+async function startOnlineRematch() {
+  document.getElementById('overlay').classList.remove('show');
+  if (!_rematchOppId) { showHomeScreen(); return; }
+  // Create new game — challenger is p1, opponent pre-filled as p2
+  await authReady;
+  const gameId = generateGameId();
+  const myId   = getPlayerId();
+  board = Array.from({length:BS}, ()=>Array(BS).fill(null));
+  boardSwapPositions = new Set();
+  bag = buildBag();
+  playerRack = []; aiRack = [];
+  drawTiles(playerRack); drawTiles(aiRack);
+  playerScore = 0; aiScore = 0; passCount = 0; aiNoMoveCount = 0; playerNoMoveCount = 0;
+  lastPlayScore = null; currentPlayer = 'player'; gameOver = false;
+  resetPending();
+  isOnlineMode = true; myOnlineRole = 'p1'; onlineGameId = gameId;
+  opponentOnlineName = _rematchOppName || 'Opponent';
+  const nameEl = document.getElementById('ai-name-display');
+  if (nameEl) nameEl.textContent = opponentOnlineName;
+  addStoredGame(gameId, 'p1');
+  updateResignButton(); updateUI();
+  const expiry = new Date(); expiry.setDate(expiry.getDate() + 15);
+  const payload = {
+    status: 'active',
+    created: firebase.firestore.FieldValue.serverTimestamp(),
+    expiresAt: firebase.firestore.Timestamp.fromDate(expiry),
+    rematchChallenge: true,
+    rematchChallengerName: playerName || 'Your opponent',
+    players: {
+      p1: { id: myId, name: playerName || 'You' },
+      p2: { id: _rematchOppId, name: _rematchOppName || 'Opponent' }
+    },
+    ...buildOnlinePayload('p1'),
+  };
+  try {
+    await db.collection('games').doc(gameId).set(payload);
+    startOnlineListener(gameId);
+    showGameScreen();
+  } catch(e) {
+    showMsg('Could not start rematch. Check connection.', 'bad');
+    showHomeScreen();
+  }
+}
+
+async function acceptRematchChallenge(gameId, myRole) {
+  // Update Firestore to clear the challenge flag, then load the game
+  try { await db.collection('games').doc(gameId).update({ rematchChallenge: false }); } catch(e) {}
+  loadOnlineGame(gameId, myRole);
+  showGameScreen();
+}
+
+async function declineRematchChallenge(gameId) {
+  try {
+    await db.collection('games').doc(gameId).update({
+      gameOver: true, rematchDeclined: true,
+    });
+  } catch(e) {}
+  removeStoredGame(gameId);
+  // Refresh home screen so the card disappears
+  window._homeGames = (window._homeGames || []).filter(g => g.id !== gameId);
+  buildHomeGamesList();
+}
+
 function showScorePopup(pts) {
   const boardEl = document.getElementById('board');
   const pop = document.createElement('div');
@@ -4907,27 +5030,29 @@ function applyOnlineState(data) {
   updateUI();
 
   if (data.gameOver && !wasGameOver) {
-    // Opponent triggered the game end — show modal for us
+    // Opponent triggered the game end — show winner modal
     if (onlineGameId) removeStoredGame(onlineGameId);
     updateGamesBadge();
-    let title, body;
-    const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
-    if (data.resignedBy === opRole) {
-      // Opponent resigned
-      title = 'You Win! 🎉';
-      body = `<p style="color:#aaa;margin:12px 0">${opponentOnlineName} resigned.</p>`;
+    const opRole2 = myOnlineRole === 'p1' ? 'p2' : 'p1';
+    // Cache opponent info for rematch
+    _rematchOppId   = data.players?.[opRole2]?.id   || null;
+    _rematchOppName = data.players?.[opRole2]?.name || opponentOnlineName;
+    if (data.resignedBy === opRole2) {
+      document.getElementById('modal-emoji').textContent = '🎉';
+      document.getElementById('modal-title').textContent = 'You Won!';
+      document.getElementById('modal-body').innerHTML = `<p style="color:rgba(255,255,255,0.5);margin:12px 0 20px">${opponentOnlineName} resigned.</p>`;
+      const rb = document.getElementById('modal-rematch-btn');
+      const nb = document.getElementById('modal-nothanks-btn');
+      rb.textContent = 'Rematch'; rb.onclick = startOnlineRematch;
+      nb.onclick = () => { document.getElementById('overlay').classList.remove('show'); showHomeScreen(); };
+      document.getElementById('overlay').classList.add('show');
     } else {
-      const playerWins = playerScore > aiScore;
-      const oppWins    = aiScore > playerScore;
-      title = playerWins ? 'You Win! 🎉' : oppWins ? `${opponentOnlineName} Wins!` : "It's a Tie!";
-      body = `
-        <div class="go-scores">
-          <div class="go-score${playerWins?' winner':''}"><div class="go-label">You</div><div class="go-pts">${playerScore}</div></div>
-          <div class="go-vs">vs</div>
-          <div class="go-score${oppWins?' winner':''}"><div class="go-label">${opponentOnlineName}</div><div class="go-pts">${aiScore}</div></div>
-        </div>`;
+      showWinnerModal({
+        myScore: playerScore, oppScore: aiScore,
+        myName: playerName || 'You', oppName: opponentOnlineName,
+        myDeduct: 0, oppDeduct: 0, reason: '', isOnline: true,
+      });
     }
-    showModal(title, body);
   } else if (!data.gameOver) {
     if (data.currentTurn === myOnlineRole) {
       const opName = opponentOnlineName || 'Opponent';
@@ -6672,7 +6797,10 @@ async function loadHomeGames() {
           playerScore: d.scores?.[myRole] ?? 0,
           aiScore: d.scores?.[opRole] ?? 0,
           opponentName: isWaiting ? 'a friend' : (d.players?.[opRole]?.name || 'Opponent'),
-          updatedAt: d.lastUpdated?.toMillis?.() || null
+          opponentId: d.players?.[opRole]?.id || null,
+          updatedAt: d.lastUpdated?.toMillis?.() || null,
+          rematchChallenge: !!(d.rematchChallenge && d.currentTurn === myRole),
+          rematchChallengerName: d.rematchChallengerName || null,
         });
       });
     } catch(e) { console.warn('[HomeGames] failed to load active:', e); }
@@ -6694,7 +6822,8 @@ async function loadHomeGames() {
       aiScore: d.scores?.[opRole] ?? 0,
       opponentName: d.players?.[opRole]?.name || 'Opponent',
       updatedAt: d.lastUpdated?.toMillis?.() || null,
-      resignedBy: d.resignedBy || null
+      resignedBy: d.resignedBy || null,
+      rematchDeclined: !!d.rematchDeclined,
     });
   });
 
@@ -6882,14 +7011,40 @@ function buildHomeGamesList() {
     }
   } catch(e) {}
 
-  // Online games
+  // Rematch challenges always go first (top of Your Move)
+  const rematchChallenges = [];
+  const regularGames = [];
   (window._homeGames || []).forEach(function(g) {
+    if (!g.gameOver && g.rematchChallenge) rematchChallenges.push(g);
+    else regularGames.push(g);
+  });
+
+  rematchChallenges.forEach(function(g) {
+    const challenger = g.rematchChallengerName || g.opponentName || 'Your opponent';
+    const card = document.createElement('div');
+    card.className = 'rematch-challenge-card';
+    card.innerHTML =
+      '<div class="rematch-challenge-text">' + challenger + ' has challenged you to a rematch!</div>' +
+      '<div class="rematch-challenge-btns">' +
+        '<button class="rematch-accept-btn">ACCEPT</button>' +
+        '<button class="rematch-decline-btn">decline</button>' +
+      '</div>';
+    (function(gid, role) {
+      card.querySelector('.rematch-accept-btn').onclick = function(e) { e.stopPropagation(); acceptRematchChallenge(gid, role); };
+      card.querySelector('.rematch-decline-btn').onclick = function(e) { e.stopPropagation(); declineRematchChallenge(gid); };
+    })(g.id, g.myRole);
+    myMoveCards.unshift(card);
+  });
+
+  // Online games
+  regularGames.forEach(function(g) {
     const ago = g.updatedAt ? timeAgo(g.updatedAt) : '';
     const resume = function() { loadOnlineGame(g.id, g.myRole); showGameScreen(); };
     const opp = g.opponentName || 'Opponent';
     if (g.gameOver) {
       let label;
-      if (g.resignedBy === g.myRole) label = 'You resigned';
+      if (g.rematchDeclined) label = 'You declined';
+      else if (g.resignedBy === g.myRole) label = 'You resigned';
       else if (g.resignedBy) label = 'Opponent resigned';
       else if (g.playerScore > g.aiScore) label = 'You won!';
       else if (g.playerScore < g.aiScore) label = 'You lost';

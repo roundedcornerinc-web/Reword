@@ -1433,7 +1433,38 @@ body {
 .stats-row-unit { font-size: 0.7rem; font-weight: 600; }
 .stats-row.purple .stats-row-unit { color: #9b8ec4; }
 .stats-row.gray   .stats-row-unit { color: #bbb; }
-.stats-divider { height: 1px; background: #eee; margin-bottom: 24px; }
+.stats-divider { height: 1px; background: #eee; margin: 0 0 24px; }
+.stats-games-played {
+  text-align: center; margin-bottom: 20px;
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em; color: #aaa;
+}
+.stats-games-played strong, .stats-games-played b,
+.stats-games-played > :first-child { display: inline; }
+.stats-games-played { color: #5b2ee8; }
+.stats-games-played span { color: #aaa; }
+.stats-word-section { text-align: center; margin-bottom: 24px; }
+.stat-tiles-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px; flex-wrap: wrap; margin-top: 10px; position: relative; display: inline-flex;
+}
+.stat-tile-letter {
+  width: 30px; height: 30px; background: #d4a84b;
+  border-radius: 4px; display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; font-weight: 700; color: #3a2000;
+  position: relative; box-shadow: inset 0 -2px 0 #a07830;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.stat-tile-pts {
+  position: absolute; bottom: 1px; right: 2px;
+  font-size: 7px; font-weight: 700; color: #3a2000; line-height: 1;
+}
+.stat-tile-score-badge {
+  background: #5b2ee8; color: #fff;
+  font-size: 0.7rem; font-weight: 700;
+  border-radius: 50%; width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  margin-left: 4px; flex-shrink: 0;
+}
 
 #friends-overlay {
   position: fixed; inset: 0; z-index: 400;
@@ -2863,7 +2894,7 @@ function endGame(reason) {
   if (playerRack.length === 0 && aiDeduct > 0) playerScore += aiDeduct;
   else if (aiRack.length === 0 && playerDeduct > 0) aiScore += playerDeduct;
   const opLabel = isOnlineMode ? opponentOnlineName : 'AI';
-  updateStatsAfterGame(playerScore, playerScore >= aiScore);
+  updateStatsAfterGame(playerScore, playerScore > aiScore, playerScore === aiScore);
   showWinnerModal({
     myScore: playerScore, oppScore: aiScore,
     myName: playerName || 'You', oppName: opLabel,
@@ -4843,19 +4874,28 @@ function updateStatsAfterPlay(playScore, wordScores) {
   const s = getStats();
   s.totalPlays = (s.totalPlays || 0) + 1;
   s.totalPlayScore = (s.totalPlayScore || 0) + playScore;
+  if (playScore >= 30)  s.plays30plus  = (s.plays30plus  || 0) + 1;
+  if (playScore >= 50)  s.plays50plus  = (s.plays50plus  || 0) + 1;
+  if (playScore >= 100) s.plays100plus = (s.plays100plus || 0) + 1;
   for (const {word, score} of (wordScores || [])) {
-    if (word.length > (s.longestWord || '').length) s.longestWord = word;
+    if (word.length > (s.longestWord || '').length) {
+      s.longestWord = word;
+      s.longestWordScore = score;
+    }
     if (score > (s.bestWordScore || 0)) { s.bestWordScore = score; s.bestWord = word; }
   }
   saveStats(s);
 }
 
-function updateStatsAfterGame(myFinalScore, won) {
+function updateStatsAfterGame(myFinalScore, won, tied) {
   const s = getStats();
   s.gamesPlayed = (s.gamesPlayed || 0) + 1;
   s.totalGameScore = (s.totalGameScore || 0) + myFinalScore;
   s.highScore = Math.max(s.highScore || 0, myFinalScore);
-  if (won) {
+  if (tied) {
+    s.ties = (s.ties || 0) + 1;
+    s.currentStreak = 0;
+  } else if (won) {
     s.wins = (s.wins || 0) + 1;
     s.currentStreak = (s.currentStreak || 0) + 1;
     s.bestStreak = Math.max(s.bestStreak || 0, s.currentStreak);
@@ -5180,7 +5220,7 @@ function applyOnlineState(data) {
     // Opponent triggered the game end — show winner modal
     if (onlineGameId) removeStoredGame(onlineGameId);
     updateGamesBadge();
-    updateStatsAfterGame(playerScore, playerScore >= aiScore);
+    updateStatsAfterGame(playerScore, playerScore > aiScore, playerScore === aiScore);
     const opRole2 = myOnlineRole === 'p1' ? 'p2' : 'p1';
     // Cache opponent info for rematch
     _rematchOppId   = data.players?.[opRole2]?.id   || null;
@@ -5475,7 +5515,7 @@ async function resignOnlineGame() {
   if (window._homeGames) window._homeGames = window._homeGames.filter(g => g.id !== gid);
   gameOver = true;
   updateGamesBadge();
-  updateStatsAfterGame(playerScore, false);
+  updateStatsAfterGame(playerScore, false, false);
   showWinnerModal({
     myScore: playerScore, oppScore: aiScore,
     myName: playerName || 'You', oppName,
@@ -7013,22 +7053,37 @@ function closeStats() {
   document.getElementById('stats-overlay').classList.remove('active');
 }
 
+function statTiles(word, score) {
+  if (!word || word === '—') return '<span style="color:#bbb;font-size:0.9rem">—</span>';
+  const tiles = word.toUpperCase().split('').map(l => {
+    const v = VAL[l] || 0;
+    return `<div class="stat-tile-letter">${l}<span class="stat-tile-pts">${v}</span></div>`;
+  }).join('');
+  return `<div class="stat-tiles-row">${tiles}<span class="stat-tile-score-badge">${score}</span></div>`;
+}
+
 function buildStatsList() {
   const s = getStats();
-  const gamesPlayed = s.gamesPlayed || 0;
-  const wins        = s.wins || 0;
-  const losses      = s.losses || 0;
+  const gamesPlayed   = s.gamesPlayed || 0;
+  const wins          = s.wins || 0;
+  const losses        = s.losses || 0;
+  const ties          = s.ties || 0;
   const currentStreak = s.currentStreak || 0;
   const bestStreak    = s.bestStreak || 0;
   const highScore     = s.highScore || 0;
-  const bestWord      = s.bestWord || '—';
+  const bestWord      = s.bestWord || '';
   const bestWordScore = s.bestWordScore || 0;
-  const longestWord   = s.longestWord || '—';
+  const longestWord   = s.longestWord || '';
+  const longestWordScore = s.longestWordScore || 0;
   const avgGame  = gamesPlayed ? Math.round((s.totalGameScore || 0) / gamesPlayed) : 0;
   const avgPlay  = s.totalPlays ? ((s.totalPlayScore || 0) / s.totalPlays).toFixed(1) : '0.0';
+  const p30  = s.plays30plus  || 0;
+  const p50  = s.plays50plus  || 0;
+  const p100 = s.plays100plus || 0;
 
   document.getElementById('stats-body').innerHTML = `
-    <div class="stats-section-label">Record</div>
+    <div class="stats-games-played">${gamesPlayed} <span>GAMES PLAYED</span></div>
+
     <div class="stats-grid-3">
       <div class="stats-tile purple">
         <div class="stats-tile-val">${wins}</div>
@@ -7039,59 +7094,70 @@ function buildStatsList() {
         <div class="stats-tile-lbl">Lost</div>
       </div>
       <div class="stats-tile gray">
-        <div class="stats-tile-val">${gamesPlayed}</div>
-        <div class="stats-tile-lbl">Played</div>
+        <div class="stats-tile-val">${ties}</div>
+        <div class="stats-tile-lbl">Tied</div>
       </div>
     </div>
 
     <div class="stats-divider"></div>
-    <div class="stats-section-label">Streak</div>
+
     <div class="stats-grid-2">
       <div class="stats-tile purple">
+        <div class="stats-tile-lbl" style="margin-bottom:6px">CURRENT WIN STREAK</div>
         <div class="stats-tile-val">${currentStreak}</div>
-        <div class="stats-tile-lbl">Current</div>
       </div>
       <div class="stats-tile gray">
+        <div class="stats-tile-lbl" style="margin-bottom:6px">LONGEST WIN STREAK</div>
         <div class="stats-tile-val">${bestStreak}</div>
-        <div class="stats-tile-lbl">Best</div>
       </div>
     </div>
 
     <div class="stats-divider"></div>
-    <div class="stats-section-label">Personal Bests</div>
-    <div class="stats-grid-2">
+
+    <div class="stats-grid-3">
       <div class="stats-tile purple">
-        <div class="stats-tile-val">${highScore}</div>
-        <div class="stats-tile-lbl">High Score</div>
+        <div class="stats-tile-lbl" style="margin-bottom:6px">AVERAGE MOVE SCORE</div>
+        <div class="stats-tile-val">${avgPlay}</div>
       </div>
       <div class="stats-tile gray">
-        <div class="stats-tile-val sm">${bestWord.toUpperCase()}</div>
-        <div class="stats-tile-lbl">Best Word · ${bestWordScore} pts</div>
+        <div class="stats-tile-lbl" style="margin-bottom:6px">AVERAGE GAME SCORE</div>
+        <div class="stats-tile-val">${avgGame}</div>
+      </div>
+      <div class="stats-tile gray">
+        <div class="stats-tile-lbl" style="margin-bottom:6px">HIGHEST GAME SCORE</div>
+        <div class="stats-tile-val">${highScore}</div>
       </div>
     </div>
 
     <div class="stats-divider"></div>
-    <div class="stats-section-label">Averages</div>
-    <div class="stats-row gray">
-      <div>
-        <div class="stats-row-left-lbl">Avg Score Per Game</div>
-        <div class="stats-row-val">${avgGame}</div>
-      </div>
-      <div class="stats-row-unit">pts</div>
+
+    <div class="stats-word-section">
+      <div class="stats-section-label">LONGEST WORD</div>
+      ${statTiles(longestWord, longestWordScore)}
     </div>
-    <div class="stats-row purple">
-      <div>
-        <div class="stats-row-left-lbl">Avg Score Per Play</div>
-        <div class="stats-row-val">${avgPlay}</div>
-      </div>
-      <div class="stats-row-unit">pts / word</div>
+
+    <div class="stats-divider"></div>
+
+    <div class="stats-word-section">
+      <div class="stats-section-label">HIGHEST SCORING WORD</div>
+      ${statTiles(bestWord, bestWordScore)}
     </div>
-    <div class="stats-row gray">
-      <div>
-        <div class="stats-row-left-lbl">Longest Word</div>
-        <div class="stats-row-val sm">${longestWord.toUpperCase()}</div>
+
+    <div class="stats-divider"></div>
+
+    <div class="stats-grid-3">
+      <div class="stats-tile gray">
+        <div class="stats-tile-lbl" style="margin-bottom:6px">30+ POINT WORDS</div>
+        <div class="stats-tile-val">${p30}</div>
       </div>
-      <div class="stats-row-unit">${longestWord !== '—' ? longestWord.length + ' letters' : ''}</div>
+      <div class="stats-tile gray">
+        <div class="stats-tile-lbl" style="margin-bottom:6px">50+ POINT WORDS</div>
+        <div class="stats-tile-val">${p50}</div>
+      </div>
+      <div class="stats-tile gray">
+        <div class="stats-tile-lbl" style="margin-bottom:6px">100+ POINT WORDS</div>
+        <div class="stats-tile-val">${p100}</div>
+      </div>
     </div>
   `;
 }

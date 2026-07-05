@@ -1387,12 +1387,14 @@ body {
 #stats-header {
   padding: 56px 20px 16px;
   text-align: center;
-  border-bottom: 1px solid #eee;
+  background: #f0eafd;
+  border-bottom: 1px solid #e0d4f7;
 }
 #stats-header h2 {
-  font-size: 1.1rem; font-weight: 500;
-  color: #1a1040; margin: 0;
+  font-size: 1.1rem; font-weight: 600;
+  color: #291b62; margin: 0;
   font-family: 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.08em; text-transform: uppercase;
 }
 #stats-body {
   flex: 1; overflow-y: auto;
@@ -1434,18 +1436,19 @@ body {
 .stats-row.purple .stats-row-unit { color: #9b8ec4; }
 .stats-row.gray   .stats-row-unit { color: #bbb; }
 .stats-divider { height: 1px; background: #eee; margin: 0 0 24px; }
+.stats-val { font-size: 1.8rem; font-weight: 600; color: #582bba; line-height: 1.1; font-family: 'Segoe UI', system-ui, sans-serif; }
+.stats-val.purple { color: #582bba; }
+.stats-lbl { font-size: 0.6rem; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; color: #291b62; margin-top: 4px; font-family: 'Segoe UI', system-ui, sans-serif; }
 .stats-games-played {
   text-align: center; margin-bottom: 20px;
-  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em; color: #aaa;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
-.stats-games-played strong, .stats-games-played b,
-.stats-games-played > :first-child { display: inline; }
-.stats-games-played { color: #5b2ee8; }
-.stats-games-played span { color: #aaa; }
+.stats-games-played .gp-num { font-size: 1.8rem; font-weight: 600; color: #582bba; display: block; line-height: 1.1; }
+.stats-games-played .gp-lbl { font-size: 0.6rem; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; color: #291b62; display: block; margin-top: 4px; }
 .stats-word-section { text-align: center; margin-bottom: 24px; }
 .stat-tiles-row {
-  display: flex; align-items: center; justify-content: center;
-  gap: 4px; flex-wrap: wrap; margin-top: 10px; position: relative; display: inline-flex;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 0; flex-wrap: wrap; margin-top: 10px; position: relative;
 }
 .stat-tile-letter {
   width: 30px; height: 30px; background: #d4a84b;
@@ -1459,7 +1462,7 @@ body {
   font-size: 7px; font-weight: 700; color: #3a2000; line-height: 1;
 }
 .stat-tile-score-badge {
-  background: #5b2ee8; color: #fff;
+  background: #582bba; color: #fff;
   font-size: 0.7rem; font-weight: 700;
   border-radius: 50%; width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
@@ -7081,84 +7084,67 @@ function buildStatsList() {
   const p50  = s.plays50plus  || 0;
   const p100 = s.plays100plus || 0;
 
+  const row3 = (items) => items.map(([lbl, val]) => `
+    <div style="flex:1;text-align:center;padding:0 4px">
+      <div class="stats-lbl">${lbl}</div>
+      <div class="stats-val">${val}</div>
+    </div>`).join('');
+
+  const row2 = (items) => items.map(([lbl, val]) => `
+    <div style="flex:1;text-align:center;padding:0 8px">
+      <div class="stats-lbl">${lbl}</div>
+      <div class="stats-val">${val}</div>
+    </div>`).join('');
+
   document.getElementById('stats-body').innerHTML = `
-    <div class="stats-games-played">${gamesPlayed} <span>GAMES PLAYED</span></div>
+    <div class="stats-games-played"><span class="gp-num">${gamesPlayed}</span><span class="gp-lbl">GAMES PLAYED</span></div>
 
-    <div class="stats-grid-3">
-      <div class="stats-tile purple">
-        <div class="stats-tile-val">${wins}</div>
-        <div class="stats-tile-lbl">Won</div>
+    <div style="display:flex;gap:0;margin-bottom:24px">
+      <div style="flex:1;text-align:center">
+        <div class="stats-lbl">WON</div>
+        <div class="stats-val">${wins}</div>
       </div>
-      <div class="stats-tile gray">
-        <div class="stats-tile-val">${losses}</div>
-        <div class="stats-tile-lbl">Lost</div>
+      <div style="flex:1;text-align:center">
+        <div class="stats-lbl">LOST</div>
+        <div class="stats-val">${losses}</div>
       </div>
-      <div class="stats-tile gray">
-        <div class="stats-tile-val">${ties}</div>
-        <div class="stats-tile-lbl">Tied</div>
+      <div style="flex:1;text-align:center">
+        <div class="stats-lbl">TIED</div>
+        <div class="stats-val">${ties}</div>
       </div>
     </div>
 
     <div class="stats-divider"></div>
-
-    <div class="stats-grid-2">
-      <div class="stats-tile purple">
-        <div class="stats-tile-lbl" style="margin-bottom:6px">CURRENT WIN STREAK</div>
-        <div class="stats-tile-val">${currentStreak}</div>
-      </div>
-      <div class="stats-tile gray">
-        <div class="stats-tile-lbl" style="margin-bottom:6px">LONGEST WIN STREAK</div>
-        <div class="stats-tile-val">${bestStreak}</div>
-      </div>
-    </div>
+    <div style="display:flex;margin-bottom:24px">${row2([
+      ['CURRENT<br>WIN STREAK', currentStreak],
+      ['LONGEST<br>WIN STREAK', bestStreak],
+    ])}</div>
 
     <div class="stats-divider"></div>
-
-    <div class="stats-grid-3">
-      <div class="stats-tile purple">
-        <div class="stats-tile-lbl" style="margin-bottom:6px">AVERAGE MOVE SCORE</div>
-        <div class="stats-tile-val">${avgPlay}</div>
-      </div>
-      <div class="stats-tile gray">
-        <div class="stats-tile-lbl" style="margin-bottom:6px">AVERAGE GAME SCORE</div>
-        <div class="stats-tile-val">${avgGame}</div>
-      </div>
-      <div class="stats-tile gray">
-        <div class="stats-tile-lbl" style="margin-bottom:6px">HIGHEST GAME SCORE</div>
-        <div class="stats-tile-val">${highScore}</div>
-      </div>
-    </div>
+    <div style="display:flex;margin-bottom:24px">${row3([
+      ['AVERAGE<br>MOVE SCORE', avgPlay],
+      ['AVERAGE<br>GAME SCORE', avgGame],
+      ['HIGHEST<br>GAME SCORE', highScore],
+    ])}</div>
 
     <div class="stats-divider"></div>
-
     <div class="stats-word-section">
-      <div class="stats-section-label">LONGEST WORD</div>
+      <div class="stats-lbl" style="margin-bottom:10px">LONGEST WORD</div>
       ${statTiles(longestWord, longestWordScore)}
     </div>
 
     <div class="stats-divider"></div>
-
     <div class="stats-word-section">
-      <div class="stats-section-label">HIGHEST SCORING WORD</div>
+      <div class="stats-lbl" style="margin-bottom:10px">HIGHEST SCORING WORD</div>
       ${statTiles(bestWord, bestWordScore)}
     </div>
 
     <div class="stats-divider"></div>
-
-    <div class="stats-grid-3">
-      <div class="stats-tile gray">
-        <div class="stats-tile-lbl" style="margin-bottom:6px">30+ POINT WORDS</div>
-        <div class="stats-tile-val">${p30}</div>
-      </div>
-      <div class="stats-tile gray">
-        <div class="stats-tile-lbl" style="margin-bottom:6px">50+ POINT WORDS</div>
-        <div class="stats-tile-val">${p50}</div>
-      </div>
-      <div class="stats-tile gray">
-        <div class="stats-tile-lbl" style="margin-bottom:6px">100+ POINT WORDS</div>
-        <div class="stats-tile-val">${p100}</div>
-      </div>
-    </div>
+    <div style="display:flex;margin-bottom:24px">${row3([
+      ['30+ POINT<br>MOVES', p30],
+      ['50+ POINT<br>MOVES', p50],
+      ['100+ POINT<br>MOVES', p100],
+    ])}</div>
   `;
 }
 

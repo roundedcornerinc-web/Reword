@@ -1442,9 +1442,10 @@ body {
 .stats-games-played {
   text-align: center; margin-bottom: 20px;
   font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
 }
-.stats-games-played .gp-num { font-size: 1.8rem; font-weight: 600; color: #582bba; display: block; line-height: 1.1; }
-.stats-games-played .gp-lbl { font-size: 0.6rem; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; color: #291b62; display: block; margin-top: 4px; }
+.stats-games-played .gp-num { font-weight: 700; color: #582bba; }
+.stats-games-played .gp-lbl { font-weight: 400; color: #291b62; }
 .stats-word-section { text-align: center; margin-bottom: 24px; }
 .stat-tiles-row {
   display: inline-flex; align-items: center; justify-content: center;
@@ -7098,7 +7099,7 @@ function buildStatsList() {
     </div>`).join('');
 
   document.getElementById('stats-body').innerHTML = `
-    <div class="stats-games-played"><span class="gp-num">${gamesPlayed}</span><span class="gp-lbl">GAMES PLAYED</span></div>
+    <div class="stats-games-played"><span class="gp-num">${gamesPlayed}</span> <span class="gp-lbl">GAMES PLAYED</span></div>
 
     <div style="display:flex;gap:0;margin-bottom:24px">
       <div style="flex:1;text-align:center">

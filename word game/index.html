@@ -7062,7 +7062,8 @@ function statTiles(word, score) {
     const v = VAL[l] || 0;
     return `<div class="stat-tile-letter">${l}<span class="stat-tile-pts">${v}</span></div>`;
   }).join('');
-  return `<div class="stat-tiles-row">${tiles}<span class="stat-tile-score-badge">${score}</span></div>`;
+  const badge = score ? `<span class="stat-tile-score-badge">${score}</span>` : '';
+  return `<div class="stat-tiles-row">${tiles}${badge}</div>`;
 }
 
 function buildStatsList() {

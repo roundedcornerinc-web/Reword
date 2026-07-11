@@ -1155,16 +1155,16 @@ body {
 }
 .celebrate-medal-pts {
   font-family: 'Segoe UI', system-ui, sans-serif;
-  font-weight: 900; color: #fff;
-  text-shadow: 0 2px 8px rgba(80,40,0,0.65);
+  font-weight: 900; color: #291b62;
+  text-shadow: 0 1px 4px rgba(255,220,80,0.5);
   line-height: 1;
 }
 .celebrate-medal-sub {
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-weight: 800; letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255,245,180,0.95);
-  text-shadow: 0 1px 4px rgba(80,40,0,0.5);
+  color: #3d2580;
+  text-shadow: none;
   margin-top: 4px;
 }
 @keyframes celebMedal {
@@ -4977,8 +4977,8 @@ function celebrateScore(pts) {
       <path fill="#dfbc2e" d="M369.49,233.48c0,75.11-60.89,136-136,136s-136.01-60.89-136.01-136,60.89-136,136.01-136,136,60.89,136,136Z"/>
     </svg>
     <div class="celebrate-medal-text">
-      <div class="celebrate-medal-pts" style="font-size:${tier===3?'2.2rem':tier===2?'1.8rem':'1.5rem'}">${pts}</div>
-      <div class="celebrate-medal-sub" style="font-size:${tier===3?'0.55rem':'0.48rem'}">${subs[tier]}</div>
+      <div class="celebrate-medal-pts" style="font-size:${tier===3?'3.2rem':tier===2?'2.8rem':'2.4rem'}">${pts}</div>
+      <div class="celebrate-medal-sub" style="font-size:${tier===3?'0.65rem':'0.58rem'}">${subs[tier]}</div>
     </div>`;
   document.body.appendChild(medalWrap);
 

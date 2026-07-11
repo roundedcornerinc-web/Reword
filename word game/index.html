@@ -2162,6 +2162,8 @@ function applyBoardTransform(Tx, Ty, S) {
 }
 
 function zoomToCell(r, c) {
+  const _s = JSON.parse(localStorage.getItem('reword_settings') || '{}');
+  if (_s.zoom === false) return;
   const boardEl = document.getElementById('board');
   if (!boardEl) return;
   const W = boardEl.offsetWidth, H = boardEl.offsetHeight;

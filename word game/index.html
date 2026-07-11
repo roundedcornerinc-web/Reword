@@ -1470,6 +1470,101 @@ body {
   margin-left: 4px; flex-shrink: 0;
 }
 
+#settings-overlay {
+  position: fixed; inset: 0; z-index: 400;
+  pointer-events: none;
+}
+#settings-overlay.active { pointer-events: auto; }
+#settings-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0);
+  transition: background 0.3s ease;
+}
+#settings-overlay.active #settings-backdrop { background: rgba(0,0,0,0.4); }
+#settings-panel {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  width: 92%; max-width: 360px;
+  background: #fff;
+  transform: translateX(-100%);
+  transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+  display: flex; flex-direction: column;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  overflow-y: auto;
+}
+#settings-overlay.active #settings-panel { transform: translateX(0); }
+#settings-header {
+  padding: 56px 20px 16px;
+  text-align: center;
+  background: #f0eafd;
+  border-bottom: 1px solid #e0d4f7;
+  flex-shrink: 0;
+}
+#settings-header h2 {
+  font-size: 1.1rem; font-weight: 600; color: #291b62; margin: 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+#settings-body { flex: 1; overflow-y: auto; padding: 0 0 40px; }
+.settings-section-label {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: #9b8ec4;
+  padding: 20px 20px 8px; display: block;
+}
+.settings-row {
+  display: flex; align-items: center;
+  padding: 14px 20px; border-bottom: 1px solid #f3f0fb;
+}
+.settings-row-label {
+  flex: 1; font-size: 0.95rem; font-weight: 400; color: #291b62;
+}
+.settings-row-sublabel {
+  font-size: 0.75rem; color: #9b8ec4; margin-top: 2px;
+}
+.settings-input {
+  width: 100%; border: none; outline: none; font-size: 0.95rem;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #291b62; background: transparent;
+}
+.settings-input::placeholder { color: #c4b8e8; }
+.settings-toggle {
+  position: relative; width: 48px; height: 28px; flex-shrink: 0;
+}
+.settings-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.settings-toggle-track {
+  position: absolute; inset: 0; border-radius: 14px;
+  background: #e0d4f7; cursor: pointer;
+  transition: background 0.2s;
+}
+.settings-toggle input:checked + .settings-toggle-track { background: #582bba; }
+.settings-toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  pointer-events: none;
+}
+.settings-toggle input:checked ~ .settings-toggle-thumb { transform: translateX(20px); }
+.settings-name-row {
+  display: flex; align-items: center; padding: 14px 20px;
+  border-bottom: 1px solid #f3f0fb; gap: 12px;
+}
+.settings-name-row input {
+  flex: 1; border: none; border-bottom: 1.5px solid #e0d4f7;
+  outline: none; font-size: 0.95rem; padding: 4px 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #291b62; background: transparent;
+}
+.settings-name-row input::placeholder { color: #c4b8e8; }
+.settings-save-btn {
+  background: #582bba; color: #fff; border: none; border-radius: 20px;
+  padding: 6px 16px; font-size: 0.8rem; font-weight: 600;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  cursor: pointer; white-space: nowrap;
+}
+.settings-home-menu-btn {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; padding: 8px; cursor: pointer;
+}
 #friends-overlay {
   position: fixed; inset: 0; z-index: 400;
   pointer-events: none;
@@ -1653,6 +1748,48 @@ body {
       Stats
     </button>
   </nav>
+</div>
+
+<!-- ── SETTINGS OVERLAY ── -->
+<div id="settings-overlay">
+  <div id="settings-backdrop" onclick="closeSettings()"></div>
+  <div id="settings-panel">
+    <div id="settings-header"><h2>Settings</h2></div>
+    <div id="settings-body">
+      <span class="settings-section-label">Profile</span>
+      <div class="settings-name-row">
+        <div style="flex:1">
+          <div style="font-size:0.7rem;font-weight:600;color:#9b8ec4;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Display name</div>
+          <input id="settings-name-input" type="text" placeholder="Your name" autocomplete="off" autocorrect="off" spellcheck="false">
+        </div>
+        <button class="settings-save-btn" onclick="saveSettingsName()">Save</button>
+      </div>
+
+      <span class="settings-section-label">Game</span>
+      <div class="settings-row">
+        <div class="settings-row-label">
+          Sound effects
+          <div class="settings-row-sublabel">Plays sounds when tiles are placed</div>
+        </div>
+        <label class="settings-toggle">
+          <input type="checkbox" id="toggle-sound" onchange="saveSettingsToggle('sound',this.checked)">
+          <div class="settings-toggle-track"></div>
+          <div class="settings-toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-label">
+          Word zoom
+          <div class="settings-row-sublabel">Zooms in when a word is played</div>
+        </div>
+        <label class="settings-toggle">
+          <input type="checkbox" id="toggle-zoom" onchange="saveSettingsToggle('zoom',this.checked)">
+          <div class="settings-toggle-track"></div>
+          <div class="settings-toggle-thumb"></div>
+        </label>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ── FRIENDS OVERLAY ── -->
@@ -7046,6 +7183,7 @@ function homeStartNewGame(e) {
 function homeNav(tab) {
   if (tab === 'friends') openFriends();
   if (tab === 'stats') openStats();
+  if (tab === 'settings') openSettings();
 }
 
 function openStats() {
@@ -7148,6 +7286,30 @@ function buildStatsList() {
       ['100+ POINT<br>MOVES', p100],
     ])}</div>
   `;
+}
+
+function openSettings() {
+  const s = JSON.parse(localStorage.getItem('reword_settings') || '{}');
+  document.getElementById('settings-name-input').value = playerName !== 'You' ? playerName : '';
+  document.getElementById('toggle-sound').checked = s.sound !== false;
+  document.getElementById('toggle-zoom').checked = s.zoom !== false;
+  document.getElementById('settings-overlay').classList.add('active');
+}
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('active');
+}
+function saveSettingsName() {
+  const val = document.getElementById('settings-name-input').value.trim();
+  playerName = val || 'You';
+  localStorage.setItem('playerName', playerName);
+  const el = document.getElementById('player-name-text');
+  if (el) el.textContent = playerName;
+  closeSettings();
+}
+function saveSettingsToggle(key, val) {
+  const s = JSON.parse(localStorage.getItem('reword_settings') || '{}');
+  s[key] = val;
+  localStorage.setItem('reword_settings', JSON.stringify(s));
 }
 
 function openFriends() {

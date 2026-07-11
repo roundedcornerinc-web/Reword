@@ -1133,6 +1133,29 @@ body {
 }
 @keyframes floatUp { 0%{opacity:1;transform:translateX(-50%) translateY(0)} 100%{opacity:0;transform:translateX(-50%) translateY(-40px)} }
 
+/* ── CELEBRATION OVERLAY ── */
+#celebrate-canvas {
+  position: fixed; inset: 0; z-index: 9000;
+  pointer-events: none;
+}
+.celebrate-label {
+  position: fixed; left: 50%; top: 38%;
+  transform: translateX(-50%) scale(0.6);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-weight: 800; color: #fff;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  pointer-events: none; z-index: 9001;
+  opacity: 0; white-space: nowrap;
+  animation: celebLabel 1.8s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+@keyframes celebLabel {
+  0%  { opacity:0; transform:translateX(-50%) scale(0.6); }
+  15% { opacity:1; transform:translateX(-50%) scale(1.08); }
+  30% { transform:translateX(-50%) scale(1); }
+  70% { opacity:1; }
+  100%{ opacity:0; transform:translateX(-50%) scale(1); }
+}
+
 /* ── ONLINE INVITE MODAL ── */
 #online-modal {
   position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.8);
@@ -2641,6 +2664,7 @@ function submitPlay() {
   });
   const wordBreakdown = scoredWords.map(({word, score}) => `${word}(${score})`).join(' + ');
   updateStatsAfterPlay(lastPlayScore, scoredWords);
+  celebrateScore(lastPlayScore);
 
   // All-tiles bonus — fires when every rack tile was placed this turn
   if (usedAllTiles) {
@@ -4883,6 +4907,81 @@ async function declineRematchChallenge(gameId) {
   // Refresh home screen so the card disappears
   window._homeGames = (window._homeGames || []).filter(g => g.id !== gameId);
   buildHomeGamesList();
+}
+
+function celebrateScore(pts) {
+  if (pts < 30) return;
+  const tier = pts >= 100 ? 3 : pts >= 50 ? 2 : 1;
+  const labels = { 1: `${pts} pts!`, 2: `🔥 ${pts} pts!`, 3: `💥 ${pts} pts!` };
+  const counts = { 1: 40, 2: 90, 3: 160 };
+  const palettes = {
+    1: ['#a77ef8','#c4b5fd','#7c3aed','#ede9fe','#f0eafd'],
+    2: ['#f59e0b','#fbbf24','#a77ef8','#34d399','#f472b6','#60a5fa'],
+    3: ['#f59e0b','#ef4444','#a77ef8','#34d399','#f472b6','#60a5fa','#fff','#fbbf24'],
+  };
+
+  let canvas = document.getElementById('celebrate-canvas');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'celebrate-canvas';
+    document.body.appendChild(canvas);
+  }
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+
+  const label = document.createElement('div');
+  label.className = 'celebrate-label';
+  label.style.fontSize = tier === 3 ? '2.8rem' : tier === 2 ? '2.2rem' : '1.8rem';
+  label.textContent = labels[tier];
+  document.body.appendChild(label);
+
+  const colors = palettes[tier];
+  const particles = Array.from({length: counts[tier]}, () => ({
+    x: Math.random() * canvas.width,
+    y: tier === 3 ? Math.random() * canvas.height * 0.4 : -10,
+    vx: (Math.random() - 0.5) * (tier === 3 ? 6 : 4),
+    vy: Math.random() * (tier === 3 ? 5 : 3) + (tier === 3 ? 1 : 2),
+    size: Math.random() * (tier === 3 ? 10 : 7) + 4,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    rot: Math.random() * Math.PI * 2,
+    rotV: (Math.random() - 0.5) * 0.2,
+    shape: Math.random() > 0.5 ? 'rect' : 'circle',
+    alpha: 1,
+  }));
+
+  const duration = tier === 3 ? 3000 : tier === 2 ? 2200 : 1600;
+  const start = performance.now();
+
+  function frame(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.12;
+      p.rot += p.rotV;
+      p.alpha = Math.max(0, 1 - progress * 1.2);
+      if (p.y < canvas.height + 20) alive = true;
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      if (p.shape === 'rect') {
+        ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    if (alive && progress < 1) requestAnimationFrame(frame);
+    else { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  }
+  requestAnimationFrame(frame);
+  setTimeout(() => label.remove(), 1900);
 }
 
 function showScorePopup(pts) {

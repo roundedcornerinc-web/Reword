@@ -1494,6 +1494,63 @@ body {
   margin-left: 4px; flex-shrink: 0;
 }
 
+/* ── FAQ OVERLAY ── */
+#faq-overlay {
+  position: fixed; inset: 0; z-index: 400;
+  pointer-events: none;
+}
+#faq-overlay.active { pointer-events: auto; }
+#faq-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0);
+  transition: background 0.3s ease;
+}
+#faq-overlay.active #faq-backdrop { background: rgba(0,0,0,0.4); }
+#faq-panel {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  width: 92%; max-width: 360px;
+  background: #fff;
+  transform: translateX(-100%);
+  transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+  display: flex; flex-direction: column;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  overflow-y: auto;
+}
+#faq-overlay.active #faq-panel { transform: translateX(0); }
+#faq-header {
+  padding: 56px 20px 16px;
+  text-align: center;
+  background: #f0eafd;
+  border-bottom: 1px solid #e0d4f7;
+  flex-shrink: 0;
+}
+#faq-header h2 {
+  font-size: 1.1rem; font-weight: 600; color: #291b62; margin: 0;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+#faq-body { flex: 1; overflow-y: auto; padding: 8px 0 48px; }
+.faq-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f3f0fb;
+}
+.faq-q {
+  font-size: 0.92rem; font-weight: 700; color: #291b62;
+  margin-bottom: 7px; line-height: 1.35;
+}
+.faq-a {
+  font-size: 0.84rem; color: #555; line-height: 1.6;
+}
+.faq-purple { color: #7b2ff7; font-weight: 600; }
+.faq-color-row {
+  display: flex; align-items: flex-start; gap: 10px; margin-top: 8px;
+}
+.faq-color-row:first-child { margin-top: 0; }
+.faq-swatch {
+  width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; margin-top: 2px;
+}
+.faq-swatch-gold { background: #d4b96a; box-shadow: inset 0 -2px 0 #8b6914; }
+.faq-swatch-cyan { background: #05e0ff; box-shadow: inset 0 -2px 0 #0298b0; }
+
 #settings-overlay {
   position: fixed; inset: 0; z-index: 400;
   pointer-events: none;
@@ -1732,6 +1789,7 @@ body {
       <button class="home-drop-item" onclick="closeHomeMenu();showJoinByCodeUI()">Join with Code</button>
       <button class="home-drop-item" onclick="closeHomeMenu();showGameScreen();startAiVsAiGame()">Watch AI vs AI</button>
       <button class="home-drop-item" onclick="closeHomeMenu();showGameScreen();showTutorial()">Tutorial</button>
+      <button class="home-drop-item" onclick="closeHomeMenu();openFaq()">FAQ</button>
     </div>
     <img src="./reword_logo.png" id="home-logo" alt="REWORD">
     <div style="width:41px;flex-shrink:0;"></div>
@@ -1825,6 +1883,50 @@ body {
     <div id="friends-list"></div>
     <div id="friends-footer">
       <button id="btn-add-friend" onclick="addFriend()">+ Add a Friend</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── FAQ OVERLAY ── -->
+<div id="faq-overlay">
+  <div id="faq-backdrop" onclick="closeFaq()"></div>
+  <div id="faq-panel">
+    <div id="faq-header"><h2>FAQ</h2></div>
+    <div id="faq-body">
+
+      <div class="faq-item">
+        <div class="faq-q">How do I swap a tile?</div>
+        <div class="faq-a">Tap any tile already on the board to lift it into your rack — it turns <span class="faq-purple">purple</span>. You must then place it (along with any tiles from your rack) to form a valid word before submitting your turn. Swapping is a great way to rearrange letters on the board to build a higher-scoring word.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">How do I steal a tile?</div>
+        <div class="faq-a">Tap the first or last letter of a word on the board. If removing it still leaves a valid word behind, the tile is stolen into your rack — turning <span class="faq-purple">purple</span>. You must use it (and any other swapped or stolen tiles) in the word you play this turn.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Why can't I steal from a two-letter word?</div>
+        <div class="faq-a">Stealing requires that the letters left behind still form a valid word. A two-letter word would be reduced to a single letter, which is never a valid word — so the steal is blocked. You need to find a word with at least three letters to steal from.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">How many swaps or steals can I do per turn?</div>
+        <div class="faq-a">You can swap or steal up to <strong>4 tiles</strong> in a single turn — in any combination of swaps and steals. Every tile you lift must be placed as part of your word before you submit.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">What do the colored tiles on the board mean?</div>
+        <div class="faq-a">
+          <div class="faq-color-row"><span class="faq-swatch faq-swatch-gold"></span><span>Your opponent's most recent play is highlighted in <strong>gold</strong>, so you can see exactly what they just did.</span></div>
+          <div class="faq-color-row"><span class="faq-swatch faq-swatch-cyan"></span><span><strong>Cyan / teal</strong> tiles are ones that were swapped off the board at some point — they've been rearranged from their original position.</span></div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">What happens to stolen and swapped tiles if I change my mind?</div>
+        <div class="faq-a">Tap the <strong>Recall</strong> button to undo all swaps and steals for the current turn. Any lifted tiles are returned to the board and your rack goes back to its original state.</div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -7320,6 +7422,13 @@ function homeStartNewGame(e) {
   if (e) e.stopPropagation();
   const ngc = document.getElementById('new-game-choice');
   if (ngc) ngc.classList.add('show');
+}
+
+function openFaq() {
+  document.getElementById('faq-overlay').classList.add('active');
+}
+function closeFaq() {
+  document.getElementById('faq-overlay').classList.remove('active');
 }
 
 function homeNav(tab) {

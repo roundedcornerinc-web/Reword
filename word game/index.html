@@ -3766,8 +3766,9 @@ function doAiTurn() {
       lastPlayScore = play.score + aiBonus;
       passCount = 0;
       aiNoMoveCount = 0;
+      const swapMainWord = (play.words && play.words.length ? play.words.reduce((a,b) => a.word.length >= b.word.length ? a : b).word : play.word).toUpperCase();
       showMsg(
-        `AI swapped ${swapBoardLetter.toUpperCase()} off the board and played "${play.word}" for ${play.score + aiBonus} points${aiBonus ? ' (+35 bonus)' : ''}!`,
+        `AI swapped ${swapBoardLetter.toUpperCase()} off the board and played "${swapMainWord}" for ${play.score + aiBonus} points${aiBonus ? ' (+35 bonus)' : ''}!`,
         'info'
       );
 
@@ -3793,7 +3794,8 @@ function doAiTurn() {
       lastPlayScore = normalMove.score + aiBonus;
       passCount = 0;
       aiNoMoveCount = 0;
-      showMsg(`AI played "${normalMove.word}" for ${normalMove.score + aiBonus} points${aiBonus ? ' (+35 all-tiles bonus)' : ''}.`, 'info');
+      const normalMainWord = (normalMove.words && normalMove.words.length ? normalMove.words.reduce((a,b) => a.word.length >= b.word.length ? a : b).word : normalMove.word).toUpperCase();
+      showMsg(`AI played "${normalMainWord}" for ${normalMove.score + aiBonus} points${aiBonus ? ' (+35 all-tiles bonus)' : ''}.`, 'info');
 
     } else {
       // ── No move found — pass ─────────────────────────────────

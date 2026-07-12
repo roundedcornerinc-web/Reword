@@ -1550,6 +1550,7 @@ body {
 }
 .faq-swatch-gold { background: #d4b96a; box-shadow: inset 0 -2px 0 #8b6914; }
 .faq-swatch-cyan { background: #05e0ff; box-shadow: inset 0 -2px 0 #0298b0; }
+.faq-swatch-purple { background: #b57bee; box-shadow: inset 0 -2px 0 #7b2ff7; }
 
 #settings-overlay {
   position: fixed; inset: 0; z-index: 400;
@@ -1896,35 +1897,36 @@ body {
 
       <div class="faq-item">
         <div class="faq-q">How do I swap a tile?</div>
-        <div class="faq-a">Drag a tile from your rack onto a tile on the board to swap them. The board tile comes into your rack and turns <span class="faq-purple">purple</span>. You must place all purple tiles as part of a valid word before submitting your turn. Swapping is a great way to rearrange letters on the board to build a higher-scoring word.</div>
+        <div class="faq-a">Drag a tile from your rack onto a board tile, leaving a valid word behind, to swap them. The board tile moves to your rack, and both swapped tiles turn <span class="faq-purple">purple</span>. If you make multiple swaps in one turn, each pair gets a different shade of purple to show which tiles were swapped together. All purple tiles in your rack must be played that turn. To undo a swap, tap RECALL or drag the swapped letter back to its original placement on the board.</div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">How do I steal a tile?</div>
-        <div class="faq-a">Tap the first or last letter of a word on the board. If removing it still leaves a valid word behind, the tile is stolen into your rack — turning <span class="faq-purple">purple</span>. You must use it (and any other swapped or stolen tiles) in the word you play this turn.</div>
+        <div class="faq-a">Tap an exposed first or last letter of a word (three letters or longer) on the board. If removing it still leaves a valid word on the board, the tile moves into your rack and turns <span class="faq-purple">purple</span>. You must use it — along with any other swapped or stolen tiles — in your play that turn. The board square it came from is blocked until your play is submitted.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Why is the square blocked after I steal a tile?</div>
+        <div class="faq-a">If the square stayed open, you could steal a letter and immediately drop a different one from your rack into the same spot — effectively swapping letters for free. Blocking the square forces you to build a word elsewhere on the board.</div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">Why can't I steal from a two-letter word?</div>
-        <div class="faq-a">Stealing requires that the letters left behind still form a valid word. A two-letter word would be reduced to a single letter, which is never a valid word — so the steal is blocked. You need to find a word with at least three letters to steal from.</div>
+        <div class="faq-a">Stealing requires that the letters left behind still form a valid word. Stealing from a two-letter word would effectively erase the word from the board entirely (there are no valid 1-letter words in the game), so the steal is blocked.</div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">How many swaps or steals can I do per turn?</div>
-        <div class="faq-a">You can swap or steal up to <strong>4 tiles</strong> in a single turn — in any combination of swaps and steals. Every tile you lift must be placed as part of your word before you submit.</div>
+        <div class="faq-a">You can swap or steal up to <strong>4 tiles</strong> in a single turn — in any combination of swaps and steals — but they must all be played that turn.</div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">What do the colored tiles on the board mean?</div>
         <div class="faq-a">
-          <div class="faq-color-row"><span class="faq-swatch faq-swatch-gold"></span><span>Your opponent's most recent play is highlighted in <strong>gold</strong>, so you can see exactly what they just did.</span></div>
-          <div class="faq-color-row"><span class="faq-swatch faq-swatch-cyan"></span><span><strong>Cyan / teal</strong> tiles are ones that were swapped off the board at some point — they've been rearranged from their original position.</span></div>
+          <div class="faq-color-row"><span class="faq-swatch faq-swatch-gold"></span><span>Darker tiles show your opponent's last play.</span></div>
+          <div class="faq-color-row"><span class="faq-swatch faq-swatch-cyan"></span><span>Teal tiles mark swaps and steals from previous turns, with matching shades showing swapped pairs.</span></div>
+          <div class="faq-color-row"><span class="faq-swatch faq-swatch-purple"></span><span><span class="faq-purple">Purple</span> tiles mark swaps and steals for the current turn, and must be played.</span></div>
         </div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q">What happens to stolen and swapped tiles if I change my mind?</div>
-        <div class="faq-a">Tap the <strong>Recall</strong> button to undo all swaps and steals for the current turn. Any lifted tiles are returned to the board and your rack goes back to its original state.</div>
       </div>
 
     </div>

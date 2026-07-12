@@ -1771,6 +1771,14 @@ body {
       </svg>
       Stats
     </button>
+    <button class="home-nav-btn" onclick="homeNav('tutorial')">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" width="34" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
+        <circle cx="11" cy="11" r="10.5"/>
+        <path d="M11 7.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z" fill="#a77ef8" stroke="none"/>
+        <line x1="11" y1="14" x2="11" y2="17.5"/>
+      </svg>
+      How to Play
+    </button>
   </nav>
 </div>
 
@@ -3028,6 +3036,7 @@ function checkGameOver() {
 }
 
 function endGame(reason) {
+  if (window._suppressWinnerModal) { window._suppressWinnerModal = false; gameOver = true; updateUI(); return; }
   gameOver = true;
   if (isOnlineMode && onlineGameId) {
     // Cache opponent info for rematch before removing the game
@@ -7324,6 +7333,7 @@ function homeNav(tab) {
   if (tab === 'friends') openFriends();
   if (tab === 'stats') openStats();
   if (tab === 'settings') openSettings();
+  if (tab === 'tutorial') { showGameScreen(); showTutorial(); }
 }
 
 function openStats() {
@@ -7634,7 +7644,7 @@ function buildHomeGamesList() {
         if (s.playerScore > s.aiScore) label = 'You won!';
         else if (s.playerScore < s.aiScore) label = 'You lost';
         else label = 'Tie game';
-        const view = function() { showGameScreen(); loadAiGameState(); };
+        const view = function() { window._suppressWinnerModal = true; showGameScreen(); loadAiGameState(); };
         completedCards.push(resultCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', label, view));
       }
     }
@@ -7676,6 +7686,7 @@ function buildHomeGamesList() {
         const won = g.playerScore > g.aiScore;
         const viewAction = (function(gid) { return function() {
           markResultViewed(gid);
+          window._suppressWinnerModal = true;
           loadOnlineGame(gid, g.myRole);
           showGameScreen();
         }; })(g.id);
@@ -7688,7 +7699,12 @@ function buildHomeGamesList() {
         else if (g.playerScore > g.aiScore) label = 'You won!';
         else if (g.playerScore < g.aiScore) label = 'You lost';
         else label = 'Tie game';
-        completedCards.push(resultCard(g.playerScore||0, g.aiScore||0, opp, label, resume));
+        const viewCompleted = (function(gid, role) { return function() {
+          window._suppressWinnerModal = true;
+          loadOnlineGame(gid, role);
+          showGameScreen();
+        }; })(g.id, g.myRole);
+        completedCards.push(resultCard(g.playerScore||0, g.aiScore||0, opp, label, viewCompleted));
       }
     } else {
       const myTurn = g.currentPlayer === 'player';

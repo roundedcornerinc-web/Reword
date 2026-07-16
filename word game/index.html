@@ -3042,19 +3042,17 @@ function resetPending(afterCommit = false) {
 function toggleExchangeMode() {
   if (currentPlayer !== 'player' || gameOver) return;
   if (exchangeMode) {
-    confirmExchange();
+    cancelExchangeMode();
   } else {
     if (Object.keys(pendingPlacements).length > 0) {
       showMsg('Recall your placed tiles before exchanging.', 'bad'); return;
     }
     exchangeMode = true;
     exchangeSelectedIdxs = new Set();
-    document.getElementById('exchange-label').textContent = 'Confirm';
+    document.getElementById('exchange-label').textContent = 'Cancel';
     document.getElementById('btn-exchange').classList.add('active-exchange');
-    const shuffleBtn = document.getElementById('btn-shuffle-recall');
-    if (shuffleBtn) { shuffleBtn.setAttribute('onclick', 'cancelExchangeMode()'); }
-    const shuffleLbl = document.getElementById('shuffle-recall-lbl');
-    if (shuffleLbl) shuffleLbl.textContent = 'Cancel';
+    const playBtn = document.getElementById('btn-play');
+    if (playBtn) { playBtn.textContent = 'Confirm'; playBtn.setAttribute('onclick', 'confirmExchange()'); }
     showMsg('Select tiles to exchange, then tap Confirm — or tap Cancel.', 'info');
     renderRack();
   }
@@ -3067,10 +3065,8 @@ function cancelExchangeMode() {
   if (btn) { btn.classList.remove('active-exchange'); }
   const lbl = document.getElementById('exchange-label');
   if (lbl) lbl.textContent = 'Exchange';
-  const shuffleBtn = document.getElementById('btn-shuffle-recall');
-  if (shuffleBtn) { shuffleBtn.setAttribute('onclick', 'handleShuffleOrRecall()'); }
-  const shuffleLbl = document.getElementById('shuffle-recall-lbl');
-  if (shuffleLbl) shuffleLbl.textContent = 'Shuffle';
+  const playBtn = document.getElementById('btn-play');
+  if (playBtn) { playBtn.textContent = 'Play'; playBtn.setAttribute('onclick', 'submitPlay()'); }
   renderRack();
 }
 

@@ -3643,11 +3643,18 @@ function doPlayerAiTurn() {
   setTimeout(() => {
     const normalMove = findAIMove(playerRack);
     const swapMove   = findAISwapMove(playerRack);
+    const stealMove  = findAIStealMove(playerRack);
     document.getElementById('ai-indicator').classList.remove('show');
 
-    const useSwap = swapMove && (!normalMove || swapMove.score > normalMove.score);
+    const best = [
+      swapMove  && { type: 'swap',   score: swapMove.score,   move: swapMove },
+      stealMove && { type: 'steal',  score: stealMove.score,  move: stealMove },
+      normalMove && { type: 'normal', score: normalMove.score, move: normalMove },
+    ].filter(Boolean).sort((a, b) => b.score - a.score)[0];
 
-    if (useSwap) {
+    const moveType = best ? best.type : null;
+
+    if (moveType === 'swap') {
       const { swapRackIdx, swapRow, swapCol, swapRackLetter, swapBoardLetter, play } = swapMove;
       board[swapRow][swapCol] = swapRackLetter;
       playerRack[swapRackIdx] = swapBoardLetter;
@@ -3675,6 +3682,35 @@ function doPlayerAiTurn() {
       passCount = 0;
       const avAiSwapWord = (play.words&&play.words.length?play.words.reduce((a,b)=>a.word.length>=b.word.length?a:b).word:play.word).toUpperCase();
       showMsg(`AI-1 swapped ${swapBoardLetter.toUpperCase()} → played ${avAiSwapWord} for ${play.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
+    } else if (moveType === 'steal') {
+      const { stealRow, stealCol, stealLetter, stolenRackIdx, play } = stealMove;
+      board[stealRow][stealCol] = null;
+      playerRack.push(stealLetter);
+      const usedIdx = new Set();
+      for (const { row, col, letter, rackIdx } of play.placements) {
+        board[row][col] = letter;
+        if (rackIdx != null) usedIdx.add(rackIdx);
+      }
+      const actualStolenIdx = playerRack.length - 1;
+      if (play.placements.some(p => p.rackIdx === stolenRackIdx)) usedIdx.add(actualStolenIdx);
+      [...usedIdx].sort((a,b)=>b-a).forEach(i => playerRack.splice(i,1));
+      drawTiles(playerRack);
+      lastSwapKeys = [`${stealRow},${stealCol}`];
+      lastMoveKeys = [...play.placements]
+        .sort((a,b)=>a.row!==b.row?a.row-b.row:a.col-b.col)
+        .map(p=>`${p.row},${p.col}`);
+      lastMoveAnimated = false;
+      boardSwapPositions = new Set([`${stealRow},${stealCol}`]);
+      const stolenP2 = play.placements.find(p=>p.rackIdx===stolenRackIdx);
+      if (stolenP2) boardSwapPositions.add(`${stolenP2.row},${stolenP2.col}`);
+      lastSwapPairMap = { [`${stealRow},${stealCol}`]: 0 };
+      if (stolenP2) lastSwapPairMap[`${stolenP2.row},${stolenP2.col}`] = 0;
+      const bonus = play.placements.length === 7 ? 35 : 0;
+      playerScore += play.score + bonus;
+      lastPlayScore = play.score + bonus;
+      passCount = 0;
+      const stealWord = (play.words&&play.words.length?play.words.reduce((a,b)=>a.word.length>=b.word.length?a:b).word:play.word).toUpperCase();
+      showMsg(`AI-1 stole ${stealLetter.toUpperCase()} → played ${stealWord} for ${play.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
     } else if (normalMove) {
       boardSwapPositions = new Set();
       const usedIdx = new Set();
@@ -3719,46 +3755,44 @@ function doAiTurn() {
   setTimeout(() => {
     const normalMove = findAIMove();
     const swapMove   = findAISwapMove();
+    const stealMove  = findAIStealMove();
     document.getElementById('ai-indicator').classList.remove('show');
 
-    // Decide: use swap move if it outscores the normal move
-    const useSwap = swapMove && (!normalMove || swapMove.score > normalMove.score);
+    // Pick the highest-scoring option
+    const best = [
+      swapMove  && { type: 'swap',  score: swapMove.score,  move: swapMove },
+      stealMove && { type: 'steal', score: stealMove.score, move: stealMove },
+      normalMove && { type: 'normal', score: normalMove.score, move: normalMove },
+    ].filter(Boolean).sort((a, b) => b.score - a.score)[0];
 
-    if (useSwap) {
+    const moveType = best ? best.type : null;
+
+    if (moveType === 'swap') {
       // ── Commit AI swap move ──────────────────────────────────
       const { swapRackIdx, swapRow, swapCol, swapRackLetter, swapBoardLetter, play } = swapMove;
 
-      // 1. Place rack tile onto swap square
       board[swapRow][swapCol] = swapRackLetter;
-      // 2. Move stolen board tile into rack
       aiRack[swapRackIdx] = swapBoardLetter;
 
-      // 3. Place the subsequent play tiles onto the board
       const usedIdx = new Set();
       for (const { row, col, letter, rackIdx } of play.placements) {
         board[row][col] = letter;
         if (rackIdx != null) usedIdx.add(rackIdx);
       }
-
-      // 4. If the swapped-in board tile was used in the play, remove swapRackIdx too
-      const playUsedSwapTile = play.placements.some(p => p.rackIdx === swapRackIdx);
-      if (playUsedSwapTile) usedIdx.add(swapRackIdx);
+      if (play.placements.some(p => p.rackIdx === swapRackIdx)) usedIdx.add(swapRackIdx);
 
       [...usedIdx].sort((a, b) => b - a).forEach(i => aiRack.splice(i, 1));
       drawTiles(aiRack);
 
-      // 5. Animation keys
       lastSwapKeys = [`${swapRow},${swapCol}`];
       lastMoveKeys = [...play.placements]
         .sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col)
         .map(p => `${p.row},${p.col}`);
 
-      // Mark the swap source and where the stolen tile was played (cleared next turn)
       boardSwapPositions = new Set();
       boardSwapPositions.add(`${swapRow},${swapCol}`);
       const stolenPlacement = play.placements.find(p => p.rackIdx === swapRackIdx);
       if (stolenPlacement) boardSwapPositions.add(`${stolenPlacement.row},${stolenPlacement.col}`);
-      // Pair map: AI only ever does one swap so both squares share pair index 0
       lastSwapPairMap = { [`${swapRow},${swapCol}`]: 0 };
       if (stolenPlacement) lastSwapPairMap[`${stolenPlacement.row},${stolenPlacement.col}`] = 0;
       lastMoveAnimated = false;
@@ -3771,6 +3805,50 @@ function doAiTurn() {
       const swapMainWord = (play.words && play.words.length ? play.words.reduce((a,b) => a.word.length >= b.word.length ? a : b).word : play.word).toUpperCase();
       showMsg(
         `AI swapped ${swapBoardLetter.toUpperCase()} off the board and played ${swapMainWord} for ${play.score + aiBonus} points${aiBonus ? ' (+35 bonus)' : ''}!`,
+        'info'
+      );
+
+    } else if (moveType === 'steal') {
+      // ── Commit AI steal move ─────────────────────────────────
+      const { stealRow, stealCol, stealLetter, stolenRackIdx, play } = stealMove;
+
+      // Remove stolen tile from board
+      board[stealRow][stealCol] = null;
+      // Add to AI rack temporarily then find the rack index it ended up at
+      aiRack.push(stealLetter);
+
+      const usedIdx = new Set();
+      for (const { row, col, letter, rackIdx } of play.placements) {
+        board[row][col] = letter;
+        if (rackIdx != null) usedIdx.add(rackIdx);
+      }
+      // stolenRackIdx was length-1 of the augmented rack; map to actual aiRack index
+      const actualStolenIdx = aiRack.length - 1;
+      if (play.placements.some(p => p.rackIdx === stolenRackIdx)) usedIdx.add(actualStolenIdx);
+
+      [...usedIdx].sort((a, b) => b - a).forEach(i => aiRack.splice(i, 1));
+      drawTiles(aiRack);
+
+      lastSwapKeys = [`${stealRow},${stealCol}`];
+      lastMoveKeys = [...play.placements]
+        .sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col)
+        .map(p => `${p.row},${p.col}`);
+
+      boardSwapPositions = new Set([`${stealRow},${stealCol}`]);
+      const stolenPlacement = play.placements.find(p => p.rackIdx === stolenRackIdx);
+      if (stolenPlacement) boardSwapPositions.add(`${stolenPlacement.row},${stolenPlacement.col}`);
+      lastSwapPairMap = { [`${stealRow},${stealCol}`]: 0 };
+      if (stolenPlacement) lastSwapPairMap[`${stolenPlacement.row},${stolenPlacement.col}`] = 0;
+      lastMoveAnimated = false;
+
+      const aiBonus = play.placements.length === 7 ? 35 : 0;
+      aiScore += play.score + aiBonus;
+      lastPlayScore = play.score + aiBonus;
+      passCount = 0;
+      aiNoMoveCount = 0;
+      const stealMainWord = (play.words && play.words.length ? play.words.reduce((a,b) => a.word.length >= b.word.length ? a : b).word : play.word).toUpperCase();
+      showMsg(
+        `AI stole ${stealLetter.toUpperCase()} from the board and played ${stealMainWord} for ${play.score + aiBonus} points${aiBonus ? ' (+35 bonus)' : ''}!`,
         'info'
       );
 
@@ -4065,13 +4143,33 @@ function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRa
   return candidates[0];
 }
 
-// Evaluate all possible 1-tile swaps for the AI.
+// Evaluate all possible 1-tile swaps for the AI (including blank-tile swaps).
 // Returns the best swap+play combo, or null if nothing beats a normal play.
 function findAISwapMove(rackOverride = null) {
   if (isEmpty() || aiSkill === 'easy') return null;
 
   const best = { score: -1 };
   const rack = rackOverride ?? aiRack;
+
+  const trySwap = (ri, r, c, placedLetter, boardLetter) => {
+    const tempBoard = board.map(row => [...row]);
+    tempBoard[r][c] = placedLetter;
+    let swapValid = true;
+    for (const [dr, dc] of [[0,1],[1,0]]) {
+      const w = getWordAt(tempBoard, r, c, dr, dc);
+      if (!w) continue;
+      if (!WORDS.has(w.word.toUpperCase())) { swapValid = false; break; }
+    }
+    if (!swapValid) return;
+    const newRack = [...rack];
+    newRack[ri] = boardLetter;
+    const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set([ri]));
+    if (!play || play.score <= 0) return;
+    if (!play.placements.some(p => p.rackIdx === ri)) return;
+    if (play.score > best.score) {
+      Object.assign(best, { score: play.score, swapRackIdx: ri, swapRow: r, swapCol: c, swapRackLetter: placedLetter, swapBoardLetter: boardLetter, play });
+    }
+  };
 
   for (let ri = 0; ri < rack.length; ri++) {
     const rackLetter = rack[ri];
@@ -4081,45 +4179,81 @@ function findAISwapMove(rackOverride = null) {
         if (!board[r][c]) continue;
         const boardLetter = board[r][c];
 
-        // No point swapping same letter, raw blank, or committed blank (lowercase — AI can't re-assign)
-        if (boardLetter.toUpperCase() === rackLetter || boardLetter === ' ' || boardLetter !== boardLetter.toUpperCase()) continue;
+        // Skip raw blanks and committed blanks on board (lowercase)
+        if (boardLetter === ' ' || boardLetter !== boardLetter.toUpperCase()) continue;
 
-        // Only try stealing tiles with meaningful value (≥2) on Medium; any on Hard
         const tileVal = VAL[boardLetter.toUpperCase()] ?? 0;
         if (aiSkill === 'medium' && tileVal < 2) continue;
 
-        // Simulate placing rackLetter at (r,c) and check all words stay valid
-        const tempBoard = board.map(row => [...row]);
-        tempBoard[r][c] = rackLetter;
-
-        let swapValid = true;
-        for (const [dr, dc] of [[0,1],[1,0]]) {
-          const w = getWordAt(tempBoard, r, c, dr, dc);
-          if (!w) continue;
-          if (!WORDS.has(w.word.toUpperCase())) { swapValid = false; break; }
+        if (rackLetter === ' ') {
+          // Blank tile: try assigning it every possible letter to place at (r,c)
+          for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+            if (ch === boardLetter) continue; // no point replacing same letter
+            trySwap(ri, r, c, ch.toLowerCase(), boardLetter); // lowercase = committed blank
+          }
+        } else {
+          if (boardLetter === rackLetter) continue;
+          trySwap(ri, r, c, rackLetter, boardLetter);
         }
-        if (!swapValid) continue;
+      }
+    }
+  }
 
-        // Valid swap — find best play with new rack on temp board
-        // The stolen tile (at rack index ri) must not earn premium bonuses when replayed
-        const newRack = [...rack];
-        newRack[ri] = boardLetter; // stolen tile replaces rack tile at ri
-        const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set([ri]));
-        if (!play || play.score <= 0) continue;
-        // The stolen tile must be used in the subsequent play (same rule as for the player)
-        if (!play.placements.some(p => p.rackIdx === ri)) continue;
+  return best.score > 0 ? best : null;
+}
 
-        // Swap positions don't score — only the subsequent play counts
-        if (play.score > best.score) {
-          Object.assign(best, {
-            score: play.score,
-            swapRackIdx: ri,
-            swapRow: r, swapCol: c,
-            swapRackLetter: rackLetter,
-            swapBoardLetter: boardLetter,
-            play
-          });
-        }
+// Evaluate all possible 1-tile steals for the AI (take an end letter without replacing it).
+// Returns the best steal+play combo, or null if nothing useful found.
+function findAIStealMove(rackOverride = null) {
+  if (isEmpty() || aiSkill === 'easy') return null;
+
+  const best = { score: -1 };
+  const rack = rackOverride ?? aiRack;
+
+  for (let r = 0; r < BS; r++) {
+    for (let c = 0; c < BS; c++) {
+      if (!board[r][c]) continue;
+      const boardLetter = board[r][c];
+
+      // Skip blanks
+      if (boardLetter === ' ' || boardLetter !== boardLetter.toUpperCase()) continue;
+
+      // Only steal high-value tiles on medium
+      const tileVal = VAL[boardLetter.toUpperCase()] ?? 0;
+      if (aiSkill === 'medium' && tileVal < 2) continue;
+
+      // Must be part of exactly one word (crossing tiles can't be stolen)
+      const wordsHere = [[0,1],[1,0]].filter(([dr,dc]) => getWordAt(board, r, c, dr, dc));
+      if (wordsHere.length !== 1) continue;
+
+      const [dr, dc] = wordsHere[0];
+      const w = getWordAt(board, r, c, dr, dc);
+      const cells = w.cells;
+      const idx = cells.findIndex(cell => cell.row === r && cell.col === c);
+
+      // Must be at start or end of the word
+      if (idx !== 0 && idx !== cells.length - 1) continue;
+
+      // Remaining word must be valid and at least 2 letters
+      const remaining = cells.filter((_, i) => i !== idx);
+      if (remaining.length < 2) continue;
+      const remainingWord = remaining.map(cell => cell.letter).join('');
+      if (!WORDS.has(remainingWord.toUpperCase())) continue;
+
+      // Board must stay connected after removal
+      const tempBoard = board.map(row => [...row]);
+      tempBoard[r][c] = null;
+      if (!isBoardConnected(tempBoard)) continue;
+
+      // Find best play with the stolen tile added to rack
+      const newRack = [...rack, boardLetter];
+      const stolenRackIdx = newRack.length - 1;
+      const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set([stolenRackIdx]));
+      if (!play || play.score <= 0) continue;
+      if (!play.placements.some(p => p.rackIdx === stolenRackIdx)) continue;
+
+      if (play.score > best.score) {
+        Object.assign(best, { score: play.score, stealRow: r, stealCol: c, stealLetter: boardLetter, stolenRackIdx, play });
       }
     }
   }

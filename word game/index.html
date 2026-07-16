@@ -2775,9 +2775,9 @@ function submitPlay() {
   // All-tiles bonus — fires when every rack tile was placed this turn
   if (usedAllTiles) {
     playerScore += 35;
-    setTimeout(() => showMsg(`All tiles used! +35 bonus — ${mainWord} for ${lastPlayScore} pts!`, 'good'), 1000);
+    setTimeout(() => showMsg(`You played ${mainWord} for ${lastPlayScore} pts! (+35 bonus)`, 'good'), 1000);
   } else {
-    showMsg(`${mainWord} for ${lastPlayScore} pts!`, 'good');
+    showMsg(`You played ${mainWord} for ${lastPlayScore} pts!`, 'good');
   }
 
   auditTiles('commitPlay');
@@ -5046,7 +5046,7 @@ function celebrateScore(pts) {
   const ctx = canvas.getContext('2d');
 
   // Center medal on the board element, not the full viewport
-  const boardEl = document.getElementById('board');
+  const boardEl = document.getElementById('board-wrapper');
   const boardRect = boardEl ? boardEl.getBoundingClientRect() : null;
   const medalTop = boardRect ? boardRect.top + boardRect.height / 2 - 100 : window.innerHeight / 2 - 100;
 

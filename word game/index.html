@@ -512,6 +512,7 @@ body {
   border-radius: 10px;
   transition: background 0.12s;
   font-family: inherit;
+  touch-action: manipulation;
 }
 .icon-btn:hover { background: none; }
 .icon-btn:active { background: none; }
@@ -3051,10 +3052,9 @@ function toggleExchangeMode() {
     exchangeSelectedIdxs = new Set();
     document.getElementById('exchange-label').textContent = 'Cancel';
     document.getElementById('btn-exchange').classList.add('active-exchange');
-    const playBtn = document.getElementById('btn-play');
-    if (playBtn) { playBtn.textContent = 'Confirm'; playBtn.setAttribute('onclick', 'confirmExchange()'); playBtn.classList.remove('tiles-placed'); }
     showMsg('Select tiles to exchange, then tap Confirm — or tap Cancel.', 'info');
     renderRack();
+    updateUI();
   }
 }
 
@@ -3065,9 +3065,8 @@ function cancelExchangeMode() {
   if (btn) { btn.classList.remove('active-exchange'); }
   const lbl = document.getElementById('exchange-label');
   if (lbl) lbl.textContent = 'Exchange';
-  const playBtn = document.getElementById('btn-play');
-  if (playBtn) { playBtn.textContent = 'Play'; playBtn.setAttribute('onclick', 'submitPlay()'); playBtn.classList.remove('tiles-placed'); }
   renderRack();
+  updateUI();
 }
 
 function confirmExchange() {

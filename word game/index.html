@@ -1139,7 +1139,7 @@ body {
   pointer-events: none;
 }
 .celebrate-medal-wrap {
-  position: fixed; left: 50%; top: 50%;
+  position: fixed; left: 50%;
   transform: translateX(-50%) translateY(-50%) scale(0);
   width: 200px; height: 200px;
   display: flex; align-items: center; justify-content: center;
@@ -5022,14 +5022,15 @@ async function declineRematchChallenge(gameId) {
 
 function celebrateScore(pts) {
   if (pts < 30) return;
-  const tier = pts >= 100 ? 3 : pts >= 50 ? 2 : 1;
-  const labels = { 1: '30+', 2: '50+', 3: '100+' };
-  const counts = { 1: 40, 2: 90, 3: 160 };
-  const durations = { 1: 2200, 2: 3000, 3: 3800 };
+  const tier = pts >= 100 ? 4 : pts >= 75 ? 3 : pts >= 50 ? 2 : 1;
+  const labels = { 1: '30+', 2: '50+', 3: '75+', 4: '100+' };
+  const counts = { 1: 40, 2: 90, 3: 130, 4: 160 };
+  const durations = { 1: 2200, 2: 3000, 3: 3400, 4: 3800 };
   const palettes = {
     1: ['#a77ef8','#c4b5fd','#7c3aed','#ede9fe','#f0eafd'],
     2: ['#f59e0b','#fbbf24','#a77ef8','#34d399','#f472b6','#60a5fa'],
-    3: ['#f59e0b','#ef4444','#a77ef8','#34d399','#f472b6','#60a5fa','#fff','#fbbf24'],
+    3: ['#f59e0b','#ef4444','#a77ef8','#34d399','#f472b6','#60a5fa','#fff'],
+    4: ['#f59e0b','#ef4444','#a77ef8','#34d399','#f472b6','#60a5fa','#fff','#fbbf24'],
   };
   const duration = durations[tier];
 
@@ -5044,9 +5045,15 @@ function celebrateScore(pts) {
   canvas.height = window.innerHeight;
   const ctx = canvas.getContext('2d');
 
+  // Center medal on the board element, not the full viewport
+  const boardEl = document.getElementById('board');
+  const boardRect = boardEl ? boardEl.getBoundingClientRect() : null;
+  const medalTop = boardRect ? boardRect.top + boardRect.height / 2 : window.innerHeight / 2;
+
   // SVG medal overlay
   const medalWrap = document.createElement('div');
   medalWrap.className = 'celebrate-medal-wrap';
+  medalWrap.style.top = medalTop + 'px';
   medalWrap.style.animation = `celebMedal ${duration / 1000}s cubic-bezier(0.22,1,0.36,1) forwards`;
   medalWrap.innerHTML = `
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 162.98 155">
@@ -5078,7 +5085,7 @@ function celebrateScore(pts) {
       <polygon fill="url(#cslg10)" points="121.74 141.35 81.47 120.17 41.19 141.33 48.9 96.49 16.33 64.72 61.35 58.19 81.5 17.4 101.63 58.2 146.65 64.76 114.06 96.51 121.74 141.35"/>
       <text x="81.49" y="91" text-anchor="middle"
         font-family="'Segoe UI',system-ui,sans-serif" font-weight="900"
-        font-size="${tier===3?'38':tier===2?'34':'30'}"
+        font-size="${tier===4?'38':tier===3?'36':tier===2?'34':'30'}"
         fill="#291b62">${labels[tier]}</text>
       <text x="81.49" y="108" text-anchor="middle"
         font-family="'Segoe UI',system-ui,sans-serif" font-weight="800"

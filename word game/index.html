@@ -3051,7 +3051,11 @@ function toggleExchangeMode() {
     exchangeSelectedIdxs = new Set();
     document.getElementById('exchange-label').textContent = 'Confirm';
     document.getElementById('btn-exchange').classList.add('active-exchange');
-    showMsg('Click tiles to select them for exchange, then click Confirm.', 'info');
+    const shuffleBtn = document.getElementById('btn-shuffle-recall');
+    if (shuffleBtn) { shuffleBtn.setAttribute('onclick', 'cancelExchangeMode()'); }
+    const shuffleLbl = document.getElementById('shuffle-recall-lbl');
+    if (shuffleLbl) shuffleLbl.textContent = 'Cancel';
+    showMsg('Select tiles to exchange, then tap Confirm — or tap Cancel.', 'info');
     renderRack();
   }
 }
@@ -3063,6 +3067,11 @@ function cancelExchangeMode() {
   if (btn) { btn.classList.remove('active-exchange'); }
   const lbl = document.getElementById('exchange-label');
   if (lbl) lbl.textContent = 'Exchange';
+  const shuffleBtn = document.getElementById('btn-shuffle-recall');
+  if (shuffleBtn) { shuffleBtn.setAttribute('onclick', 'handleShuffleOrRecall()'); }
+  const shuffleLbl = document.getElementById('shuffle-recall-lbl');
+  if (shuffleLbl) shuffleLbl.textContent = 'Shuffle';
+  renderRack();
 }
 
 function confirmExchange() {

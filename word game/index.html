@@ -2768,16 +2768,16 @@ function submitPlay() {
     }
     return {word, score: ws * wm};
   });
-  const wordBreakdown = scoredWords.map(({word, score}) => `${word}(${score})`).join(' + ');
+  const mainWord = scoredWords.reduce((a, b) => a.word.length >= b.word.length ? a : b).word.toUpperCase();
   updateStatsAfterPlay(lastPlayScore, scoredWords);
   celebrateScore(lastPlayScore);
 
   // All-tiles bonus — fires when every rack tile was placed this turn
   if (usedAllTiles) {
     playerScore += 35;
-    setTimeout(() => showMsg(`All tiles used! +35 bonus — you scored ${lastPlayScore} pts!`, 'good'), 1000);
+    setTimeout(() => showMsg(`All tiles used! +35 bonus — ${mainWord} for ${lastPlayScore} pts!`, 'good'), 1000);
   } else {
-    showMsg(`You scored ${lastPlayScore} pts!`, 'good');
+    showMsg(`${mainWord} for ${lastPlayScore} pts!`, 'good');
   }
 
   auditTiles('commitPlay');

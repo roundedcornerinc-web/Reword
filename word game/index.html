@@ -5010,7 +5010,11 @@ function updateUI() {
   const waitingForOpponent = isOnlineMode && currentPlayer !== 'player' && !gameOver;
   const playBtn = document.getElementById('btn-play');
   if (playBtn) {
-    if (waitingForOpponent) {
+    if (exchangeMode) {
+      playBtn.textContent = 'Confirm';
+      playBtn.onclick = confirmExchange;
+      playBtn.classList.toggle('tiles-placed', exchangeSelectedIdxs.size > 0);
+    } else if (waitingForOpponent) {
       playBtn.textContent = 'Other Games';
       playBtn.onclick = showOtherGamesOverlay;
       playBtn.classList.add('tiles-placed');

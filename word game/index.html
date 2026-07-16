@@ -2775,9 +2775,9 @@ function submitPlay() {
   // All-tiles bonus — fires when every rack tile was placed this turn
   if (usedAllTiles) {
     playerScore += 35;
-    setTimeout(() => showMsg(`All tiles used! +35 bonus — you scored ${lastPlayScore} pts! [${wordBreakdown}]`, 'good'), 1000);
+    setTimeout(() => showMsg(`All tiles used! +35 bonus — you scored ${lastPlayScore} pts!`, 'good'), 1000);
   } else {
-    showMsg(`You scored ${lastPlayScore} pts! [${wordBreakdown}]`, 'good');
+    showMsg(`You scored ${lastPlayScore} pts!`, 'good');
   }
 
   auditTiles('commitPlay');

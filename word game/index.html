@@ -1140,7 +1140,7 @@ body {
 }
 .celebrate-medal-wrap {
   position: fixed; left: 50%;
-  transform: translateX(-50%) translateY(-50%) scale(0);
+  transform: translateX(-50%) scale(0);
   width: 200px; height: 200px;
   display: flex; align-items: center; justify-content: center;
   pointer-events: none; z-index: 9001;
@@ -1149,12 +1149,12 @@ body {
 .celebrate-medal-wrap svg { width: 200px; height: 200px; }
 .celebrate-medal-wrap svg { overflow: visible; }
 @keyframes celebMedal {
-  0%   { opacity:0; transform:translateX(-50%) translateY(-50%) scale(0.3); }
-  50%  { opacity:1; transform:translateX(-50%) translateY(-50%) scale(1.06); }
-  65%  { transform:translateX(-50%) translateY(-50%) scale(0.97); }
-  78%  { transform:translateX(-50%) translateY(-50%) scale(1.02); }
-  85%  { transform:translateX(-50%) translateY(-50%) scale(1); opacity:1; }
-  100% { opacity:0; transform:translateX(-50%) translateY(-50%) scale(1); }
+  0%   { opacity:0; transform:translateX(-50%) scale(0.3); }
+  50%  { opacity:1; transform:translateX(-50%) scale(1.06); }
+  65%  { transform:translateX(-50%) scale(0.97); }
+  78%  { transform:translateX(-50%) scale(1.02); }
+  85%  { transform:translateX(-50%) scale(1); opacity:1; }
+  100% { opacity:0; transform:translateX(-50%) scale(1); }
 }
 
 /* ── ONLINE INVITE MODAL ── */
@@ -5048,7 +5048,7 @@ function celebrateScore(pts) {
   // Center medal on the board element, not the full viewport
   const boardEl = document.getElementById('board');
   const boardRect = boardEl ? boardEl.getBoundingClientRect() : null;
-  const medalTop = boardRect ? boardRect.top + boardRect.height / 2 : window.innerHeight / 2;
+  const medalTop = boardRect ? boardRect.top + boardRect.height / 2 - 100 : window.innerHeight / 2 - 100;
 
   // SVG medal overlay
   const medalWrap = document.createElement('div');

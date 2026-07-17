@@ -668,6 +668,13 @@ body {
 }
 .ngc-btn-human { background: var(--btn-primary); color: #fff; }
 .ngc-btn-ai    { background: #2a1a5e; color: #aaa; }
+.ngc-skill-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.ngc-skill-btn {
+  flex: 1; height: 52px; border-radius: 26px; border: 2px solid rgba(255,255,255,0.12);
+  background: #2a1a5e; color: #aaa; font-family: inherit; font-size: 0.9rem;
+  font-weight: 700; cursor: pointer; letter-spacing: 0.04em; touch-action: manipulation;
+}
+.ngc-skill-btn.selected { border-color: var(--btn-primary); color: #fff; background: #3d1f8a; }
 
 /* Play button — large pill */
 #btn-play {
@@ -8175,11 +8182,31 @@ function closeOtherGamesOverlay() {
 
 function showNewGameChoice() {
   closeOtherGamesOverlay();
+  ngcShowMain();
   document.getElementById('new-game-choice').classList.add('show');
 }
 
 function closeNewGameChoice() {
   document.getElementById('new-game-choice').classList.remove('show');
+  ngcShowMain();
+}
+
+function ngcShowMain() {
+  document.getElementById('ngc-page-main').style.display = '';
+  document.getElementById('ngc-page-skill').style.display = 'none';
+}
+
+function ngcShowSkillPicker() {
+  document.getElementById('ngc-page-main').style.display = 'none';
+  document.getElementById('ngc-page-skill').style.display = '';
+  ngcSetSkill(aiSkill || 'hard');
+}
+
+function ngcSetSkill(level) {
+  aiSkill = level;
+  ['easy','medium','hard'].forEach(l => {
+    document.getElementById('ngc-skill-' + l).classList.toggle('selected', l === level);
+  });
 }
 
 async function buildOtherGameCards() {
@@ -8291,12 +8318,29 @@ document.addEventListener('click', e => {
 
 <!-- ── New Game choice overlay ── -->
 <div id="new-game-choice">
-  <div id="ngc-header">
-    <span id="ngc-title">Start New Game</span>
-    <button id="ngc-close" onclick="closeNewGameChoice()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="35.16273 2.5 18.83136 23.18971 2.5 2.5"/></svg></button>
+  <!-- Page 1: choose mode -->
+  <div id="ngc-page-main">
+    <div id="ngc-header">
+      <span id="ngc-title">Start New Game</span>
+      <button id="ngc-close" onclick="closeNewGameChoice()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="35.16273 2.5 18.83136 23.18971 2.5 2.5"/></svg></button>
+    </div>
+    <button class="ngc-btn ngc-btn-ai" onclick="ngcShowSkillPicker()">Play vs AI</button>
+    <button class="ngc-btn ngc-btn-human" onclick="closeNewGameChoice();showGameScreen();newOnlineGame()">Challenge a Friend</button>
   </div>
-  <button class="ngc-btn ngc-btn-ai" onclick="closeNewGameChoice();showGameScreen();startAiGame()">Play vs AI</button>
-  <button class="ngc-btn ngc-btn-human" onclick="closeNewGameChoice();showGameScreen();newOnlineGame()">Challenge a Friend</button>
+  <!-- Page 2: skill picker -->
+  <div id="ngc-page-skill" style="display:none;">
+    <div id="ngc-header">
+      <button style="background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;" onclick="ngcShowMain()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="2.5 2.5 18.83136 23.18971 35.16273 2.5"/></svg></button>
+      <span id="ngc-title">Choose Difficulty</span>
+      <button style="background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;" onclick="closeNewGameChoice()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="35.16273 2.5 18.83136 23.18971 2.5 2.5"/></svg></button>
+    </div>
+    <div class="ngc-skill-row">
+      <button class="ngc-skill-btn" id="ngc-skill-easy"   onclick="ngcSetSkill('easy')">Easy</button>
+      <button class="ngc-skill-btn selected" id="ngc-skill-hard" onclick="ngcSetSkill('hard')">Hard</button>
+      <button class="ngc-skill-btn" id="ngc-skill-medium" onclick="ngcSetSkill('medium')">Medium</button>
+    </div>
+    <button class="ngc-btn ngc-btn-ai" onclick="closeNewGameChoice();showGameScreen();startAiGame()">Start Game</button>
+  </div>
 </div>
 
 </body>

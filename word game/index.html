@@ -7954,6 +7954,7 @@ function welcomeStartTutorial() {
   document.getElementById('welcome-overlay').classList.remove('active');
   showGameScreen();
   showTutorial();
+  tutorialAdvance(); // skip the "Welcome to Reword" intro card, go straight to drag step
 }
 
 function welcomeSkipTutorial() {

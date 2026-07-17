@@ -6606,7 +6606,13 @@ async function sendPushToOpponent() {
 // ── Start new online game (menu entry) ─────────────────
 function newOnlineGame() {
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
-  showNameModal('What\'s your name?', 'Your friend will see this', 'Continue', createOnlineGame);
+  const stored = localStorage.getItem('playerName');
+  if (stored && stored !== 'You') {
+    playerName = stored;
+    createOnlineGame();
+  } else {
+    showNameModal('What\'s your name?', 'Your friend will see this', 'Continue', createOnlineGame);
+  }
 }
 
 // ── Start a new local AI game (preserves stored online games) ──

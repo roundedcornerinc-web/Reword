@@ -8295,6 +8295,7 @@ document.addEventListener('click', e => {
     <span id="ngc-title">Start New Game</span>
     <button id="ngc-close" onclick="closeNewGameChoice()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="35.16273 2.5 18.83136 23.18971 2.5 2.5"/></svg></button>
   </div>
+  <button class="ngc-btn ngc-btn-ai" onclick="closeNewGameChoice();showGameScreen();startAiGame()">Play vs AI</button>
   <button class="ngc-btn ngc-btn-human" onclick="closeNewGameChoice();showGameScreen();newOnlineGame()">Challenge a Friend</button>
 </div>
 

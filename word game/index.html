@@ -5887,6 +5887,24 @@ async function createOnlineGame() {
   await authReady;
   const gameId = generateGameId();
   const myId   = getPlayerId();
+  const base   = window.location.origin + window.location.pathname.replace(/\/$/, '');
+  const link   = `${base}?game=${gameId}`;
+
+  // If native share is available, try it BEFORE creating the game.
+  // Only proceed if the user actually picks a share destination.
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Play Reword with me!',
+        text: `${playerName} challenged you to a game of Reword. Tap the link to join!`,
+        url: link
+      });
+      // User shared — fall through to create the game
+    } catch(e) {
+      // User cancelled or dismissed — don't create anything
+      return;
+    }
+  }
 
   // Fresh board/bag/racks
   board = Array.from({length:BS}, ()=>Array(BS).fill(null));
@@ -5913,12 +5931,16 @@ async function createOnlineGame() {
     created: firebase.firestore.FieldValue.serverTimestamp(),
     expiresAt: firebase.firestore.Timestamp.fromDate(waitingExpiry),
     players: { p1: { id: myId, name: playerName } },
-    ...buildOnlinePayload('p2')   // p2 (joiner) always goes first
+    ...buildOnlinePayload('p2')
   };
 
   try {
     await db.collection('games').doc(gameId).set(payload);
-    showInviteModal(gameId);
+    // Show invite modal without re-triggering share (already sent above)
+    document.getElementById('online-modal-link').value = link;
+    document.getElementById('online-modal-code').textContent = gameId;
+    document.getElementById('online-modal-status').textContent = 'Waiting for opponent to join…';
+    document.getElementById('online-modal').classList.remove('hidden');
     startOnlineListener(gameId);
     showNotifPrompt();
   } catch(e) {

@@ -8025,17 +8025,17 @@ function buildHomeGamesList() {
       const myTurn = g.currentPlayer === 'player';
       const btnLabel = g.isWaiting ? 'RESEND' : (myTurn ? 'PLAY' : 'NUDGE');
       const action = g.isWaiting ? function() { resendInvite(g.id); return; } : resume;
-      const isZeroZero = !g.isWaiting && (g.playerScore||0) === 0 && (g.aiScore||0) === 0;
+      const showCancel = g.isWaiting || ((g.playerScore||0) === 0 && (g.aiScore||0) === 0);
       const cancelAction = (function(gid) { return function() {
         cancelWaitingGame(gid);
       }; })(g.id);
       if (myTurn) {
-        myMoveCards.push(isZeroZero
-          ? cancelableCard(0, 0, opp, ago, btnLabel, action, cancelAction)
+        myMoveCards.push(showCancel
+          ? cancelableCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action, cancelAction)
           : scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action));
       } else {
-        theirMoveCards.push(isZeroZero
-          ? cancelableCard(0, 0, opp, ago, btnLabel, action, cancelAction)
+        theirMoveCards.push(showCancel
+          ? cancelableCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action, cancelAction)
           : scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action));
       }
     }

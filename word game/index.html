@@ -1409,7 +1409,24 @@ body {
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 #stats-overlay.active #stats-panel { transform: translateX(0); }
+.panel-close-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  touch-action: manipulation;
+  margin-top: 14px;
+}
+.panel-close-btn.left  { left: 16px; }
+.panel-close-btn.right { right: 16px; }
+
 #stats-header {
+  position: relative;
   padding: 56px 20px 16px;
   text-align: center;
   background: #f0eafd;
@@ -1576,6 +1593,7 @@ body {
 }
 #settings-overlay.active #settings-panel { transform: translateX(0); }
 #settings-header {
+  position: relative;
   padding: 56px 20px 16px;
   text-align: center;
   background: #f0eafd;
@@ -1670,6 +1688,7 @@ body {
 }
 #friends-overlay.active #friends-panel { transform: translateX(0); }
 #friends-header {
+  position: relative;
   padding: 56px 20px 16px;
   text-align: center;
   border-bottom: 1px solid #eee;
@@ -1839,7 +1858,10 @@ body {
 <div id="settings-overlay">
   <div id="settings-backdrop" onclick="closeSettings()"></div>
   <div id="settings-panel">
-    <div id="settings-header"><h2>Settings</h2></div>
+    <div id="settings-header">
+      <button class="panel-close-btn left" onclick="closeSettings()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25.68971 37.66273" width="14"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="23.18971 35.16273 2.5 18.83136 23.18971 2.5"/></svg></button>
+      <h2>Settings</h2>
+    </div>
     <div id="settings-body">
       <span class="settings-section-label">Profile</span>
       <div class="settings-name-row">
@@ -1881,7 +1903,10 @@ body {
 <div id="friends-overlay">
   <div id="friends-backdrop" onclick="closeFriends()"></div>
   <div id="friends-panel">
-    <div id="friends-header"><h2>Friends</h2></div>
+    <div id="friends-header">
+      <button class="panel-close-btn right" onclick="closeFriends()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25.68971 37.66273" width="14"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="2.5 35.16273 23.18971 18.83136 2.5 2.5"/></svg></button>
+      <h2>Friends</h2>
+    </div>
     <div id="friends-list"></div>
     <div id="friends-footer">
       <button id="btn-add-friend" onclick="addFriend()">+ Add a Friend</button>
@@ -1938,7 +1963,10 @@ body {
 <div id="stats-overlay">
   <div id="stats-backdrop" onclick="closeStats()"></div>
   <div id="stats-panel">
-    <div id="stats-header"><h2>Stats</h2></div>
+    <div id="stats-header">
+      <button class="panel-close-btn right" onclick="closeStats()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25.68971 37.66273" width="14"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="2.5 35.16273 23.18971 18.83136 2.5 2.5"/></svg></button>
+      <h2>Stats</h2>
+    </div>
     <div id="stats-body"></div>
   </div>
 </div>

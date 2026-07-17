@@ -2095,15 +2095,6 @@ body {
     </button>
   </div>
 </div>
-<div id="confirm-overlay" onclick="closeConfirmSheet()"></div>
-<div id="confirm-sheet">
-  <div id="confirm-sheet-msg"></div>
-  <div id="confirm-sheet-sub"></div>
-  <div id="confirm-sheet-btns">
-    <button id="confirm-sheet-cancel" onclick="closeConfirmSheet()">Cancel</button>
-    <button id="confirm-sheet-ok"></button>
-  </div>
-</div>
 <div id="ai-indicator">AI is thinking</div>
 <div id="aivai-controls" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:#1a1a2e;border-top:1px solid #333;padding:10px 16px;align-items:center;justify-content:space-between;gap:10px;">
   <span style="color:#aaa;font-size:0.8rem;font-weight:600;letter-spacing:0.05em;">AI VS AI</span>
@@ -8286,6 +8277,16 @@ document.addEventListener('click', e => {
 </div>
 
 </div><!-- #game-screen -->
+
+<div id="confirm-overlay" onclick="closeConfirmSheet()"></div>
+<div id="confirm-sheet">
+  <div id="confirm-sheet-msg"></div>
+  <div id="confirm-sheet-sub"></div>
+  <div id="confirm-sheet-btns">
+    <button id="confirm-sheet-cancel" onclick="closeConfirmSheet()">Cancel</button>
+    <button id="confirm-sheet-ok"></button>
+  </div>
+</div>
 
 <!-- ── New Game choice overlay ── -->
 <div id="new-game-choice">

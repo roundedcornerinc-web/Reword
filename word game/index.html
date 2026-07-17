@@ -1355,7 +1355,7 @@ body {
   display: flex; align-items: flex-end;
   justify-content: space-between; gap: 10px;
   cursor: pointer; font-family: 'Segoe UI', system-ui, sans-serif;
-  background: inherit;
+  background: #fff;
   position: relative;
   transition: transform 0.2s ease;
   will-change: transform;
@@ -8159,9 +8159,6 @@ function buildHomeGamesList() {
 function initApp() {
   // If arriving via invite link, the URL handler manages screen transitions — don't override
   if (new URLSearchParams(window.location.search).get('game')) return;
-  // If a single online game is being auto-resumed, stay on game screen
-  const _initStored = getStoredGames();
-  if (_initStored.length === 1) { showGameScreen(); return; }
   const tutorialDone = localStorage.getItem('reword_tutorial_done');
   showHomeScreen();
   if (!tutorialDone) {

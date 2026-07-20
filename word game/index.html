@@ -2811,9 +2811,14 @@ function submitPlay() {
       else if (prem === 'TW') wm *= 3;
       ws += ls;
     }
-    return {word, score: ws * wm};
+    return {word, cells, score: ws * wm};
   });
-  const mainWord = scoredWords.reduce((a, b) => a.word.length >= b.word.length ? a : b).word.toUpperCase();
+  // Pick the word that uses the most rack-placed tiles (the word the player primarily built)
+  const mainWord = scoredWords.reduce((a, b) => {
+    const aNew = a.cells.filter(({row,col}) => playKeys.has(`${row},${col}`)).length;
+    const bNew = b.cells.filter(({row,col}) => playKeys.has(`${row},${col}`)).length;
+    return bNew > aNew || (bNew === aNew && b.word.length > a.word.length) ? b : a;
+  }).word.toUpperCase();
   updateStatsAfterPlay(lastPlayScore, scoredWords);
   celebrateScore(lastPlayScore);
 
@@ -3206,6 +3211,7 @@ function endGame(reason) {
         lastSwapPairMap: {...lastSwapPairMap},
         aiSkill, lastUpdated: Date.now(),
       }));
+      archiveAiGameToHistory({ playerScore, aiScore, aiSkill, lastUpdated: Date.now() });
     } catch(e) {}
   }
   const playerDeduct = playerRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
@@ -5591,6 +5597,26 @@ function loadAiGameState() {
 
 function clearAiGameState() {
   localStorage.removeItem(AI_SAVE_KEY);
+}
+
+const AI_HISTORY_KEY = 'reword_ai_history';
+const AI_HISTORY_MAX = 5;
+
+function archiveAiGameToHistory(state) {
+  try {
+    const history = JSON.parse(localStorage.getItem(AI_HISTORY_KEY) || '[]');
+    history.unshift({
+      playerScore: state.playerScore,
+      aiScore: state.aiScore,
+      aiSkill: state.aiSkill,
+      lastUpdated: state.lastUpdated || Date.now(),
+    });
+    localStorage.setItem(AI_HISTORY_KEY, JSON.stringify(history.slice(0, AI_HISTORY_MAX)));
+  } catch(e) {}
+}
+
+function getAiGameHistory() {
+  try { return JSON.parse(localStorage.getItem(AI_HISTORY_KEY) || '[]'); } catch(e) { return []; }
 }
 
 // ── Firebase init (must run before startGame) ──────────
@@ -8049,7 +8075,7 @@ function buildHomeGamesList() {
   const completedCards = [];
   const viewedResults = getViewedResults();
 
-  // AI game
+  // AI game (active or most-recent completed)
   try {
     const raw = localStorage.getItem(AI_SAVE_KEY);
     if (raw) {
@@ -8059,16 +8085,26 @@ function buildHomeGamesList() {
       if (!s.gameOver) {
         const resume = function() { showGameScreen(); loadAiGameState(); };
         myMoveCards.push(scoreCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', aiAgo, 'PLAY', resume));
-      } else {
-        let label;
-        if (s.playerScore > s.aiScore) label = 'You won!';
-        else if (s.playerScore < s.aiScore) label = 'You lost';
-        else label = 'Tie game';
-        const view = function() { window._suppressWinnerModal = true; showGameScreen(); loadAiGameState(); };
-        completedCards.push(resultCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', label, view));
       }
     }
   } catch(e) {}
+
+  // AI completed game history (last 5)
+  getAiGameHistory().forEach(function(s) {
+    const diff = s.aiSkill === 'easy' ? 'easy' : s.aiSkill === 'medium' ? 'medium' : 'hard';
+    let label;
+    if (s.playerScore > s.aiScore) label = 'You won!';
+    else if (s.playerScore < s.aiScore) label = 'You lost';
+    else label = 'Tie game';
+    const card = document.createElement('div');
+    card.className = 'home-game-card';
+    card.innerHTML =
+      '<div class="hgc-left">' +
+        '<div class="hgc-result-label">' + label + '</div>' +
+        '<div class="hgc-score-line">' + scoreLine(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')') + '</div>' +
+      '</div>';
+    completedCards.push(card);
+  });
 
   // Rematch challenges always go first (top of Your Move)
   const rematchChallenges = [];

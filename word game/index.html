@@ -4293,11 +4293,14 @@ function findAIStealMove(rackOverride = null) {
       if (!isBoardConnected(tempBoard)) continue;
 
       // Find best play with the stolen tile added to rack
+      // The stolen square [r,c] must remain blocked — mark it so findBestPlayWithRack skips it
       const newRack = [...rack, boardLetter];
       const stolenRackIdx = newRack.length - 1;
-      const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set([stolenRackIdx]));
+      const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set([stolenRackIdx]), new Set([`${r},${c}`]));
       if (!play || play.score <= 0) continue;
       if (!play.placements.some(p => p.rackIdx === stolenRackIdx)) continue;
+      // Double-check: AI must not play back into the stolen square
+      if (play.placements.some(p => p.row === r && p.col === c)) continue;
 
       if (play.score > best.score) {
         Object.assign(best, { score: play.score, stealRow: r, stealCol: c, stealLetter: boardLetter, stolenRackIdx, play });

@@ -1836,6 +1836,7 @@ body {
     <button id="btn-new-game" onclick="homeStartNewGame(event)">
       <span class="plus">+</span> Start New Game
     </button>
+    <button id="btn-rejoin-game" onclick="homeRejoinByCode()" style="width:100%;max-width:520px;margin:0 0 14px;padding:13px;border-radius:26px;border:1.5px solid rgba(114,52,238,0.4);background:none;color:#a77ef8;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:0.02em;touch-action:manipulation;">Enter Game Code</button>
     <div id="home-games-list"></div>
     <div id="home-empty" style="display:none">
       You have no active games
@@ -7852,6 +7853,13 @@ function showGameScreen() {
 
 function goHome() {
   showHomeScreen();
+}
+
+function homeRejoinByCode() {
+  const code = prompt('Enter the game code:');
+  if (!code || !code.trim()) return;
+  showGameScreen();
+  joinOnlineGame(code.trim().toUpperCase());
 }
 
 function homeStartNewGame(e) {

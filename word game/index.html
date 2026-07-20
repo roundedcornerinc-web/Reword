@@ -7761,24 +7761,28 @@ async function loadHomeGames() {
   const stored = getStoredGames();
   const uid = getPlayerId();
 
-  // Query ALL games (active and completed) for this user from Firestore
+  // Query ALL games for this user from Firestore using single-field indexes (auto-created)
   let activeSnaps = [];
   let completedSnaps = [];
   if (uid) {
     try {
-      const [a1, a2, c1, c2] = await Promise.all([
-        db.collection('games').where('players.p1.id', '==', uid).where('gameOver', '==', false).get(),
-        db.collection('games').where('players.p2.id', '==', uid).where('gameOver', '==', false).get(),
-        db.collection('games').where('players.p1.id', '==', uid).where('gameOver', '==', true).get(),
-        db.collection('games').where('players.p2.id', '==', uid).where('gameOver', '==', true).get(),
+      const [r1, r2] = await Promise.all([
+        db.collection('games').where('players.p1.id', '==', uid).get(),
+        db.collection('games').where('players.p2.id', '==', uid).get(),
       ]);
-      a1.forEach(d => activeSnaps.push({snap: d, myRole: 'p1'}));
-      a2.forEach(d => activeSnaps.push({snap: d, myRole: 'p2'}));
-      c1.forEach(d => completedSnaps.push({snap: d, myRole: 'p1'}));
-      c2.forEach(d => completedSnaps.push({snap: d, myRole: 'p2'}));
+      r1.forEach(d => {
+        const role = 'p1';
+        if (d.data().gameOver) completedSnaps.push({snap: d, myRole: role});
+        else activeSnaps.push({snap: d, myRole: role});
+      });
+      r2.forEach(d => {
+        const role = 'p2';
+        if (d.data().gameOver) completedSnaps.push({snap: d, myRole: role});
+        else activeSnaps.push({snap: d, myRole: role});
+      });
       completedSnaps.sort((a, b) => (b.snap.data().lastUpdated?.toMillis?.() || 0) - (a.snap.data().lastUpdated?.toMillis?.() || 0));
       completedSnaps = completedSnaps.slice(0, 5);
-    } catch(e) { /* composite index may not exist yet — fall back to stored-only */ }
+    } catch(e) { console.warn('[HomeGames] Firestore query failed:', e); }
   }
 
   window._homeGames = [];

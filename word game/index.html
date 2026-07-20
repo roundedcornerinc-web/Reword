@@ -6224,9 +6224,8 @@ async function resignOnlineGame() {
   // AI game resign
   if (!isOnlineMode) {
     clearAiGameState();
-    startGame();
     updateResignButton();
-    showMsg('AI game ended.', 'info');
+    showHomeScreen();
     return;
   }
   const gid = onlineGameId;
@@ -6250,12 +6249,7 @@ async function resignOnlineGame() {
   gameOver = true;
   updateGamesBadge();
   updateStatsAfterGame(playerScore, false, false);
-  showWinnerModal({
-    myScore: playerScore, oppScore: aiScore,
-    myName: playerName || 'You', oppName,
-    myDeduct: 0, oppDeduct: 0,
-    isOnline: true, forceResult: 'loss',
-  });
+  showHomeScreen();
 }
 
 // ── Cancel online game (only when score is 0-0) ────────

@@ -1,7 +1,13 @@
 {
   "name": "reword",
   "version": "1.0.0",
+  "scripts": {
+    "sync": "cp index.html sw.js reword_logo.png manifest.json www/ && cp -r icons www/ && npx cap sync ios"
+  },
   "dependencies": {
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
     "web-push": "^3.6.7"
   }
 }

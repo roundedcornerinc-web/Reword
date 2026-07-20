@@ -3203,7 +3203,6 @@ function endGame(reason) {
         lastSwapPairMap: {...lastSwapPairMap},
         aiSkill, lastUpdated: Date.now(),
       }));
-      archiveAiGameToHistory({ playerScore, aiScore, aiSkill, lastUpdated: Date.now() });
     } catch(e) {}
   }
   const playerDeduct = playerRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
@@ -6881,6 +6880,11 @@ function startAiGame() {
   if (el) el.textContent = 'AI';
   const resign = document.getElementById('menu-resign');
   if (resign) resign.style.display = 'none';
+  // Archive the previous game to history before starting a new one
+  try {
+    const prev = JSON.parse(localStorage.getItem(AI_SAVE_KEY) || 'null');
+    if (prev && prev.gameOver) archiveAiGameToHistory(prev);
+  } catch(e) {}
   clearAiGameState();
   startGame();
   saveAiGameState();
@@ -8144,6 +8148,13 @@ function buildHomeGamesList() {
       if (!s.gameOver) {
         const resume = function() { showGameScreen(); loadAiGameState(); };
         myMoveCards.push(scoreCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', aiAgo, 'PLAY', resume));
+      } else {
+        let label;
+        if (s.playerScore > s.aiScore) label = 'You won!';
+        else if (s.playerScore < s.aiScore) label = 'You lost';
+        else label = 'Tie game';
+        const view = function() { window._suppressWinnerModal = true; showGameScreen(); loadAiGameState(); };
+        completedCards.push(resultCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', label, view));
       }
     }
   } catch(e) {}

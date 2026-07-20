@@ -7757,77 +7757,85 @@ function showHomeScreen() {
 }
 
 async function loadHomeGames() {
-  // Wait for Firebase auth before making any Firestore reads
   await authReady;
   const stored = getStoredGames();
-  // Also query recently completed games from Firestore (last 5, capped)
   const uid = getPlayerId();
+
+  // Query ALL games (active and completed) for this user from Firestore
+  let activeSnaps = [];
   let completedSnaps = [];
   if (uid) {
     try {
-      const [c1, c2] = await Promise.all([
+      const [a1, a2, c1, c2] = await Promise.all([
+        db.collection('games').where('players.p1.id', '==', uid).where('gameOver', '==', false).get(),
+        db.collection('games').where('players.p2.id', '==', uid).where('gameOver', '==', false).get(),
         db.collection('games').where('players.p1.id', '==', uid).where('gameOver', '==', true).get(),
         db.collection('games').where('players.p2.id', '==', uid).where('gameOver', '==', true).get(),
       ]);
+      a1.forEach(d => activeSnaps.push({snap: d, myRole: 'p1'}));
+      a2.forEach(d => activeSnaps.push({snap: d, myRole: 'p2'}));
       c1.forEach(d => completedSnaps.push({snap: d, myRole: 'p1'}));
       c2.forEach(d => completedSnaps.push({snap: d, myRole: 'p2'}));
-      // sort by lastUpdated desc, cap at 5
       completedSnaps.sort((a, b) => (b.snap.data().lastUpdated?.toMillis?.() || 0) - (a.snap.data().lastUpdated?.toMillis?.() || 0));
       completedSnaps = completedSnaps.slice(0, 5);
-    } catch(e) { /* index may not exist yet */ }
+    } catch(e) { /* composite index may not exist yet — fall back to stored-only */ }
   }
 
   window._homeGames = [];
+  const seenIds = new Set();
 
-  if (stored.length > 0) {
-    try {
-      const snaps = await Promise.all(stored.map(({gameId}) => db.collection('games').doc(gameId).get()));
-      snaps.forEach((snap, i) => {
-        if (!snap.exists) return;
-        const d = snap.data();
-        if (d.status === 'cancelled') return;
-        const myRole = stored[i].myRole;
-        const opRole = myRole === 'p1' ? 'p2' : 'p1';
-        const isWaiting = d.status === 'waiting';
-        window._homeGames.push({
-          id: snap.id,
-          myRole,
-          isWaiting,
-          gameOver: !!d.gameOver,
-          currentPlayer: isWaiting ? 'ai' : (d.currentTurn === myRole ? 'player' : 'ai'),
-          playerScore: d.scores?.[myRole] ?? 0,
-          aiScore: d.scores?.[opRole] ?? 0,
-          opponentName: isWaiting ? 'a friend' : (d.players?.[opRole]?.name || 'Opponent'),
-          opponentId: d.players?.[opRole]?.id || null,
-          updatedAt: d.lastUpdated?.toMillis?.() || null,
-          rematchChallenge: !!(d.rematchChallenge && d.currentTurn === myRole),
-          rematchChallengerName: d.rematchChallengerName || null,
-          lastMoveByOpponent: !!d.gameOver && !!d.endedBy && d.endedBy !== myRole,
-        });
-      });
-    } catch(e) { console.warn('[HomeGames] failed to load active:', e); }
-  }
-
-  // Add completed games (avoid duplicates)
-  const activeIds = new Set(window._homeGames.map(g => g.id));
-  completedSnaps.forEach(({snap, myRole}) => {
-    if (activeIds.has(snap.id)) return;
+  // Helper to map a Firestore snap + role into a home game entry
+  function snapToGame(snap, myRole) {
     const d = snap.data();
+    if (d.status === 'cancelled') return null;
     const opRole = myRole === 'p1' ? 'p2' : 'p1';
-    window._homeGames.push({
+    const isWaiting = d.status === 'waiting';
+    return {
       id: snap.id,
       myRole,
-      isWaiting: false,
-      gameOver: true,
-      currentPlayer: 'ai',
+      isWaiting,
+      gameOver: !!d.gameOver,
+      currentPlayer: isWaiting ? 'ai' : (d.currentTurn === myRole ? 'player' : 'ai'),
       playerScore: d.scores?.[myRole] ?? 0,
       aiScore: d.scores?.[opRole] ?? 0,
-      opponentName: d.players?.[opRole]?.name || 'Opponent',
+      opponentName: isWaiting ? 'a friend' : (d.players?.[opRole]?.name || 'Opponent'),
+      opponentId: d.players?.[opRole]?.id || null,
       updatedAt: d.lastUpdated?.toMillis?.() || null,
+      rematchChallenge: !!(d.rematchChallenge && d.currentTurn === myRole),
+      rematchChallengerName: d.rematchChallengerName || null,
       resignedBy: d.resignedBy || null,
       rematchDeclined: !!d.rematchDeclined,
-      lastMoveByOpponent: !!d.endedBy && d.endedBy !== myRole,
-    });
+      lastMoveByOpponent: !!d.gameOver && !!d.endedBy && d.endedBy !== myRole,
+    };
+  }
+
+  // Add Firestore active games first (covers games from other devices)
+  activeSnaps.forEach(({snap, myRole}) => {
+    if (seenIds.has(snap.id)) return;
+    const g = snapToGame(snap, myRole);
+    if (g) { window._homeGames.push(g); seenIds.add(snap.id); addStoredGame(snap.id, myRole); }
+  });
+
+  // Add any stored games not already found via Firestore query
+  if (stored.length > 0) {
+    try {
+      const missing = stored.filter(s => !seenIds.has(s.gameId));
+      if (missing.length > 0) {
+        const snaps = await Promise.all(missing.map(({gameId}) => db.collection('games').doc(gameId).get()));
+        snaps.forEach((snap, i) => {
+          if (!snap.exists || seenIds.has(snap.id)) return;
+          const g = snapToGame(snap, missing[i].myRole);
+          if (g) { window._homeGames.push(g); seenIds.add(snap.id); }
+        });
+      }
+    } catch(e) { console.warn('[HomeGames] failed to load stored:', e); }
+  }
+
+  // Add completed games (avoid duplicates, cap at 5)
+  completedSnaps.forEach(({snap, myRole}) => {
+    if (seenIds.has(snap.id)) return;
+    const g = snapToGame(snap, myRole);
+    if (g) { window._homeGames.push(g); seenIds.add(snap.id); }
   });
 
   buildHomeGamesList();

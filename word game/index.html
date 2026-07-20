@@ -1855,6 +1855,7 @@ body {
       <button class="home-drop-item" onclick="closeHomeMenu();showGameScreen();startAiVsAiGame()">Watch AI vs AI</button>
       <button class="home-drop-item" onclick="closeHomeMenu();showGameScreen();showTutorial()">Tutorial</button>
       <button class="home-drop-item" onclick="closeHomeMenu();openFaq()">FAQ</button>
+      <button class="home-drop-item" onclick="closeHomeMenu();reportIssue()">Report an Issue</button>
     </div>
     <img src="./reword_logo.png" id="home-logo" alt="REWORD">
     <div style="width:41px;flex-shrink:0;"></div>
@@ -2118,6 +2119,10 @@ body {
     <button class="more-item resign-item" id="menu-cancel-game" style="display:none;" onclick="closeMoreMenu();showConfirmSheet('Cancel this game?','The game will be deleted for both players.','Cancel Game',cancelOnlineGame,toggleMoreMenu)">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg>
       Cancel Game
+    </button>
+    <button class="more-item" onclick="closeMoreMenu();reportIssue()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><circle cx="10" cy="10" r="9"/><line x1="10" y1="6" x2="10" y2="10"/><circle cx="10" cy="14" r=".5" fill="currentColor"/></svg>
+      Report an Issue
     </button>
   </div>
 </div>
@@ -7908,6 +7913,11 @@ function openFaq() {
 }
 function closeFaq() {
   document.getElementById('faq-overlay').classList.remove('active');
+}
+function reportIssue() {
+  const subject = encodeURIComponent('Reword Game – Issue Report');
+  const body = encodeURIComponent('Describe the issue:\n\n\nSteps to reproduce:\n\n\nDevice / OS:\n');
+  window.location.href = `mailto:cdm92@yahoo.com?subject=${subject}&body=${body}`;
 }
 
 function homeNav(tab) {

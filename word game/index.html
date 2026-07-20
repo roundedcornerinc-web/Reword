@@ -737,6 +737,14 @@ body {
   65%  { transform: scale(1.18); opacity: 1; }
   100% { transform: scale(1);   opacity: 1; }
 }
+@keyframes rackTilePop {
+  0%   { transform: scale(0.2) translateY(-8px); opacity: 0; }
+  65%  { transform: scale(1.15) translateY(0);   opacity: 1; }
+  100% { transform: scale(1)    translateY(0);   opacity: 1; }
+}
+.rack-tile.exchange-pop {
+  animation: rackTilePop 0.28s cubic-bezier(0.34,1.56,0.64,1) both;
+}
 @keyframes tileSwapPop {
   0%   { transform: scale(0.1);  opacity: 0; }
   55%  { transform: scale(1.4);  opacity: 1; }
@@ -775,6 +783,25 @@ body {
   font-size: 18px;
   font-weight: bold;
   color: rgba(255,0,0,0.85);
+}
+.tile-on-board.is-removal-bonus {
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  position: relative;
+}
+.tile-on-board.is-removal-bonus .tile-letter,
+.tile-on-board.is-removal-bonus .tile-val { visibility: hidden; }
+.tile-on-board.is-removal-bonus::after {
+  content: '✕';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: rgba(0,0,0,0.7);
 }
 
 /* ── AI SKILL ── */
@@ -3121,6 +3148,7 @@ function confirmExchange() {
   const count = Math.min(exchangeSelectedIdxs.size, bag.length);
   const idxs = [...exchangeSelectedIdxs].sort((a, b) => b - a);
   const returned = idxs.map(i => playerRack[i]);
+  const oldRackSize = playerRack.length;
   idxs.forEach(i => playerRack.splice(i, 1));
   drawTiles(playerRack);
   // Return the old tiles to a random position in the bag
@@ -3128,11 +3156,22 @@ function confirmExchange() {
     const pos = Math.floor(Math.random() * (bag.length + 1));
     bag.splice(pos, 0, letter);
   });
+  // Track which rack slots will be new (filled by drawTiles)
+  const newSlotStart = playerRack.length - count;
   cancelExchangeMode();
   passCount = 0;
   playerNoMoveCount = 0;
   showMsg(`Exchanged ${count} tile(s).`, 'good');
   updateUI();
+  // Animate new tiles in one at a time
+  const rackEls = document.querySelectorAll('#rack .rack-tile');
+  rackEls.forEach((el, i) => {
+    if (i >= newSlotStart) {
+      el.classList.add('exchange-pop');
+      el.style.animationDelay = `${(i - newSlotStart) * 80}ms`;
+      el.addEventListener('animationend', () => { el.classList.remove('exchange-pop'); el.style.animationDelay = ''; }, { once: true });
+    }
+  });
   checkGameOver();
   if (isOnlineMode) { saveOnlineState(); return; }
   saveAiGameState();
@@ -4365,7 +4404,7 @@ function renderBoard() {
         cell.addEventListener('touchstart', e => onPendingTouchStart(e, key), {passive: false});
       } else if (pendingRemovals.has(key)) {
         const tile = document.createElement('div');
-        tile.className = 'tile-on-board is-removal';
+        tile.className = 'tile-on-board ' + (PREMIUM[key] ? 'is-removal-bonus' : 'is-removal');
         const letter = board[r][c];
         const isBlank = letter !== letter.toUpperCase();
         tile.innerHTML = `<span class="tile-letter">${letter.toUpperCase()}</span><span class="tile-val">${isBlank ? 0 : (VAL[letter] ?? 0)}</span>`;

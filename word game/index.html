@@ -7040,7 +7040,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     document.querySelectorAll('.cell.drop-target').forEach(function(el) { el.classList.remove('drop-target'); });
     document.getElementById('tut-ring').style.display = 'none';
     document.getElementById('tut-bubble').style.display = 'none';
-    ['tut-ring2','tut-fly','tut-welcome'].forEach(function(id) {
+    ['tut-ring2','tut-fly','tut-welcome','tut-x-mark'].forEach(function(id) {
       var e = document.getElementById(id); if (e && e.parentNode) e.parentNode.removeChild(e);
     });
     window._tutPostRender = null;

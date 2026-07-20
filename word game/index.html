@@ -5374,10 +5374,18 @@ function toggleMoreMenu(e) {
   const overlay = document.getElementById('more-overlay');
   const btn     = document.getElementById('btn-more');
   const clip    = document.getElementById('more-menu-clip');
-  const board   = document.getElementById('board-wrapper');
+  const board    = document.getElementById('board-wrapper');
+  const controls = document.getElementById('controls');
   const boardBottom = board ? board.getBoundingClientRect().bottom : window.innerHeight * 0.6;
   const belowBoard = window.innerHeight - boardBottom;
-  if (clip) clip.style.bottom = belowBoard + 'px';
+  if (clip) {
+    clip.style.bottom = belowBoard + 'px';
+    if (controls) {
+      const cr = controls.getBoundingClientRect();
+      clip.style.left  = cr.left + 'px';
+      clip.style.right = (window.innerWidth - cr.right) + 'px';
+    }
+  }
   if (overlay) overlay.style.bottom = belowBoard + 'px';
   menu.style.transform = moreMenuOpen ? 'translateY(0)' : 'translateY(100%)';
   menu.classList.toggle('show', moreMenuOpen);

@@ -5973,14 +5973,11 @@ function startOnlineListener(gameId) {
 
 // ── Create a new online game ───────────────────────────
 async function createOnlineGame() {
-  await authReady;
   const gameId = generateGameId();
-  const myId   = getPlayerId();
   const base   = window.location.origin + window.location.pathname.replace(/\/$/, '');
   const link   = `${base}?game=${gameId}`;
 
-  // If native share is available, try it BEFORE creating the game.
-  // Only proceed if the user actually picks a share destination.
+  // Share BEFORE any await so iOS treats it as a direct user-gesture response.
   if (navigator.share) {
     try {
       await navigator.share({
@@ -5990,10 +5987,14 @@ async function createOnlineGame() {
       });
       // User shared — fall through to create the game
     } catch(e) {
-      // User cancelled or dismissed — don't create anything
+      // User cancelled or dismissed — go back to home screen
+      showHomeScreen();
       return;
     }
   }
+
+  await authReady;
+  const myId = getPlayerId();
 
   // Fresh board/bag/racks
   board = Array.from({length:BS}, ()=>Array(BS).fill(null));

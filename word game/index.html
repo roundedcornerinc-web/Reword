@@ -6081,6 +6081,7 @@ async function createOnlineGame() {
 
   try {
     await db.collection('games').doc(gameId).set(payload);
+    showGameScreen();
     // Show invite modal without re-triggering share (already sent above)
     document.getElementById('online-modal-link').value = link;
     document.getElementById('online-modal-code').textContent = gameId;
@@ -7915,7 +7916,7 @@ function closeFaq() {
 function reportIssue() {
   const subject = encodeURIComponent('Reword Game – Issue Report');
   const body = encodeURIComponent('Describe the issue:\n\n\nSteps to reproduce:\n\n\nDevice / OS:\n');
-  window.location.href = `mailto:cdm92@yahoo.com?subject=${subject}&body=${body}`;
+  window.location.href = `mailto:info@rewordgame.app?subject=${subject}&body=${body}`;
 }
 
 function homeNav(tab) {
@@ -8494,7 +8495,7 @@ document.addEventListener('click', e => {
       <button id="ngc-close" onclick="closeNewGameChoice()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="35.16273 2.5 18.83136 23.18971 2.5 2.5"/></svg></button>
     </div>
     <button class="ngc-btn ngc-btn-ai" onclick="ngcShowSkillPicker()">Play vs AI</button>
-    <button class="ngc-btn ngc-btn-human" onclick="closeNewGameChoice();showGameScreen();newOnlineGame()">Challenge a Friend</button>
+    <button class="ngc-btn ngc-btn-human" onclick="closeNewGameChoice();newOnlineGame()">Challenge a Friend</button>
   </div>
   <!-- Page 2: skill picker -->
   <div id="ngc-page-skill" style="display:none;">

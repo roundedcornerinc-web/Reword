@@ -6014,13 +6014,7 @@ async function createOnlineGame() {
     startOnlineListener(gameId);
     showNotifPrompt();
     // Share invite then go to home screen
-    if (navigator.share) {
-      navigator.share({
-        title: 'Play Reword with me!',
-        text: `${playerName} challenged you to a game of Reword. Tap the link to join!`,
-        url: link
-      }).catch(() => {});
-    }
+    shareOnlineInvite();
     showHomeScreen();
   } catch(e) {
     showMsg('Error: ' + (e.code || e.message || e), 'bad');
@@ -6118,15 +6112,20 @@ function showInviteModal(gameId) {
 function hideInviteModal() {
   document.getElementById('online-modal').classList.add('hidden');
 }
-function shareOnlineInvite() {
+async function shareOnlineInvite() {
   const link = document.getElementById('online-modal-link').value;
-  if (navigator.share) {
-    navigator.share({
-      title: 'Play Reword with me!',
-      text: `${playerName} challenged you to a game of Reword. Tap the link to join!`,
-      url: link
-    }).catch(() => {});
-  }
+  const shareData = {
+    title: 'Play Reword with me!',
+    text: `${playerName} challenged you to a game of Reword. Tap the link to join!`,
+    url: link
+  };
+  try {
+    if (window.Capacitor?.isNativePlatform() && window.Capacitor?.Plugins?.Share) {
+      await window.Capacitor.Plugins.Share.share(shareData);
+    } else if (navigator.share) {
+      await navigator.share(shareData);
+    }
+  } catch(e) {}
 }
 async function copyOnlineLink() {
   const link = document.getElementById('online-modal-link').value;
@@ -6449,15 +6448,11 @@ function hideGamesModal() {
   document.getElementById('games-modal').classList.add('hidden');
   if (!isOnlineMode) loadAiGameState();
 }
-function resendInvite(gameId) {
+async function resendInvite(gameId) {
   const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
   const link = `${base}?game=${gameId}`;
-  if (navigator.share) {
-    navigator.share({ title: 'Play Reword with me!', text: `${playerName} challenged you to a game of Reword. Tap the link to join!`, url: link }).catch(() => {});
-  } else {
-    navigator.clipboard.writeText(link).catch(() => {});
-    showMsg('Invite link copied!', 'good');
-  }
+  document.getElementById('online-modal-link').value = link;
+  await shareOnlineInvite();
 }
 async function cancelWaitingGame(gameId) {
   try {

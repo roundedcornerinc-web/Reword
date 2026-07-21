@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["MGN5YYLFR6.com.roundedcornerinc.reword"],
+        "components": [
+          {
+            "/": "/*",
+            "comment": "Match all paths"
+          }
+        ]
+      }
+    ]
+  }
+}

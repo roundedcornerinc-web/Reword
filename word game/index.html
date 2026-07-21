@@ -6081,7 +6081,6 @@ async function createOnlineGame() {
 
   try {
     await db.collection('games').doc(gameId).set(payload);
-    showGameScreen();
     // Show invite modal without re-triggering share (already sent above)
     document.getElementById('online-modal-link').value = link;
     document.getElementById('online-modal-code').textContent = gameId;
@@ -6905,9 +6904,10 @@ function newOnlineGame() {
   const stored = localStorage.getItem('playerName');
   if (stored && stored !== 'You') {
     playerName = stored;
+    showGameScreen();
     createOnlineGame();
   } else {
-    showNameModal('What\'s your name?', 'Your friend will see this', 'Continue', createOnlineGame);
+    showNameModal('What\'s your name?', 'Your friend will see this', 'Continue', () => { showGameScreen(); createOnlineGame(); });
   }
 }
 

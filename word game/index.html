@@ -2193,6 +2193,7 @@ body {
 //  CONSTANTS
 // ═══════════════════════════════════════════════════════
 const BS = 15; // board size
+const WEB_BASE = 'https://rewordgame.app';
 
 const PREMIUM = {};
 // TW – Triple Word (pink)
@@ -5976,8 +5977,7 @@ async function createOnlineGame() {
   await authReady;
   const gameId = generateGameId();
   const myId   = getPlayerId();
-  const base   = window.location.origin + window.location.pathname.replace(/\/$/, '');
-  const link   = `${base}?game=${gameId}`;
+  const link   = `${WEB_BASE}?game=${gameId}`;
 
   // Fresh board/bag/racks
   board = Array.from({length:BS}, ()=>Array(BS).fill(null));
@@ -6093,8 +6093,7 @@ async function joinOnlineGame(gameId) {
 
 // ── Invite modal helpers ───────────────────────────────
 function showInviteModal(gameId) {
-  const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
-  const link = `${base}?game=${gameId}`;
+  const link = `${WEB_BASE}?game=${gameId}`;
   document.getElementById('online-modal-link').value = link;
   document.getElementById('online-modal-code').textContent = gameId;
   document.getElementById('online-modal-status').textContent = 'Waiting for opponent to join…';
@@ -6449,8 +6448,7 @@ function hideGamesModal() {
   if (!isOnlineMode) loadAiGameState();
 }
 async function resendInvite(gameId) {
-  const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
-  const link = `${base}?game=${gameId}`;
+  const link = `${WEB_BASE}?game=${gameId}`;
   document.getElementById('online-modal-link').value = link;
   await shareOnlineInvite();
 }

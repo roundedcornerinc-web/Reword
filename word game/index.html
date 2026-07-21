@@ -8463,11 +8463,8 @@ document.addEventListener('click', e => {
   <div id="online-modal-inner">
     <h2>Invite a Friend</h2>
     <p id="online-modal-status">Waiting for opponent to join…</p>
-    <div id="online-modal-code-row">Code: <strong id="online-modal-code"></strong></div>
-    <div id="online-modal-link-row">
-      <input id="online-modal-link" readonly />
-      <button id="online-modal-copy-btn" onclick="copyOnlineLink()">Copy Link</button>
-    </div>
+    <input id="online-modal-link" style="display:none" readonly />
+    <strong id="online-modal-code" style="display:none"></strong>
     <button class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="shareOnlineInvite()">Share Invite</button>
     <button class="btn btn-recall" style="width:100%" onclick="cancelOnlineGame()">Cancel</button>
   </div>

@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Reword">
+<meta name="apple-itunes-app" content="app-id=6748162685">
 <link rel="apple-touch-icon" href="icons/icon-1024.png">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -5716,7 +5717,17 @@ let opponentPushSub = null; // opponent's push subscription (read from Firestore
 
 // ── Start or join game ─────────────────────────────────
 const _urlGame = new URLSearchParams(window.location.search).get('game');
-if (_urlGame) {
+
+// On iOS without the app installed, show an App Store download prompt
+if (_urlGame && /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.Capacitor?.isNativePlatform()) {
+  document.body.innerHTML = `
+    <div style="min-height:100vh;background:#0e0825;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;font-family:-apple-system,sans-serif;color:#fff;text-align:center;">
+      <img src="icons/icon-1024.png" style="width:100px;height:100px;border-radius:22px;margin-bottom:24px;" />
+      <h1 style="font-size:28px;font-weight:700;margin:0 0 8px;">You've been challenged!</h1>
+      <p style="font-size:16px;color:#b39ddb;margin:0 0 32px;">Download Reword Game to accept the challenge and play.</p>
+      <a href="https://apps.apple.com/app/id6748162685" style="background:#6c3fc5;color:#fff;font-size:17px;font-weight:600;padding:16px 40px;border-radius:14px;text-decoration:none;display:inline-block;">Download on the App Store</a>
+    </div>`;
+} else if (_urlGame) {
   startGame();
   showGameScreen(); // show board immediately while async join resolves
   // Check localStorage first — if we already have this game, we're the creator

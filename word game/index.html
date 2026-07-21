@@ -6011,12 +6011,17 @@ async function createOnlineGame() {
     await db.collection('games').doc(gameId).set(payload);
     document.getElementById('online-modal-link').value = link;
     document.getElementById('online-modal-code').textContent = gameId;
-    document.getElementById('online-modal-status').textContent = 'Waiting for opponent to join…';
-    document.getElementById('online-modal').classList.remove('hidden');
-    // Auto-trigger share sheet so user can send the invite
-    shareOnlineInvite();
     startOnlineListener(gameId);
     showNotifPrompt();
+    // Share invite then go to home screen
+    if (navigator.share) {
+      navigator.share({
+        title: 'Play Reword with me!',
+        text: `${playerName} challenged you to a game of Reword. Tap the link to join!`,
+        url: link
+      }).catch(() => {});
+    }
+    showHomeScreen();
   } catch(e) {
     showMsg('Error: ' + (e.code || e.message || e), 'bad');
     console.error('[createOnlineGame]', e);

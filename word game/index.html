@@ -2187,62 +2187,6 @@ body {
   </div>
 </div>
 
-<div id="join-code-modal" class="hidden">
-  <div id="join-code-modal-inner" style="background:#1e1e2e;border-radius:16px;padding:28px 24px;max-width:340px;width:90%;margin:auto;box-shadow:0 8px 32px rgba(0,0,0,0.6);text-align:center">
-    <h2 style="margin:0 0 8px;font-size:1.3rem">Join with Code</h2>
-    <p style="color:#aaa;font-size:0.85rem;margin:0 0 18px">Enter the game code or paste the invite link</p>
-    <input id="join-code-input" type="text" maxlength="100" placeholder="e.g. ABCD1234"
-      autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
-      style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #444;background:#12121e;color:#fff;font-size:1.1rem;text-align:center;letter-spacing:2px;margin-bottom:14px" />
-    <button class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="confirmJoinByCode()">Join Game</button>
-    <button class="btn btn-recall" style="width:100%" onclick="hideJoinByCodeUI()">Cancel</button>
-  </div>
-</div>
-
-<div id="name-modal" class="hidden">
-  <div id="name-modal-inner">
-    <h2 id="name-modal-title">What's your name?</h2>
-    <p id="name-modal-subtitle">Your opponent will see this</p>
-    <input id="name-modal-input" type="text" maxlength="10" placeholder="Your name" autocomplete="off" />
-    <button id="name-modal-confirm-btn" class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="confirmNameModal()">Continue</button>
-    <button class="btn btn-recall" style="width:100%" onclick="cancelNameModal()">Cancel</button>
-  </div>
-</div>
-
-<div id="claim-modal" class="hidden">
-  <div id="claim-modal-inner">
-    <h2>Which player are you?</h2>
-    <p id="claim-modal-subtitle">This game is already in progress. Choose your slot to resume.</p>
-    <button class="claim-btn" id="claim-p1-btn" onclick="claimSlot('p1')"></button>
-    <button class="claim-btn" id="claim-p2-btn" onclick="claimSlot('p2')"></button>
-    <br>
-    <button id="claim-cancel-btn" onclick="dismissClaimModal()">Cancel</button>
-  </div>
-</div>
-
-<div id="notif-modal" class="hidden">
-  <div id="notif-modal-inner">
-    <span class="notif-icon">🔔</span>
-    <h2>Stay in the loop</h2>
-    <p>Get notified the moment your opponent plays — even when Reword is closed.</p>
-    <button id="notif-enable-btn" onclick="enableNotifications()">Enable Notifications</button>
-    <br>
-    <button id="notif-skip-btn" onclick="skipNotifications()">Not now</button>
-  </div>
-</div>
-
-<div id="online-modal" class="hidden">
-  <div id="online-modal-inner">
-    <h2>Invite a Friend</h2>
-    <p id="online-modal-status">Waiting for opponent to join…</p>
-    <div id="online-modal-code-row">Code: <strong id="online-modal-code"></strong></div>
-    <div id="online-modal-link-row">
-      <input id="online-modal-link" readonly />
-      <button id="online-modal-copy-btn" onclick="copyOnlineLink()">Copy Link</button>
-    </div>
-    <button class="btn btn-recall" style="width:100%" onclick="cancelOnlineGame()">Cancel</button>
-  </div>
-</div>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -8475,6 +8419,63 @@ document.addEventListener('click', e => {
 </div>
 
 </div><!-- #game-screen -->
+
+<div id="join-code-modal" class="hidden">
+  <div id="join-code-modal-inner" style="background:#1e1e2e;border-radius:16px;padding:28px 24px;max-width:340px;width:90%;margin:auto;box-shadow:0 8px 32px rgba(0,0,0,0.6);text-align:center">
+    <h2 style="margin:0 0 8px;font-size:1.3rem">Join with Code</h2>
+    <p style="color:#aaa;font-size:0.85rem;margin:0 0 18px">Enter the game code or paste the invite link</p>
+    <input id="join-code-input" type="text" maxlength="100" placeholder="e.g. ABCD1234"
+      autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+      style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #444;background:#12121e;color:#fff;font-size:1.1rem;text-align:center;letter-spacing:2px;margin-bottom:14px" />
+    <button class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="confirmJoinByCode()">Join Game</button>
+    <button class="btn btn-recall" style="width:100%" onclick="hideJoinByCodeUI()">Cancel</button>
+  </div>
+</div>
+
+<div id="name-modal" class="hidden">
+  <div id="name-modal-inner">
+    <h2 id="name-modal-title">What's your name?</h2>
+    <p id="name-modal-subtitle">Your opponent will see this</p>
+    <input id="name-modal-input" type="text" maxlength="10" placeholder="Your name" autocomplete="off" />
+    <button id="name-modal-confirm-btn" class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="confirmNameModal()">Continue</button>
+    <button class="btn btn-recall" style="width:100%" onclick="cancelNameModal()">Cancel</button>
+  </div>
+</div>
+
+<div id="claim-modal" class="hidden">
+  <div id="claim-modal-inner">
+    <h2>Which player are you?</h2>
+    <p id="claim-modal-subtitle">This game is already in progress. Choose your slot to resume.</p>
+    <button class="claim-btn" id="claim-p1-btn" onclick="claimSlot('p1')"></button>
+    <button class="claim-btn" id="claim-p2-btn" onclick="claimSlot('p2')"></button>
+    <br>
+    <button id="claim-cancel-btn" onclick="dismissClaimModal()">Cancel</button>
+  </div>
+</div>
+
+<div id="notif-modal" class="hidden">
+  <div id="notif-modal-inner">
+    <span class="notif-icon">🔔</span>
+    <h2>Stay in the loop</h2>
+    <p>Get notified the moment your opponent plays — even when Reword is closed.</p>
+    <button id="notif-enable-btn" onclick="enableNotifications()">Enable Notifications</button>
+    <br>
+    <button id="notif-skip-btn" onclick="skipNotifications()">Not now</button>
+  </div>
+</div>
+
+<div id="online-modal" class="hidden">
+  <div id="online-modal-inner">
+    <h2>Invite a Friend</h2>
+    <p id="online-modal-status">Waiting for opponent to join…</p>
+    <div id="online-modal-code-row">Code: <strong id="online-modal-code"></strong></div>
+    <div id="online-modal-link-row">
+      <input id="online-modal-link" readonly />
+      <button id="online-modal-copy-btn" onclick="copyOnlineLink()">Copy Link</button>
+    </div>
+    <button class="btn btn-recall" style="width:100%" onclick="cancelOnlineGame()">Cancel</button>
+  </div>
+</div>
 
 <div id="confirm-overlay" onclick="closeConfirmSheet()"></div>
 <div id="confirm-sheet">

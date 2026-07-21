@@ -5798,7 +5798,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Handle Universal Links from iOS (https://rewordgame.app?game=XXXXXX)
+// Handle Universal Links from iOS (https://www.rewordgame.app?game=XXXXXX)
 window.addEventListener('universalLink', (e) => {
   const gameId = e.detail?.gameId;
   if (!gameId) return;
@@ -5806,7 +5806,13 @@ window.addEventListener('universalLink', (e) => {
   if (stored) {
     loadOnlineGame(stored.gameId, stored.myRole);
   } else {
-    joinOnlineGame(gameId);
+    const storedName = localStorage.getItem('playerName');
+    if (storedName && storedName !== 'You') {
+      playerName = storedName;
+      joinOnlineGame(gameId);
+    } else {
+      showNameModal('Join the Game', 'Your opponent will see this', 'Join Game', () => joinOnlineGame(gameId));
+    }
   }
 });
 

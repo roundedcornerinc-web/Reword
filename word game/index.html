@@ -5719,7 +5719,8 @@ let opponentPushSub = null; // opponent's push subscription (read from Firestore
 const _urlGame = new URLSearchParams(window.location.search).get('game');
 
 // On iOS without the app installed, show an App Store download prompt
-if (_urlGame && /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.Capacitor?.isNativePlatform()) {
+const _isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (_urlGame && _isiOS && !window.Capacitor?.isNativePlatform()) {
   document.body.innerHTML = `
     <div style="min-height:100vh;background:#0e0825;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;font-family:-apple-system,sans-serif;color:#fff;text-align:center;">
       <img src="icons/icon-1024.png" style="width:100px;height:100px;border-radius:22px;margin-bottom:24px;" />

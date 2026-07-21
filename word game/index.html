@@ -5973,28 +5973,11 @@ function startOnlineListener(gameId) {
 
 // ── Create a new online game ───────────────────────────
 async function createOnlineGame() {
+  await authReady;
   const gameId = generateGameId();
+  const myId   = getPlayerId();
   const base   = window.location.origin + window.location.pathname.replace(/\/$/, '');
   const link   = `${base}?game=${gameId}`;
-
-  // Share BEFORE any await so iOS treats it as a direct user-gesture response.
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: 'Play Reword with me!',
-        text: `${playerName} challenged you to a game of Reword. Tap the link to join!`,
-        url: link
-      });
-      // User shared — fall through to create the game
-    } catch(e) {
-      // User cancelled or dismissed — go back to home screen
-      showHomeScreen();
-      return;
-    }
-  }
-
-  await authReady;
-  const myId = getPlayerId();
 
   // Fresh board/bag/racks
   board = Array.from({length:BS}, ()=>Array(BS).fill(null));
@@ -6026,11 +6009,12 @@ async function createOnlineGame() {
 
   try {
     await db.collection('games').doc(gameId).set(payload);
-    // Show invite modal without re-triggering share (already sent above)
     document.getElementById('online-modal-link').value = link;
     document.getElementById('online-modal-code').textContent = gameId;
     document.getElementById('online-modal-status').textContent = 'Waiting for opponent to join…';
     document.getElementById('online-modal').classList.remove('hidden');
+    // Auto-trigger share sheet so user can send the invite
+    shareOnlineInvite();
     startOnlineListener(gameId);
     showNotifPrompt();
   } catch(e) {
@@ -6128,6 +6112,16 @@ function showInviteModal(gameId) {
 }
 function hideInviteModal() {
   document.getElementById('online-modal').classList.add('hidden');
+}
+function shareOnlineInvite() {
+  const link = document.getElementById('online-modal-link').value;
+  if (navigator.share) {
+    navigator.share({
+      title: 'Play Reword with me!',
+      text: `${playerName} challenged you to a game of Reword. Tap the link to join!`,
+      url: link
+    }).catch(() => {});
+  }
 }
 async function copyOnlineLink() {
   const link = document.getElementById('online-modal-link').value;
@@ -8474,6 +8468,7 @@ document.addEventListener('click', e => {
       <input id="online-modal-link" readonly />
       <button id="online-modal-copy-btn" onclick="copyOnlineLink()">Copy Link</button>
     </div>
+    <button class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="shareOnlineInvite()">Share Invite</button>
     <button class="btn btn-recall" style="width:100%" onclick="cancelOnlineGame()">Cancel</button>
   </div>
 </div>

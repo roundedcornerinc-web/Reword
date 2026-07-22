@@ -6439,6 +6439,8 @@ async function loadOnlineGame(gameId, myRole) {
     } else {
       subscribeToPush().then(() => savePushSubToGame(gameId, myRole));
     }
+    // If we already have an APNs token from a prior registration, save it now
+    if (myApnsToken) saveApnsTokenToGame(gameId, myRole);
     if (data.gameOver) {
       applyOnlineState(data);
       removeStoredGame(gameId);
@@ -6797,7 +6799,8 @@ async function registerNativePush() {
     Push.addListener('registration', async (token) => {
       myApnsToken = token.value;
       console.log('[Push] APNs token:', myApnsToken?.slice(0, 20) + '…');
-      if (onlineGameId && myOnlineRole) await saveApnsTokenToGame(onlineGameId, myOnlineRole);
+      // Save to every active game so any opponent can notify us
+      await saveApnsTokenToAllGames();
     });
     Push.addListener('registrationError', (err) => {
       console.warn('[Push] APNs registration error:', err);
@@ -6828,6 +6831,13 @@ async function saveApnsTokenToGame(gameId, role) {
       [`players.${role}.apnsToken`]: myApnsToken
     });
   } catch(e) {}
+}
+
+async function saveApnsTokenToAllGames() {
+  if (!myApnsToken) return;
+  const stored = getStoredGames();
+  await Promise.all(stored.map(({gameId, myRole}) => saveApnsTokenToGame(gameId, myRole)));
+  console.log('[Push] token saved to', stored.length, 'game(s)');
 }
 
 // ── Web Push subscription helpers ─────────────────────

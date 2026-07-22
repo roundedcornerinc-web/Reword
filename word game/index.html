@@ -3244,7 +3244,7 @@ function onCellClick(r, c) {
   }
   if (window.tutorialMode) return;
   if (_suppressClick) return;
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
   const key = `${r},${c}`;
 
   const selIdx = playerRack.findIndex((_, i) =>
@@ -3316,7 +3316,8 @@ function onCellClick(r, c) {
 //  RACK CLICK
 // ═══════════════════════════════════════════════════════
 function onRackTileClick(idx) {
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
+  if (exchangeMode && currentPlayer !== 'player') return;
   const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === idx);
   if (alreadyUsed) return;
 
@@ -3369,7 +3370,7 @@ function onCellDrop(r, c, rackIdx) {
     updateUI();
     return;
   }
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
   const key = `${r},${c}`;
   const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === rackIdx);
   if (alreadyUsed) return;
@@ -3432,7 +3433,7 @@ function onCellDrop(r, c, rackIdx) {
 
 // Move or swap a pending (not-yet-committed) tile to another board cell
 function onPendingTileDrop(r, c, fromKey) {
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
   // Tutorial step 3 (RETAILED): only allow re-drops in col 7, rows 4–11 (excl. row 7)
   if (window.tutorialMode && window._tutStep === 3) {
     if (c !== 7 || r < 4 || r > 11 || r === 7) return;
@@ -3489,7 +3490,8 @@ let touchGhost    = null;
 
 function onTouchStart(e, idx) {
   if (window.tutorialMode && window._tutDraggableIdx != null && idx !== window._tutDraggableIdx) return;
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
+  if (exchangeMode && currentPlayer !== 'player') return;
   const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === idx);
   if (alreadyUsed) return;
 
@@ -3646,7 +3648,7 @@ function onTouchEnd(e) {
 }
 
 function onPendingTouchStart(e, key) {
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
   const pending = pendingPlacements[key];
   if (!pending) return;
 
@@ -5119,10 +5121,14 @@ function updateUI() {
       playBtn.textContent = 'Confirm';
       playBtn.onclick = confirmExchange;
       playBtn.classList.toggle('tiles-placed', exchangeSelectedIdxs.size > 0);
-    } else if (waitingForOpponent) {
+    } else if (waitingForOpponent && _nextGameQueue.length > 0) {
       playBtn.textContent = 'Other Games';
       playBtn.onclick = showOtherGamesOverlay;
       playBtn.classList.add('tiles-placed');
+    } else if (waitingForOpponent) {
+      playBtn.textContent = 'Play';
+      playBtn.onclick = null;
+      playBtn.classList.remove('tiles-placed');
     } else {
       playBtn.textContent = 'Play';
       playBtn.onclick = submitPlay;

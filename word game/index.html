@@ -5084,6 +5084,8 @@ function updateStrengthBar() {
   }
 
   if (bestPossibleScore == null) {
+    // Trigger computation lazily the first time a tile is placed
+    if (primaryKeys.length > 0 && !_bestScoreTimer) computeBestScore();
     fill.style.width = '0%';
     fill.style.backgroundColor = 'rgba(255,255,255,0.15)';
     pct.textContent = '';
@@ -5945,7 +5947,8 @@ function applyOnlineState(data) {
   resetPending();
   auditTiles('applyOnlineState');
   updateUI();
-  if (currentPlayer === 'player' && !gameOver) computeBestScore();
+  // Don't run computeBestScore here — it blocks the main thread for several seconds
+  // on a large board. It will fire lazily when the player places their first tile.
 
   if (data.gameOver && !wasGameOver) {
     // Opponent triggered the game end — show winner modal

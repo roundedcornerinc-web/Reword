@@ -111,6 +111,7 @@ body {
 .turn-arrow svg { width: 8px; height: auto; }
 #game-title.turn-left  #turn-arrow-left  { display: flex; }
 #game-title.turn-right #turn-arrow-right { display: flex; }
+#panel-player, #panel-ai { transition: opacity 0.3s; }
 
 #game-logo-img {
   width: 151px;
@@ -4725,11 +4726,18 @@ async function playRecall() {
 function updateTurnBadge() {
   const titleEl = document.getElementById('game-title');
   if (!titleEl) return;
+  const panelPlayer = document.getElementById('panel-player');
+  const panelAi     = document.getElementById('panel-ai');
   if (isOnlineMode && !gameOver) {
-    titleEl.classList.toggle('turn-left',  currentPlayer === 'player');
-    titleEl.classList.toggle('turn-right', currentPlayer !== 'player');
+    const myTurn = currentPlayer === 'player';
+    titleEl.classList.toggle('turn-left',  myTurn);
+    titleEl.classList.toggle('turn-right', !myTurn);
+    if (panelPlayer) panelPlayer.style.opacity = myTurn ? '1' : '0.5';
+    if (panelAi)     panelAi.style.opacity     = myTurn ? '0.5' : '1';
   } else {
     titleEl.classList.remove('turn-left', 'turn-right');
+    if (panelPlayer) panelPlayer.style.opacity = '1';
+    if (panelAi)     panelAi.style.opacity     = '1';
   }
 }
 

@@ -4875,10 +4875,22 @@ function renderScorePreview() {
   const cellRect  = anchorCell.getBoundingClientRect();
   const scale = boardRect.width / boardEl.offsetWidth || 1;
 
-  const x = (cellRect.right  - boardRect.left) / scale;
-  const y = isHorizontal
-    ? (cellRect.top    - boardRect.top) / scale
-    : (cellRect.bottom - boardRect.top) / scale;
+  const boardH = boardEl.offsetHeight;
+  const BADGE_R = clamp(3.4 * boardH / 100, 10, 14); // half badge size in board px
+
+  const x = (cellRect.right - boardRect.left) / scale;
+  let y;
+  if (isHorizontal) {
+    const yTop    = (cellRect.top    - boardRect.top) / scale;
+    const yBottom = (cellRect.bottom - boardRect.top) / scale;
+    // prefer above the tile; if too close to top, go below
+    y = yTop > BADGE_R ? yTop : yBottom;
+  } else {
+    const yBottom = (cellRect.bottom - boardRect.top) / scale;
+    const yTop    = (cellRect.top    - boardRect.top) / scale;
+    // prefer below the tile; if near board bottom, flip above
+    y = yBottom < boardH - BADGE_R ? yBottom : yTop;
+  }
 
   const preview = document.createElement('div');
   preview.className = 'board-score-preview';

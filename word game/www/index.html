@@ -8479,6 +8479,7 @@ async function buildOtherGameCards() {
         const data = snap.data();
         if (data.status === 'cancelled' || data.gameOver) return;
         const {gameId, myRole} = stored[i];
+        if (data.currentTurn !== myRole) return; // only show games where it's my turn
         const opRole = myRole === 'p1' ? 'p2' : 'p1';
         cards.push({
           type: 'online',

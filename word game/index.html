@@ -6269,7 +6269,14 @@ async function resignOnlineGame() {
   gameOver = true;
   updateGamesBadge();
   updateStatsAfterGame(playerScore, false, false);
-  showHomeScreen();
+  showWinnerModal({
+    myScore: playerScore, oppScore: aiScore,
+    myName: playerName || 'You', oppName: oppName,
+    isOnline: true, forceResult: 'loss',
+    myDeduct: 0, oppDeduct: 0, reason: 'You resigned'
+  });
+  document.getElementById('modal-title').textContent = 'You Resigned';
+  document.getElementById('modal-emoji').textContent = '🏳️';
 }
 
 // ── Cancel online game (only when score is 0-0) ────────

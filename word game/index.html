@@ -5670,6 +5670,7 @@ function loadAiGameState() {
     lastSwapKeys = s.lastSwapKeys || [];
     lastSwapPairMap = s.lastSwapPairMap || {};
     if (s.aiSkill) aiSkill = s.aiSkill;
+    isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
     resetPending();
     updateUI();
     computeBestScore();

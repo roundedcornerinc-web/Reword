@@ -1322,7 +1322,7 @@ body {
 #home-body {
   flex: 1;
   background: #fff;
-  padding: 20px 16px;
+  padding: 20px 16px 100px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1416,13 +1416,20 @@ body {
 }
 
 #home-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 100%;
+  max-width: 520px;
   background: #0e0825;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding: 12px 0 20px;
+  padding: 12px 0 env(safe-area-inset-bottom, 20px);
+  padding-bottom: max(env(safe-area-inset-bottom), 20px);
   border-top: 1px solid rgba(167,126,248,0.15);
+  z-index: 100;
 }
 .home-nav-btn {
   background: none; border: none; cursor: pointer;

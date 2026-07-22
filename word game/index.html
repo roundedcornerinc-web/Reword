@@ -7826,96 +7826,90 @@ function showHomeScreen() {
   requestAnimationFrame(syncHomeButtonWidth);
 }
 
+// ── Real-time home screen listeners ───────────────────
+let _homeUnsubscribes = [];
+
+function stopHomeListeners() {
+  _homeUnsubscribes.forEach(fn => { try { fn(); } catch(e) {} });
+  _homeUnsubscribes = [];
+}
+
+function snapToGame(snap, myRole) {
+  const d = snap.data();
+  if (!d || d.status === 'cancelled') return null;
+  const opRole = myRole === 'p1' ? 'p2' : 'p1';
+  const isWaiting = d.status === 'waiting';
+  return {
+    id: snap.id,
+    myRole,
+    isWaiting,
+    gameOver: !!d.gameOver,
+    currentPlayer: isWaiting ? 'ai' : (d.currentTurn === myRole ? 'player' : 'ai'),
+    playerScore: d.scores?.[myRole] ?? 0,
+    aiScore: d.scores?.[opRole] ?? 0,
+    opponentName: isWaiting ? 'a friend' : (d.players?.[opRole]?.name || 'Opponent'),
+    opponentId: d.players?.[opRole]?.id || null,
+    updatedAt: d.lastUpdated?.toMillis?.() || null,
+    rematchChallenge: !!(d.rematchChallenge && d.currentTurn === myRole),
+    rematchChallengerName: d.rematchChallengerName || null,
+    resignedBy: d.resignedBy || null,
+    rematchDeclined: !!d.rematchDeclined,
+    lastMoveByOpponent: !!d.gameOver && !!d.endedBy && d.endedBy !== myRole,
+  };
+}
+
+function upsertHomeGame(g) {
+  if (!g) return;
+  const idx = (window._homeGames || []).findIndex(x => x.id === g.id);
+  if (idx >= 0) window._homeGames[idx] = g;
+  else (window._homeGames = window._homeGames || []).push(g);
+}
+
 async function loadHomeGames() {
   await authReady;
-  const stored = getStoredGames();
-  const uid = getPlayerId();
-
-  // Query ALL games for this user from Firestore using single-field indexes (auto-created)
-  let activeSnaps = [];
-  let completedSnaps = [];
-  if (uid) {
-    try {
-      const [r1, r2] = await Promise.all([
-        db.collection('games').where('players.p1.id', '==', uid).get(),
-        db.collection('games').where('players.p2.id', '==', uid).get(),
-      ]);
-      r1.forEach(d => {
-        const role = 'p1';
-        if (d.data().gameOver) completedSnaps.push({snap: d, myRole: role});
-        else activeSnaps.push({snap: d, myRole: role});
-      });
-      r2.forEach(d => {
-        const role = 'p2';
-        if (d.data().gameOver) completedSnaps.push({snap: d, myRole: role});
-        else activeSnaps.push({snap: d, myRole: role});
-      });
-      completedSnaps.sort((a, b) => (b.snap.data().lastUpdated?.toMillis?.() || 0) - (a.snap.data().lastUpdated?.toMillis?.() || 0));
-      completedSnaps = completedSnaps.slice(0, 5);
-    } catch(e) { console.warn('[HomeGames] Firestore query failed:', e); }
-  }
-
+  stopHomeListeners();
   window._homeGames = [];
-  const seenIds = new Set();
+  const uid = getPlayerId();
+  if (!uid) return;
 
-  // Helper to map a Firestore snap + role into a home game entry
-  function snapToGame(snap, myRole) {
-    const d = snap.data();
-    if (d.status === 'cancelled') return null;
-    const opRole = myRole === 'p1' ? 'p2' : 'p1';
-    const isWaiting = d.status === 'waiting';
-    return {
-      id: snap.id,
-      myRole,
-      isWaiting,
-      gameOver: !!d.gameOver,
-      currentPlayer: isWaiting ? 'ai' : (d.currentTurn === myRole ? 'player' : 'ai'),
-      playerScore: d.scores?.[myRole] ?? 0,
-      aiScore: d.scores?.[opRole] ?? 0,
-      opponentName: isWaiting ? 'a friend' : (d.players?.[opRole]?.name || 'Opponent'),
-      opponentId: d.players?.[opRole]?.id || null,
-      updatedAt: d.lastUpdated?.toMillis?.() || null,
-      rematchChallenge: !!(d.rematchChallenge && d.currentTurn === myRole),
-      rematchChallengerName: d.rematchChallengerName || null,
-      resignedBy: d.resignedBy || null,
-      rematchDeclined: !!d.rematchDeclined,
-      lastMoveByOpponent: !!d.gameOver && !!d.endedBy && d.endedBy !== myRole,
-    };
-  }
+  let initialised = { p1: false, p2: false };
 
-  // Add Firestore active games first (covers games from other devices)
-  activeSnaps.forEach(({snap, myRole}) => {
-    if (seenIds.has(snap.id)) return;
-    const g = snapToGame(snap, myRole);
-    if (g) { window._homeGames.push(g); seenIds.add(snap.id); addStoredGame(snap.id, myRole); }
-  });
-
-  // Add any stored games not already found via Firestore query
-  if (stored.length > 0) {
-    try {
-      const missing = stored.filter(s => !seenIds.has(s.gameId));
-      if (missing.length > 0) {
-        const snaps = await Promise.all(missing.map(({gameId}) => db.collection('games').doc(gameId).get()));
-        snaps.forEach((snap, i) => {
-          if (!snap.exists || seenIds.has(snap.id)) return;
-          const g = snapToGame(snap, missing[i].myRole);
-          if (g) { window._homeGames.push(g); seenIds.add(snap.id); }
-        });
+  function onQuerySnap(role, querySnap) {
+    const seenInQuery = new Set();
+    querySnap.forEach(snap => {
+      seenInQuery.add(snap.id);
+      const g = snapToGame(snap, role);
+      if (g) {
+        upsertHomeGame(g);
+        addStoredGame(snap.id, role);
       }
-    } catch(e) { console.warn('[HomeGames] failed to load stored:', e); }
+    });
+    // Remove games this query no longer returns (deleted/cancelled)
+    window._homeGames = (window._homeGames || []).filter(g => {
+      if (g.myRole !== role) return true; // other role handled separately
+      return seenInQuery.has(g.id);
+    });
+    initialised[role] = true;
+    if (document.getElementById('home-screen')?.classList.contains('active')) {
+      buildHomeGamesList();
+    }
   }
 
-  // Add completed games (avoid duplicates, cap at 5)
-  completedSnaps.forEach(({snap, myRole}) => {
-    if (seenIds.has(snap.id)) return;
-    const g = snapToGame(snap, myRole);
-    if (g) { window._homeGames.push(g); seenIds.add(snap.id); }
-  });
-
-  buildHomeGamesList();
+  try {
+    const unsub1 = db.collection('games')
+      .where('players.p1.id', '==', uid)
+      .onSnapshot(snap => onQuerySnap('p1', snap), e => console.warn('[HomeGames] p1 listener error:', e));
+    const unsub2 = db.collection('games')
+      .where('players.p2.id', '==', uid)
+      .onSnapshot(snap => onQuerySnap('p2', snap), e => console.warn('[HomeGames] p2 listener error:', e));
+    _homeUnsubscribes.push(unsub1, unsub2);
+  } catch(e) {
+    console.warn('[HomeGames] failed to start listeners:', e);
+  }
 }
 
 function showGameScreen() {
+  stopHomeListeners();
   document.getElementById('home-screen').classList.remove('active');
   document.getElementById('game-screen').classList.add('active');
 }

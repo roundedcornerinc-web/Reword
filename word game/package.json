@@ -8,7 +8,9 @@
     "@capacitor/cli": "^8.4.2",
     "@capacitor/core": "^8.4.2",
     "@capacitor/ios": "^8.4.2",
+    "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/share": "^8.0.1",
+    "jsonwebtoken": "^9.0.3",
     "web-push": "^3.6.7"
   }
 }

@@ -6741,6 +6741,51 @@ function notifyYourTurn(opName) {
   } catch(e) {}
 }
 
+// ── Native APNs push (Capacitor) ──────────────────────
+let myApnsToken = null;
+
+async function registerNativePush() {
+  const Push = window.Capacitor?.Plugins?.PushNotifications;
+  if (!Push) return;
+  try {
+    const { receive } = await Push.requestPermissions();
+    if (receive !== 'granted') return;
+    Push.addListener('registration', async (token) => {
+      myApnsToken = token.value;
+      console.log('[Push] APNs token:', myApnsToken?.slice(0, 20) + '…');
+      if (onlineGameId && myOnlineRole) await saveApnsTokenToGame(onlineGameId, myOnlineRole);
+    });
+    Push.addListener('registrationError', (err) => {
+      console.warn('[Push] APNs registration error:', err);
+    });
+    Push.addListener('pushNotificationReceived', (notification) => {
+      // App is foregrounded — show in-app message
+      showMsg(notification.title || 'Your turn!', 'info');
+    });
+    Push.addListener('pushNotificationActionPerformed', (action) => {
+      const gameId = action.notification?.data?.gameId;
+      const myRole = action.notification?.data?.recipientRole;
+      if (gameId) {
+        const stored = getStoredGames().find(g => g.gameId === gameId);
+        if (stored) loadOnlineGame(stored.gameId, stored.myRole);
+        else if (myRole) loadOnlineGame(gameId, myRole);
+      }
+    });
+    await Push.register();
+  } catch(e) {
+    console.warn('[Push] native push setup error:', e);
+  }
+}
+
+async function saveApnsTokenToGame(gameId, role) {
+  if (!myApnsToken || !gameId) return;
+  try {
+    await db.collection('games').doc(gameId).update({
+      [`players.${role}.apnsToken`]: myApnsToken
+    });
+  } catch(e) {}
+}
+
 // ── Web Push subscription helpers ─────────────────────
 function urlBase64ToUint8Array(b64) {
   const pad = '='.repeat((4 - b64.length % 4) % 4);
@@ -6786,16 +6831,21 @@ async function subscribeToPush() {
 }
 
 async function savePushSubToGame(gameId, role) {
-  if (!myPushSub || !gameId) return;
+  if (!gameId) return;
   try {
-    await db.collection('games').doc(gameId).update({
-      [`players.${role}.pushSub`]: myPushSub
-    });
+    const update = {};
+    if (myPushSub) update[`players.${role}.pushSub`] = myPushSub;
+    if (myApnsToken) update[`players.${role}.apnsToken`] = myApnsToken;
+    if (Object.keys(update).length) await db.collection('games').doc(gameId).update(update);
   } catch(e) {}
 }
 
 // ── Notification permission prompt ────────────────────
 function showNotifPrompt() {
+  if (window.Capacitor?.isNativePlatform()) {
+    registerNativePush();
+    return;
+  }
   if (!('Notification' in window)) return;
   if (Notification.permission === 'granted') {
     subscribeToPush().then(() => {
@@ -6828,35 +6878,41 @@ function skipNotifications() {
 }
 
 async function sendPushToOpponent() {
-  // If we don't have a cached subscription, do a fresh Firestore read —
-  // the browser player may have saved theirs after we last loaded the game.
+  const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
+
+  // Fetch fresh opponent data from Firestore to get apnsToken or pushSub
+  let opponentApnsToken = null;
   if (!opponentPushSub?.endpoint) {
     try {
       const snap = await db.collection('games').doc(onlineGameId).get();
-      const opRole2 = myOnlineRole === 'p1' ? 'p2' : 'p1';
-      const freshSub = snap.data()?.players?.[opRole2]?.pushSub;
-      if (freshSub?.endpoint) opponentPushSub = freshSub;
-      else { console.log('[Push] skipped — no opponent subscription in Firestore'); return; }
-    } catch { console.log('[Push] skipped — could not fetch opponent subscription'); return; }
+      const opData = snap.data()?.players?.[opRole];
+      if (opData?.apnsToken) opponentApnsToken = opData.apnsToken;
+      else if (opData?.pushSub?.endpoint) opponentPushSub = opData.pushSub;
+      else { console.log('[Push] skipped — no opponent push info in Firestore'); return; }
+    } catch { console.log('[Push] skipped — could not fetch opponent data'); return; }
   }
-  const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
+
+  const payload = {
+    title:         'Your turn in Reword!',
+    message:       `${playerName} has played. Your move!`,
+    gameId:        onlineGameId,
+    recipientRole: opRole
+  };
+
   try {
     const res = await fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subscription:   opponentPushSub,
-        title:          'Your turn in Reword!',
-        message:        `${playerName} has played. Your move!`,
-        gameId:         onlineGameId,
-        recipientRole:  opRole
-      })
+      body: JSON.stringify(opponentApnsToken
+        ? { ...payload, apnsToken: opponentApnsToken }
+        : { ...payload, subscription: opponentPushSub }
+      )
     });
     if (res.status === 410) {
       console.log('[Push] subscription expired (410) — clearing');
       opponentPushSub = null;
     } else if (!res.ok) {
-      console.warn('[Push] notify function returned', res.status, await res.text());
+      console.warn('[Push] notify returned', res.status, await res.text());
     } else {
       console.log('[Push] sent OK');
     }

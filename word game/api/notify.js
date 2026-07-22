@@ -15,7 +15,9 @@ const APNS_BUNDLE   = process.env.APNS_BUNDLE   || 'com.roundedcornerinc.reword'
 const APNS_KEY_PEM  = process.env.APNS_KEY_PEM;  // full PEM content as env var
 
 function makeApnsJwt() {
-  return jwt.sign({}, APNS_KEY_PEM, {
+  // Vercel env vars may store literal \n instead of real newlines — normalize them
+  const pem = APNS_KEY_PEM.replace(/\\n/g, '\n');
+  return jwt.sign({}, pem, {
     algorithm: 'ES256',
     keyid: APNS_KEY_ID,
     issuer: APNS_TEAM_ID,
@@ -60,6 +62,11 @@ function sendApns(deviceToken, title, body, gameId, recipientRole) {
 }
 
 export default async function handler(req, res) {
+  // Allow requests from Capacitor iOS app and web
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
   const { subscription, apnsToken, title, message, gameId, recipientRole } = req.body;

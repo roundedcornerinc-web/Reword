@@ -47,7 +47,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 /* ── HEADER ── */
@@ -1103,20 +1103,26 @@ body {
   margin: 18px 0 18px;
 }
 .go-score {
-  padding: 12px 18px;
-  min-width: 96px;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
 .go-score.winner .go-label { color: #a77ef8; }
 .go-score.winner .go-pts   { color: #a77ef8; }
-.go-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 4px; }
-.go-pts { font-size: 2.2rem; font-weight: 600; color: #fff; line-height: 1; }
+.go-score.loser  .go-pts   { color: #ffffff; }
+.go-label { font-size: 0.92rem; font-weight: 600; letter-spacing: 0.06em; color: rgba(255,255,255,0.6); text-transform: uppercase; margin-bottom: 0; }
+.go-score.winner .go-label { color: #a77ef8; }
+.go-pts { font-size: 3rem; font-weight: 700; color: #fff; line-height: 1; }
 .go-deduct { font-size: 0.6rem; color: rgba(255,255,255,0.35); margin-top: 3px; }
-.go-vs-circle { width: 36px; height: 36px; border-radius: 50%; background: #443e5f; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.65rem; font-weight:700; color:rgba(255,255,255,0.6); letter-spacing:0.04em; }
+.go-vs-circle { width: 40px; height: 40px; border-radius: 50%; background: #3b3657; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.88rem; font-weight:700; color:#fff; letter-spacing:0.03em; line-height:1; margin-top:-2px; padding-bottom:3px; }
 .go-reason { font-size: 0.75rem; color: rgba(255,255,255,0.4); line-height: 1.4; margin: 0 0 20px; }
-.go-rematch-btn { display:block; width:100%; background:#7b2ff7; color:#fff; border:none; border-radius:999px; padding:15px; font-size:1rem; font-weight:600; cursor:pointer; font-family:inherit; margin-bottom:0; letter-spacing:0.02em; }
+.go-flag { display:flex; justify-content:center; margin-bottom:10px; }
+.go-flag svg { width:44px; height:50px; }
+.go-rematch-btn { display:block; margin:0 auto; width:68%; background:#7234ee; color:#fff; border:none; border-radius:999px; padding:13px; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; letter-spacing:0.01em; }
 .go-rematch-btn:active { transform:scale(0.97); }
-.go-nothanks-btn { display:block; width:100%; background:none; border:none; color:#bdbbca; font-size:0.9rem; font-weight:600; cursor:pointer; font-family:inherit; padding:24px 6px 6px; letter-spacing:0.01em; }
+.go-nothanks-btn { display:block; width:100%; background:none; border:none; color:rgba(255,255,255,0.4); font-size:0.88rem; font-weight:600; cursor:pointer; font-family:inherit; padding:12px 6px 6px; letter-spacing:0.01em; }
 /* rematch difficulty picker */
 .go-skill-row { display:flex; gap:8px; margin-bottom:16px; }
 .go-skill-btn { flex:1; background:none; border:none; color:rgba(255,255,255,0.4); padding:8px 4px; font-size:0.85rem; font-weight:600; cursor:pointer; font-family:inherit; }
@@ -1261,10 +1267,6 @@ body {
 .turn-waiting{background:#333;color:#aaa}
 #games-modal-badge{display:none;background:#f72585;color:#fff;font-size:0.6rem;font-weight:900;border-radius:50%;width:16px;height:16px;line-height:16px;text-align:center;position:absolute;top:-4px;right:-4px;}
 /* Next-game prompt */
-#next-game-prompt{position:fixed;bottom:0;left:0;right:0;z-index:700;background:#1a1040;border-top:2px solid #7b2ff7;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;transform:translateY(100%);transition:transform 0.28s cubic-bezier(0.22,1,0.36,1);}
-#next-game-prompt.visible{transform:translateY(0)}
-#next-game-prompt .ngp-text{font-size:0.85rem;color:#ccc;flex:1;line-height:1.3;}
-#next-game-prompt .ngp-text strong{color:#fff;display:block;font-size:0.92rem}
 #next-game-btn{background:linear-gradient(135deg,#7b2ff7,#f72585);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:700;padding:9px 14px;cursor:pointer;font-family:inherit;white-space:nowrap;}
 #next-game-dismiss{background:none;border:none;color:#666;font-size:1.3rem;cursor:pointer;padding:4px;line-height:1;}
 #tut-ring { box-shadow: 0 0 0 3px #f72585, 0 0 18px rgba(247,37,133,0.6); animation: tut-ring-pulse 0.9s ease infinite alternate; }
@@ -1282,13 +1284,25 @@ body {
 #home-screen {
   display: none;
   flex-direction: column;
+  position: fixed;
+  inset: 0;
   width: 100%;
   max-width: 520px;
-  min-height: 100vh;
+  left: 50%;
+  transform: translateX(-50%);
   background: var(--bg);
+  z-index: 1;
 }
 #home-screen.active { display: flex; }
-#game-screen { display: none; flex-direction: column; width: 100%; align-items: center; }
+#game-screen {
+  display: none; flex-direction: column; align-items: center;
+  position: fixed; inset: 0;
+  width: 100%; max-width: 520px;
+  left: 50%; transform: translateX(-50%);
+  overflow: hidden;
+  touch-action: none;
+  z-index: 1;
+}
 #game-screen.active { display: flex; }
 
 #home-header {
@@ -1299,6 +1313,7 @@ body {
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+  flex-shrink: 0;
 }
 #home-header .home-menu-btn {
   background: none; border: none; cursor: pointer; padding: 4px;
@@ -1321,8 +1336,11 @@ body {
 
 #home-body {
   flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
   background: #fff;
-  padding: 20px 16px;
+  padding: 20px 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1356,11 +1374,11 @@ body {
   padding: 18px 0 8px;
 }
 .home-section-group {
-  background: #f0eafd; border-radius: 14px; overflow: hidden;
+  background: #e8dcff; border-radius: 14px; overflow: hidden;
   margin-bottom: 6px;
 }
 .home-section-group.gray {
-  background: #f2f2f2;
+  background: #ebebeb;
 }
 .hgc-swipe-wrapper {
   position: relative;
@@ -1383,12 +1401,12 @@ body {
   display: flex; align-items: flex-end;
   justify-content: space-between; gap: 10px;
   cursor: pointer; font-family: 'Segoe UI', system-ui, sans-serif;
-  background: #fff;
+  background: inherit;
   position: relative;
   transition: transform 0.2s ease;
   will-change: transform;
 }
-.home-game-card:active { background: rgba(114,52,238,0.08); }
+.home-game-card:active { background: rgba(114,52,238,0.12); }
 .hgc-left { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
 .hgc-time { font-size: 0.72rem; color: #888; display: flex; align-items: center; gap: 4px; }
 .hgc-time svg { flex-shrink: 0; }
@@ -1421,8 +1439,10 @@ body {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding: 12px 0 20px;
+  padding: 12px 0;
+  padding-bottom: max(env(safe-area-inset-bottom), 20px);
   border-top: 1px solid rgba(167,126,248,0.15);
+  flex-shrink: 0;
 }
 .home-nav-btn {
   background: none; border: none; cursor: pointer;
@@ -1929,6 +1949,13 @@ body {
           <div class="settings-toggle-thumb"></div>
         </label>
       </div>
+      <span class="settings-section-label">Notifications</span>
+      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <div id="notif-debug-status" style="font-size:0.78rem;color:#9b8ec4;line-height:1.5;">Checking…</div>
+        <button onclick="debugNotifStatus()" style="background:#7234ee;border:none;border-radius:20px;color:#fff;font-size:0.8rem;font-weight:700;padding:8px 18px;cursor:pointer;font-family:inherit;">Re-register &amp; Save Token</button>
+      </div>
+
+      <span class="settings-section-label">Game</span>
       <div class="settings-row">
         <div class="settings-row-label">
           Word zoom
@@ -2173,11 +2200,6 @@ body {
   </div>
 </div>
 
-<div id="next-game-prompt">
-  <div class="ngp-text"><strong id="ngp-title">Your turn!</strong><span id="ngp-subtitle"></span></div>
-  <button id="next-game-btn" onclick="goToNextPendingGame()">Go →</button>
-  <button id="next-game-dismiss" onclick="dismissNextGamePrompt()" title="Dismiss">✕</button>
-</div>
 
 <div id="games-modal" class="hidden">
   <div id="games-modal-inner">
@@ -2245,15 +2267,26 @@ let WORDS = new Set(AI_WORDS);
     const res = await fetch('https://raw.githubusercontent.com/scrabblewords/scrabblewords/main/words/North-American/NWL2020.txt');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
-    const full = new Set(
-      text.trim().split(/\r?\n/)
-        .map(line => line.trim().split(/\s/)[0].toUpperCase())
-        .filter(w => /^[A-Z]{2,}$/.test(w))
-    );
-    if (full.size > 1000) {
-      WORDS = full;
-      try { computeBestScore(); } catch {}
+    // Process in 5000-word batches via setTimeout so we never block the main thread
+    const lines = text.trim().split(/\r?\n/);
+    const words = [];
+    let idx = 0;
+    const BATCH = 5000;
+    function processBatch() {
+      const end = Math.min(idx + BATCH, lines.length);
+      for (let i = idx; i < end; i++) {
+        const w = lines[i].trim().split(/\s/)[0].toUpperCase();
+        if (/^[A-Z]{2,}$/.test(w)) words.push(w);
+      }
+      idx = end;
+      if (idx < lines.length) {
+        setTimeout(processBatch, 0);
+      } else {
+        const full = new Set(words);
+        if (full.size > 1000) WORDS = full;
+      }
     }
+    setTimeout(processBatch, 0);
   } catch { /* stay on curated fallback */ }
 })();
 
@@ -3237,7 +3270,7 @@ function onCellClick(r, c) {
   }
   if (window.tutorialMode) return;
   if (_suppressClick) return;
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
   const key = `${r},${c}`;
 
   const selIdx = playerRack.findIndex((_, i) =>
@@ -3309,7 +3342,8 @@ function onCellClick(r, c) {
 //  RACK CLICK
 // ═══════════════════════════════════════════════════════
 function onRackTileClick(idx) {
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
+  if (exchangeMode && currentPlayer !== 'player') return;
   const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === idx);
   if (alreadyUsed) return;
 
@@ -3362,7 +3396,7 @@ function onCellDrop(r, c, rackIdx) {
     updateUI();
     return;
   }
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
   const key = `${r},${c}`;
   const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === rackIdx);
   if (alreadyUsed) return;
@@ -3425,7 +3459,7 @@ function onCellDrop(r, c, rackIdx) {
 
 // Move or swap a pending (not-yet-committed) tile to another board cell
 function onPendingTileDrop(r, c, fromKey) {
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
   // Tutorial step 3 (RETAILED): only allow re-drops in col 7, rows 4–11 (excl. row 7)
   if (window.tutorialMode && window._tutStep === 3) {
     if (c !== 7 || r < 4 || r > 11 || r === 7) return;
@@ -3482,7 +3516,8 @@ let touchGhost    = null;
 
 function onTouchStart(e, idx) {
   if (window.tutorialMode && window._tutDraggableIdx != null && idx !== window._tutDraggableIdx) return;
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
+  if (exchangeMode && currentPlayer !== 'player') return;
   const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === idx);
   if (alreadyUsed) return;
 
@@ -3639,7 +3674,7 @@ function onTouchEnd(e) {
 }
 
 function onPendingTouchStart(e, key) {
-  if (currentPlayer !== 'player' || gameOver) return;
+  if (gameOver) return;
   const pending = pendingPlacements[key];
   if (!pending) return;
 
@@ -3930,7 +3965,6 @@ function doAiTurn() {
       updateTurnBadge();
       checkGameOver();
       updateUI();
-      computeBestScore();
       saveAiGameState();
     }
   }, 800);
@@ -4857,10 +4891,22 @@ function renderScorePreview() {
   const cellRect  = anchorCell.getBoundingClientRect();
   const scale = boardRect.width / boardEl.offsetWidth || 1;
 
-  const x = (cellRect.right  - boardRect.left) / scale;
-  const y = isHorizontal
-    ? (cellRect.top    - boardRect.top) / scale
-    : (cellRect.bottom - boardRect.top) / scale;
+  const boardH = boardEl.offsetHeight;
+  const BADGE_R = clamp(3.4 * boardH / 100, 10, 14); // half badge size in board px
+
+  const x = (cellRect.right - boardRect.left) / scale;
+  let y;
+  if (isHorizontal) {
+    const yTop    = (cellRect.top    - boardRect.top) / scale;
+    const yBottom = (cellRect.bottom - boardRect.top) / scale;
+    // prefer above the tile; if too close to top, go below
+    y = yTop > BADGE_R ? yTop : yBottom;
+  } else {
+    const yBottom = (cellRect.bottom - boardRect.top) / scale;
+    const yTop    = (cellRect.top    - boardRect.top) / scale;
+    // prefer below the tile; if near board bottom, flip above
+    y = yBottom < boardH - BADGE_R ? yBottom : yTop;
+  }
 
   const preview = document.createElement('div');
   preview.className = 'board-score-preview';
@@ -5063,6 +5109,8 @@ function updateStrengthBar() {
   }
 
   if (bestPossibleScore == null) {
+    // Trigger computation lazily the first time a tile is placed
+    if (primaryKeys.length > 0 && !_bestScoreTimer) computeBestScore();
     fill.style.width = '0%';
     fill.style.backgroundColor = 'rgba(255,255,255,0.15)';
     pct.textContent = '';
@@ -5112,10 +5160,14 @@ function updateUI() {
       playBtn.textContent = 'Confirm';
       playBtn.onclick = confirmExchange;
       playBtn.classList.toggle('tiles-placed', exchangeSelectedIdxs.size > 0);
-    } else if (waitingForOpponent) {
+    } else if (waitingForOpponent && _nextGameQueue.length > 0) {
       playBtn.textContent = 'Other Games';
       playBtn.onclick = showOtherGamesOverlay;
       playBtn.classList.add('tiles-placed');
+    } else if (waitingForOpponent) {
+      playBtn.textContent = 'Play';
+      playBtn.onclick = null;
+      playBtn.classList.remove('tiles-placed');
     } else {
       playBtn.textContent = 'Play';
       playBtn.onclick = submitPlay;
@@ -5150,23 +5202,37 @@ let _rematchOppId = null;   // opponent's player ID for human rematch
 let _rematchOppName = null;
 let _rematchOppRole = null; // 'p1' or 'p2' — opponent's role in the finished game
 
+const _flagSVG = `<div class="go-flag"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1201.54797 1354.51387"><defs><linearGradient id="gf-lg" x1="847.50026" y1="1275.8675" x2="2152.60361" y2="1275.8675" gradientTransform="translate(491.80164 2411.52359) rotate(-45) scale(.99999 -.99999)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#d4d4d4"/><stop offset="1" stop-color="#fff"/></linearGradient><linearGradient id="gf-lg1" x1="416.52787" y1="1066.35431" x2="1444.39586" y2="1066.35431" gradientTransform="translate(145.63803 2089.2056) rotate(-45) scale(.99999 -.99999)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#959595"/><stop offset="1" stop-color="#d1d1d1"/></linearGradient></defs><path fill="url(#gf-lg)" d="M1201.54797,77.05801v743.22604c-136.85706,20.56299-286.54504,13.53296-371.61304,0-203.20996-32.32996-284.42798-107.30298-445.935-99.09698-118.75098,6.02802-215.83502,53.70795-284.90302,99.09698L21.85693,416.60303,99.09692,77.05801C193.23889,26.28101,274.49792,8.70203,334.4519,2.73502c212.53198-21.172,320.98096,87.298,569.80603,99.09702,109.17102,5.17197,236.92407-10.42603,297.29004-24.77402Z"/><path fill="url(#gf-lg1)" d="M99.09698,841.255v513.25887H0V0h99.09698v841.255Z"/></svg></div>`;
+
 function showWinnerModal({ myScore, oppScore, myName, oppName, myDeduct, oppDeduct, reason, isOnline, forceResult }) {
   const myWins  = forceResult ? forceResult === 'win' : myScore > oppScore;
   const oppWins = forceResult ? forceResult === 'loss' : oppScore > myScore;
-  const emoji   = myWins ? '🎉' : oppWins ? '😔' : '🤝';
-  const title   = myWins ? 'You Won!' : oppWins ? `${oppName} Won!` : "It's a Tie!";
 
-  document.getElementById('modal-emoji').textContent = emoji;
-  document.getElementById('modal-title').textContent = title;
+  let topContent;
+  if (isOnline) {
+    const isResign = reason && reason.toLowerCase().includes('resign');
+    const title    = isResign ? 'You Resigned' : myWins ? 'You Won!' : oppWins ? `${oppName} Won!` : "It's a Tie!";
+    const icon     = isResign ? _flagSVG : myWins ? '<span class="go-emoji">🏆</span>' : oppWins ? '<span class="go-emoji">😔</span>' : '<span class="go-emoji">🤝</span>';
+    topContent = `${icon}<h2 id="modal-title">${title}</h2>`;
+  } else {
+    const emoji = myWins ? '🎉' : oppWins ? '😔' : '🤝';
+    const title = myWins ? 'You Won!' : oppWins ? `${oppName} Won!` : "It's a Tie!";
+    topContent = `<span class="go-emoji">${emoji}</span><h2 id="modal-title">${title}</h2>`;
+  }
+
+  document.getElementById('modal-emoji').style.display = 'none';
+  document.getElementById('modal-title').style.display = 'none';
+
   document.getElementById('modal-body').innerHTML = `
+    ${topContent}
     <div class="go-scores">
-      <div class="go-score${myWins ? ' winner' : ''}">
+      <div class="go-score${myWins ? ' winner' : ' loser'}">
         <div class="go-label">${myName}</div>
         <div class="go-pts">${myScore}</div>
         ${myDeduct ? `<div class="go-deduct">−${myDeduct} tiles</div>` : ''}
       </div>
       <div class="go-vs-circle">vs</div>
-      <div class="go-score${oppWins ? ' winner' : ''}">
+      <div class="go-score${oppWins ? ' winner' : ' loser'}">
         <div class="go-label">${oppName}</div>
         <div class="go-pts">${oppScore}</div>
         ${oppDeduct ? `<div class="go-deduct">−${oppDeduct} tiles</div>` : ''}
@@ -5503,7 +5569,6 @@ function startGame() {
   resetPending();
   showMsg('', 'info');
   updateUI();
-  computeBestScore();
 }
 
 // ── AI game persistence ────────────────────────────────
@@ -5643,9 +5708,9 @@ function loadAiGameState() {
     lastSwapKeys = s.lastSwapKeys || [];
     lastSwapPairMap = s.lastSwapPairMap || {};
     if (s.aiSkill) aiSkill = s.aiSkill;
+    isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
     resetPending();
     updateUI();
-    computeBestScore();
     checkGameOver();
     if (!gameOver && currentPlayer === 'ai') setTimeout(doAiTurn, 800);
     return true;
@@ -5920,7 +5985,8 @@ function applyOnlineState(data) {
   resetPending();
   auditTiles('applyOnlineState');
   updateUI();
-  if (currentPlayer === 'player' && !gameOver) computeBestScore();
+  // Don't run computeBestScore here — it blocks the main thread for several seconds
+  // on a large board. It will fire lazily when the player places their first tile.
 
   if (data.gameOver && !wasGameOver) {
     // Opponent triggered the game end — show winner modal
@@ -5932,14 +5998,11 @@ function applyOnlineState(data) {
     _rematchOppId   = data.players?.[opRole2]?.id   || null;
     _rematchOppName = data.players?.[opRole2]?.name || opponentOnlineName;
     if (data.resignedBy === opRole2) {
-      document.getElementById('modal-emoji').textContent = '🎉';
-      document.getElementById('modal-title').textContent = 'You Won!';
-      document.getElementById('modal-body').innerHTML = `<p style="color:rgba(255,255,255,0.5);margin:12px 0 20px">${opponentOnlineName} resigned.</p>`;
-      const rb = document.getElementById('modal-rematch-btn');
-      const nb = document.getElementById('modal-nothanks-btn');
-      rb.textContent = 'Rematch'; rb.onclick = startOnlineRematch;
-      nb.onclick = () => { document.getElementById('overlay').classList.remove('show'); showHomeScreen(); };
-      document.getElementById('overlay').classList.add('show');
+      showWinnerModal({
+        myScore: playerScore, oppScore: aiScore,
+        myName: playerName || 'You', oppName: opponentOnlineName,
+        myDeduct: 0, oppDeduct: 0, reason: 'opponent resigned', isOnline: true, forceResult: 'win',
+      });
     } else {
       showWinnerModal({
         myScore: playerScore, oppScore: aiScore,
@@ -6214,9 +6277,18 @@ async function resignOnlineGame() {
   if (!isOnlineMode && !localStorage.getItem(AI_SAVE_KEY)) return;
   // AI game resign
   if (!isOnlineMode) {
+    gameOver = true;
+    updateStatsAfterGame(playerScore, false, false);
+    const playerDeduct = playerRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
+    const aiDeduct     = aiRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
     clearAiGameState();
     updateResignButton();
-    showHomeScreen();
+    showWinnerModal({
+      myScore: playerScore - playerDeduct, oppScore: aiScore,
+      myName: playerName || 'You', oppName: 'AI',
+      myDeduct: 0, oppDeduct: 0,
+      reason: 'You resigned', isOnline: false, forceResult: 'loss',
+    });
     return;
   }
   const gid = onlineGameId;
@@ -6240,7 +6312,12 @@ async function resignOnlineGame() {
   gameOver = true;
   updateGamesBadge();
   updateStatsAfterGame(playerScore, false, false);
-  showHomeScreen();
+  showWinnerModal({
+    myScore: playerScore, oppScore: aiScore,
+    myName: playerName || 'You', oppName: oppName,
+    isOnline: true, forceResult: 'loss',
+    myDeduct: 0, oppDeduct: 0, reason: 'You resigned'
+  });
 }
 
 // ── Cancel online game (only when score is 0-0) ────────
@@ -6373,6 +6450,8 @@ async function updateGamesBadge() {
 async function loadOnlineGame(gameId, myRole) {
   dismissNextGamePrompt(); // hide any pending next-game banner
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+  // Cancel any pending best-score computation from a previous game
+  clearTimeout(_bestScoreTimer); _bestScoreTimer = null; bestPossibleScore = null;
   // Reset game state without drawing random tiles (applyOnlineState will supply real tiles)
   document.getElementById('overlay').classList.remove('show');
   board = Array.from({length:BS}, ()=>Array(BS).fill(null));
@@ -6411,6 +6490,8 @@ async function loadOnlineGame(gameId, myRole) {
     } else {
       subscribeToPush().then(() => savePushSubToGame(gameId, myRole));
     }
+    // If we already have an APNs token from a prior registration, save it now
+    if (myApnsToken) saveApnsTokenToGame(gameId, myRole);
     if (data.gameOver) {
       applyOnlineState(data);
       removeStoredGame(gameId);
@@ -6769,7 +6850,8 @@ async function registerNativePush() {
     Push.addListener('registration', async (token) => {
       myApnsToken = token.value;
       console.log('[Push] APNs token:', myApnsToken?.slice(0, 20) + '…');
-      if (onlineGameId && myOnlineRole) await saveApnsTokenToGame(onlineGameId, myOnlineRole);
+      // Save to every active game so any opponent can notify us
+      await saveApnsTokenToAllGames();
     });
     Push.addListener('registrationError', (err) => {
       console.warn('[Push] APNs registration error:', err);
@@ -6800,6 +6882,18 @@ async function saveApnsTokenToGame(gameId, role) {
       [`players.${role}.apnsToken`]: myApnsToken
     });
   } catch(e) {}
+}
+
+async function saveApnsTokenToAllGames() {
+  if (!myApnsToken) return;
+  const stored = getStoredGames();
+  const myId = getPlayerId();
+  // Save to user-level doc so opponents can find it even for old games
+  try {
+    await db.collection('users').doc(myId).set({ apnsToken: myApnsToken, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  } catch(e) {}
+  await Promise.all(stored.map(({gameId, myRole}) => saveApnsTokenToGame(gameId, myRole)));
+  console.log('[Push] token saved to users/' + myId + ' and', stored.length, 'game(s)');
 }
 
 // ── Web Push subscription helpers ─────────────────────
@@ -6902,10 +6996,28 @@ async function sendPushToOpponent() {
     try {
       const snap = await db.collection('games').doc(onlineGameId).get();
       const opData = snap.data()?.players?.[opRole];
-      if (opData?.apnsToken) opponentApnsToken = opData.apnsToken;
-      else if (opData?.pushSub?.endpoint) opponentPushSub = opData.pushSub;
-      else { console.log('[Push] skipped — no opponent push info in Firestore'); return; }
-    } catch { console.log('[Push] skipped — could not fetch opponent data'); return; }
+      const opId   = snap.data()?.players?.[opRole]?.id;
+      if (opData?.apnsToken) {
+        opponentApnsToken = opData.apnsToken;
+      } else if (opData?.pushSub?.endpoint) {
+        opponentPushSub = opData.pushSub;
+      } else if (opId) {
+        // Fallback: check user-level doc (set when opponent registers push)
+        const userSnap = await db.collection('users').doc(opId).get();
+        const uData = userSnap.data();
+        if (uData?.apnsToken) {
+          opponentApnsToken = uData.apnsToken;
+          // Back-fill game doc so future moves are faster
+          saveApnsTokenToGame(onlineGameId, opRole);
+        } else {
+          return; // no push info for opponent
+        }
+      } else {
+        return; // no opponent info
+      }
+    } catch(e) {
+      return; // Firestore fetch failed — skip push silently
+    }
   }
 
   const payload = {
@@ -6916,7 +7028,7 @@ async function sendPushToOpponent() {
   };
 
   try {
-    const res = await fetch('/api/notify', {
+    const res = await fetch(`${WEB_BASE}/api/notify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(opponentApnsToken
@@ -6925,15 +7037,11 @@ async function sendPushToOpponent() {
       )
     });
     if (res.status === 410) {
-      console.log('[Push] subscription expired (410) — clearing');
       opponentPushSub = null;
-    } else if (!res.ok) {
-      console.warn('[Push] notify returned', res.status, await res.text());
-    } else {
-      console.log('[Push] sent OK');
     }
+    // other failures are silent — the game move already saved to Firestore
   } catch(e) {
-    console.warn('[Push] fetch error:', e);
+    // network error sending push — not critical, opponent will see update via Firestore
   }
 }
 
@@ -7029,24 +7137,15 @@ async function checkAndShowNextGamePrompt() {
     } catch {}
   }));
 
-  if (candidates.length === 0) return;
   _nextGameQueue = candidates;
-  const first = candidates[0];
-  document.getElementById('ngp-title').textContent = `Your turn vs ${first.opName}!`;
-  document.getElementById('ngp-subtitle').textContent =
-    candidates.length > 1 ? `+${candidates.length - 1} more game${candidates.length > 2 ? 's' : ''} waiting` : '';
-  document.getElementById('next-game-prompt').classList.add('visible');
+  updateUI(); // refresh Play/Other Games button
 }
 
-function dismissNextGamePrompt() {
-  document.getElementById('next-game-prompt').classList.remove('visible');
-  _nextGameQueue = [];
-}
-
+function dismissNextGamePrompt() { _nextGameQueue = []; }
 function goToNextPendingGame() {
-  if (_nextGameQueue.length === 0) { dismissNextGamePrompt(); return; }
+  if (_nextGameQueue.length === 0) return;
   const {gameId, myRole} = _nextGameQueue[0];
-  dismissNextGamePrompt();
+  _nextGameQueue = [];
   loadOnlineGame(gameId, myRole);
 }
 
@@ -7140,7 +7239,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   const r = Math.floor(by / cellW);
 
   // If the touch lands on a pending (non-swap) tile, hand off to tile-drag handler
-  if (currentPlayer === 'player' && !gameOver && r >= 0 && r < 15 && c >= 0 && c < 15) {
+  if (!gameOver && r >= 0 && r < 15 && c >= 0 && c < 15) {
     const key = `${r},${c}`;
     const pending = pendingPlacements[key];
     if (pending && !pending.isSwap) {
@@ -7828,6 +7927,8 @@ function syncHomeButtonWidth() {
 }
 
 function showHomeScreen() {
+  // Cancel any pending best-score computation so it can't fire when the next game opens
+  clearTimeout(_bestScoreTimer); _bestScoreTimer = null; bestPossibleScore = null;
   document.getElementById('home-screen').classList.add('active');
   document.getElementById('game-screen').classList.remove('active');
   buildHomeGamesList(); // immediate render (AI game + cached _homeGames)
@@ -8067,6 +8168,37 @@ function openSettings() {
   document.getElementById('toggle-sound').checked = s.sound !== false;
   document.getElementById('toggle-zoom').checked = s.zoom !== false;
   document.getElementById('settings-overlay').classList.add('active');
+  updateNotifDebugStatus();
+}
+
+function updateNotifDebugStatus() {
+  const el = document.getElementById('notif-debug-status');
+  if (!el) return;
+  const isNative = !!window.Capacitor?.isNativePlatform?.();
+  const stored = getStoredGames();
+  if (!isNative) {
+    el.textContent = 'Native push not available (web browser).';
+    return;
+  }
+  if (!myApnsToken) {
+    el.textContent = '⚠️ No APNs token registered yet. Try tapping Re-register.';
+    return;
+  }
+  el.textContent = `✓ Token: ${myApnsToken.slice(0,12)}… | ${stored.length} game(s) stored`;
+}
+
+async function debugNotifStatus() {
+  const el = document.getElementById('notif-debug-status');
+  if (el) el.textContent = 'Re-registering…';
+  await registerNativePush();
+  await new Promise(r => setTimeout(r, 2000));
+  if (!myApnsToken) {
+    if (el) el.textContent = '❌ Still no token — check notification permissions in iOS Settings.';
+    return;
+  }
+  if (el) el.textContent = `Saving token to ${getStoredGames().length} game(s)…`;
+  await saveApnsTokenToAllGames();
+  if (el) el.textContent = `✓ Saved! Token: ${myApnsToken.slice(0,12)}… → ${getStoredGames().length} game(s)`;
 }
 function closeSettings() {
   document.getElementById('settings-overlay').classList.remove('active');
@@ -8359,6 +8491,16 @@ function buildHomeGamesList() {
 
 // Called on app init
 function initApp() {
+  // Prevent the WKWebView from scrolling the page — only #home-body should scroll
+  document.addEventListener('touchmove', function(e) {
+    let el = e.target;
+    while (el && el !== document.body) {
+      if (el.id === 'home-body') return; // allow scroll inside home body
+      el = el.parentElement;
+    }
+    e.preventDefault();
+  }, { passive: false });
+
   // Register for native push notifications on startup (iOS app only)
   if (window.Capacitor?.isNativePlatform()) {
     setTimeout(registerNativePush, 1500);

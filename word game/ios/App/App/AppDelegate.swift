@@ -13,7 +13,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationWillResignActive(_ application: UIApplication) {}
     func applicationDidEnterBackground(_ application: UIApplication) {}
     func applicationWillEnterForeground(_ application: UIApplication) {}
-    func applicationDidBecomeActive(_ application: UIApplication) {}
+
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        // Disable native scroll-view bouncing so the fixed header/footer can't be dragged
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if let bridge = (self.window?.rootViewController as? CAPBridgeViewController)?.bridge {
+                bridge.webView?.scrollView.bounces = false
+                bridge.webView?.scrollView.alwaysBounceVertical = false
+            }
+        }
+    }
     func applicationWillTerminate(_ application: UIApplication) {}
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {

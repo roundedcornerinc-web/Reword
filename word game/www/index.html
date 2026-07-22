@@ -1384,6 +1384,7 @@ body {
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid rgba(114,52,238,0.1);
+  background: inherit;
 }
 .hgc-swipe-wrapper:last-child { border-bottom: none; }
 .hgc-delete-zone {
@@ -4965,7 +4966,6 @@ function updateRemainingPanel() {
 
 function computeBestScore() {
   bestPossibleScore = null;
-  updateStrengthBar();
   clearTimeout(_bestScoreTimer);
   _bestScoreTimer = setTimeout(() => {
     const rack = [...playerRack];

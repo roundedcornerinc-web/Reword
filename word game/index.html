@@ -1292,7 +1292,14 @@ body {
   z-index: 1;
 }
 #home-screen.active { display: flex; }
-#game-screen { display: none; flex-direction: column; width: 100%; align-items: center; }
+#game-screen {
+  display: none; flex-direction: column; align-items: center;
+  position: fixed; inset: 0;
+  width: 100%; max-width: 520px;
+  left: 50%; transform: translateX(-50%);
+  overflow: hidden;
+  z-index: 1;
+}
 #game-screen.active { display: flex; }
 
 #home-header {

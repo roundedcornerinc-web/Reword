@@ -305,7 +305,7 @@ body {
 }
 
 .cell.swap-target-hover .tile-on-board { box-shadow: inset 0 -2px 0 var(--tile-shadow), 0 0 10px rgba(230,57,70,0.9); }
-.cell.drop-target { box-shadow: inset 0 0 0 2px rgba(255,255,255,0.7); }
+.cell.drop-target { box-shadow: inset 0 0 0 2px #e8c870; }
 
 /* ── RACK ── */
 #rack-area {
@@ -3514,6 +3514,7 @@ function onPendingTileDrop(r, c, fromKey) {
 // ═══════════════════════════════════════════════════════
 let touchDragIdx  = null; // rack tile index for touch drag
 let touchGhost    = null;
+let _dropTargetTimer = null; // debounce: only show drop-target after finger pauses
 
 function onTouchStart(e, idx) {
   if (window.tutorialMode && window._tutDraggableIdx != null && idx !== window._tutDraggableIdx) return;
@@ -3530,6 +3531,7 @@ function onTouchStart(e, idx) {
   }
 
   e.preventDefault();
+  document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
   touchDragIdx = idx;
   playPickup();
   const letter = playerRack[idx];
@@ -3587,27 +3589,30 @@ function onTouchMove(e) {
   }
 
   // Highlight board cell under finger
+  clearTimeout(_dropTargetTimer);
   document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
   const el = document.elementFromPoint(t.clientX, t.clientY);
   const cell = el?.closest?.('.cell');
   if (cell) {
     const r = +cell.dataset.r, c = +cell.dataset.c;
     const key = `${r},${c}`;
+    let shouldHighlight = false;
     if (touchPendingKey != null) {
       const touchMoving = pendingPlacements[touchPendingKey];
       if (touchMoving?.isSwap) {
-        if (board[r][c] && !pendingPlacements[key]) cell.classList.add('drop-target');
+        shouldHighlight = !!(board[r][c] && !pendingPlacements[key]);
       } else {
-        if (!board[r][c] && !(pendingPlacements[key]?.isSwap)) cell.classList.add('drop-target');
+        shouldHighlight = !board[r][c] && !(pendingPlacements[key]?.isSwap);
       }
     } else if (window.tutorialMode && window._tutStep === 2 && r === 7 && c === 9) {
-      // Tutorial: highlight E as valid drop target
-      cell.classList.add('drop-target');
+      shouldHighlight = true;
     } else if (window.tutorialMode && window._tutStep === 6 && r === 7 && c === 8) {
-      // Tutorial step 6: highlight R cell as valid drop target
-      cell.classList.add('drop-target');
+      shouldHighlight = true;
     } else if (!cell.querySelector('.tile-on-board')) {
-      cell.classList.add('drop-target');
+      shouldHighlight = true;
+    }
+    if (shouldHighlight) {
+      _dropTargetTimer = setTimeout(() => { cell.classList.add('drop-target'); }, 80);
     }
   }
 }
@@ -3615,6 +3620,7 @@ function onTouchMove(e) {
 function onTouchEnd(e) {
   document.removeEventListener('touchmove', onTouchMove);
   document.removeEventListener('touchend',  onTouchEnd);
+  clearTimeout(_dropTargetTimer);
   document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
 
   if (touchGhost) { touchGhost.remove(); touchGhost = null; }
@@ -3680,6 +3686,7 @@ function onPendingTouchStart(e, key) {
   if (!pending) return;
 
   e.preventDefault();
+  document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
   touchPendingKey = key;
 
   const t = e.touches[0];

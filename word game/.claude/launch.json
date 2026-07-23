@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "reword",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "7823"],
+      "port": 7823
+    },
+    {
+      "name": "word-game",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8081"],
+      "port": 8081
+    }
+  ]
+}

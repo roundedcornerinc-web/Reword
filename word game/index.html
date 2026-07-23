@@ -5101,7 +5101,7 @@ function handleShuffleOrRecall() {
 
 function updateUI() {
   // Safety net: end the game if bag is empty and at least one rack is empty
-  if (!gameOver && bag.length === 0 && (playerRack.length === 0 || aiRack.length === 0)) {
+  if (!window.tutorialMode && !gameOver && bag.length === 0 && (playerRack.length === 0 || aiRack.length === 0)) {
     checkGameOver();
     return;
   }
@@ -7000,17 +7000,30 @@ async function sendPushToOpponent() {
   };
 
   try {
-    const res = await fetch(`${WEB_BASE}/api/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(opponentApnsToken
-        ? { ...payload, apnsToken: opponentApnsToken }
-        : { ...payload, subscription: opponentPushSub }
-      )
-    });
-    console.log('[Push] notify response:', res.status);
-    if (res.status === 410) {
-      opponentPushSub = null;
+    if (opponentApnsToken) {
+      // URL-encoded POST avoids CORS preflight (WKWebView drops JSON POST after OPTIONS)
+      const form = new URLSearchParams({
+        apnsToken:     opponentApnsToken,
+        title:         payload.title,
+        message:       payload.message,
+        gameId:        payload.gameId,
+        recipientRole: payload.recipientRole
+      });
+      const apnsRes = await fetch(`${WEB_BASE}/api/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:   form.toString()
+      });
+      console.log('[Push] APNs notify response:', apnsRes.status);
+    } else if (opponentPushSub) {
+      // Web push: runs in a browser (not WKWebView), regular JSON fetch is fine
+      const res = await fetch(`${WEB_BASE}/api/notify`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ ...payload, subscription: opponentPushSub })
+      });
+      console.log('[Push] web push notify response:', res.status);
+      if (res.status === 410) opponentPushSub = null;
     }
   } catch(e) {
     console.warn('[Push] fetch error:', e?.message || e);
@@ -7526,14 +7539,14 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     var localWidth  = tr.width  / S;
     var localHeight = (br.bottom - tr.top) / S;
 
-    // Bounding box outline
+    // Bounding box outline — pointer-events:none so drags pass through to cells
     var box = document.createElement('div');
     box.className = 'tut-cell-outline';
-    box.style.position = 'absolute';
-    box.style.left   = (localLeft  - pad) + 'px';
-    box.style.top    = (localTop   - pad) + 'px';
-    box.style.width  = (localWidth + pad * 2) + 'px';
-    box.style.height = (localHeight + pad * 2) + 'px';
+    box.style.cssText = 'position:absolute;pointer-events:none;' +
+      'left:' + (localLeft  - pad) + 'px;' +
+      'top:'  + (localTop   - pad) + 'px;' +
+      'width:'  + (localWidth  + pad * 2) + 'px;' +
+      'height:' + (localHeight + pad * 2) + 'px;';
     boardEl2.appendChild(box);
 
     var complete = tutRetailComplete();

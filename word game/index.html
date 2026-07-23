@@ -3181,6 +3181,7 @@ function recallPendingTile(key) {
     }
   }
   delete pendingPlacements[key];
+  computeBestScore();
   updateUI();
   // If we just recalled the last swap tile, clear the stale "place your purple tile" message
   if (p.isSwap && swappedRackIndices.size === 0) {
@@ -3446,6 +3447,7 @@ function onCellDrop(r, c, rackIdx) {
       pendingPlacements[k] = {letter: chosen.toLowerCase(), rackIdx: ri, isBlank: true};
       showMsg('', 'info');
       playDrop();
+      computeBestScore();
       updateUI();
       if (!window.tutorialMode) zoomToCell(r, c);
     });
@@ -3454,6 +3456,7 @@ function onCellDrop(r, c, rackIdx) {
   pendingPlacements[key] = {letter: playerRack[rackIdx], rackIdx};
   showMsg('', 'info');
   playDrop();
+  computeBestScore();
   updateUI();
   if (!window.tutorialMode) zoomToCell(r, c);
 }
@@ -3506,6 +3509,7 @@ function onPendingTileDrop(r, c, fromKey) {
     pendingPlacements[toKey] = moving;
     delete pendingPlacements[fromKey];
   }
+  computeBestScore();
   updateUI();
 }
 
@@ -5034,6 +5038,7 @@ function computeBestScore() {
     }
 
     bestPossibleScore = bestScore;
+    console.log('[Strength] bestPossibleScore:', bestPossibleScore, 'rack:', playerRack.join(''));
     updateStrengthBar();
   }, 50);
 }
@@ -5069,11 +5074,13 @@ function updateStrengthBar() {
     return;
   }
   if (!bestPossibleScore) {
+    console.log('[Strength] bestPossibleScore=0, no play found');
     fill.style.width = '0%';
     fill.style.backgroundColor = '#555';
     pct.textContent = '';
     return;
   }
+  console.log('[Strength] currentScore:', currentScore, 'best:', bestPossibleScore, 'ratio:', Math.round(currentScore/bestPossibleScore*100)+'%');
   const ratio = Math.min(1, currentScore / bestPossibleScore);
   const pctVal = Math.round(ratio * 100);
   fill.style.width = pctVal + '%';

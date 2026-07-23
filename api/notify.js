@@ -62,7 +62,15 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const { subscription, apnsToken, title, message, gameId, recipientRole } = req.body;
+  // Vercel auto-parses JSON and URL-encoded bodies, but normalise just in case
+  let body = req.body || {};
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch {
+      body = Object.fromEntries(new URLSearchParams(body));
+    }
+  }
+  const { subscription, apnsToken, title, message, gameId, recipientRole } = body;
+  console.log('[notify] method:', req.method, 'apnsToken:', apnsToken ? apnsToken.slice(0,10)+'…' : 'none', 'sub:', !!subscription);
 
   const pushTitle = title   || 'Your turn in Reword!';
   const pushBody  = message || 'Your opponent has played. Your move!';

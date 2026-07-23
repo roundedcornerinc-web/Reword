@@ -4804,6 +4804,7 @@ function updateDifficultyBadge() {
   }
 }
 
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 function renderScorePreview() {
   const boardEl = document.getElementById('board');
   document.querySelectorAll('.board-score-preview').forEach(e => e.remove());
@@ -5146,7 +5147,7 @@ function updateUI() {
   const showRecall = hasPlaced || swapCount > 0;
   if (srIco) srIco.innerHTML = showRecall ? recallSVG : shuffleSVG;
   if (srLbl) srLbl.textContent = showRecall ? 'Recall' : 'Shuffle';
-  if (window._tutPostRender) { const _tpr = window._tutPostRender; requestAnimationFrame(function() { if (window._tutPostRender === _tpr) _tpr(); }); }
+  if (window._tutPostRender) window._tutPostRender();
 }
 
 function showMsg(text, type = 'info') {
@@ -6956,40 +6957,43 @@ function skipNotifications() {
 
 async function sendPushToOpponent() {
   const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
+  console.log('[Push] sendPushToOpponent called, opRole:', opRole, 'gameId:', onlineGameId);
 
-  // Fetch fresh opponent data from Firestore to get apnsToken or pushSub
+  // Always fetch fresh opponent data — APNs takes priority over any cached web push sub
   let opponentApnsToken = null;
-  if (!opponentPushSub?.endpoint) {
-    try {
-      const snap = await db.collection('games').doc(onlineGameId).get();
-      const opData = snap.data()?.players?.[opRole];
-      const opId   = snap.data()?.players?.[opRole]?.id;
-      if (opData?.apnsToken) {
-        opponentApnsToken = opData.apnsToken;
-        console.log('[Push] found apnsToken in game doc');
-      } else if (opData?.pushSub?.endpoint) {
-        opponentPushSub = opData.pushSub;
-        console.log('[Push] found web push sub in game doc');
-      } else if (opId) {
-        // Fallback: check user-level doc (set when opponent registers push)
-        const userSnap = await db.collection('users').doc(opId).get();
-        const uData = userSnap.data();
-        if (uData?.apnsToken) {
-          opponentApnsToken = uData.apnsToken;
-          console.log('[Push] found apnsToken in users doc, back-filling game');
-          saveApnsTokenToGame(onlineGameId, opRole);
-        } else {
-          console.warn('[Push] no push token found for opponent', opId);
-          return;
-        }
+  try {
+    const snap = await db.collection('games').doc(onlineGameId).get();
+    const snapData = snap.data();
+    const opData = snapData?.players?.[opRole];
+    const opId   = opData?.id;
+    if (opData?.apnsToken) {
+      opponentApnsToken = opData.apnsToken;
+      console.log('[Push] found apnsToken in game doc');
+    } else if (opData?.pushSub?.endpoint) {
+      opponentPushSub = opData.pushSub;
+      console.log('[Push] found web push sub in game doc');
+    } else if (opId) {
+      // Fallback: check user-level doc (set when opponent registers push)
+      const userSnap = await db.collection('users').doc(opId).get();
+      const uData = userSnap.data();
+      if (uData?.apnsToken) {
+        opponentApnsToken = uData.apnsToken;
+        console.log('[Push] found apnsToken in users doc, back-filling game');
+        saveApnsTokenToGame(onlineGameId, opRole);
+      } else if (uData?.pushSub?.endpoint) {
+        opponentPushSub = uData.pushSub;
+        console.log('[Push] found web push sub in users doc');
       } else {
-        console.warn('[Push] no opponent id in game doc for role', opRole);
+        console.warn('[Push] no push token found for opponent', opId);
         return;
       }
-    } catch(e) {
-      console.warn('[Push] Firestore fetch error:', e.message);
+    } else {
+      console.warn('[Push] no opponent id in game doc for role', opRole);
       return;
     }
+  } catch(e) {
+    console.warn('[Push] Firestore fetch error:', e.message);
+    return;
   }
 
   const payload = {
@@ -7517,97 +7521,72 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   }
 
   function tutStep3DrawOverlay() {
-    // Remove old overlays
-    document.querySelectorAll('.tut-cell-outline').forEach(function(e) { if (e.parentNode) e.parentNode.removeChild(e); });
-
-    var boardEl2 = document.getElementById('board');
-    boardEl2.style.position = 'relative';
     var topCell = boardCell(4, 7);
     var botCell = boardCell(11, 7);
     if (!topCell || !botCell) return;
 
-    var boardRect = boardEl2.getBoundingClientRect();
-    // Scale factor: board may be zoomed via CSS transform; divide viewport coords by S to get local coords
-    var S = (boardEl2.offsetWidth > 0) ? boardRect.width / boardEl2.offsetWidth : 1;
-    var tr = topCell.getBoundingClientRect();
-    var br = botCell.getBoundingClientRect();
+    var tr  = topCell.getBoundingClientRect();
+    var br  = botCell.getBoundingClientRect();
     var pad = 3;
 
-    // Convert viewport-relative offsets to board local coordinates
-    var localLeft   = (tr.left   - boardRect.left) / S;
-    var localTop    = (tr.top    - boardRect.top)  / S;
-    var localWidth  = tr.width  / S;
-    var localHeight = (br.bottom - tr.top) / S;
+    // Box outline — position:fixed on body so renderBoard() can't destroy it
+    var box = document.getElementById('tut3-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'tut3-box';
+      box.className = 'tut-cell-outline';
+      box.style.cssText = 'position:fixed;pointer-events:none;z-index:1400;';
+      document.body.appendChild(box);
+    }
+    box.style.left   = (tr.left   - pad) + 'px';
+    box.style.top    = (tr.top    - pad) + 'px';
+    box.style.width  = (tr.width  + pad * 2) + 'px';
+    box.style.height = (br.bottom - tr.top + pad * 2) + 'px';
 
-    // Bounding box outline — pointer-events:none so drags pass through to cells
-    var box = document.createElement('div');
-    box.className = 'tut-cell-outline';
-    box.style.cssText = 'position:absolute;pointer-events:none;' +
-      'left:' + (localLeft  - pad) + 'px;' +
-      'top:'  + (localTop   - pad) + 'px;' +
-      'width:'  + (localWidth  + pad * 2) + 'px;' +
-      'height:' + (localHeight + pad * 2) + 'px;';
-    boardEl2.appendChild(box);
+    var colCenterX = tr.left + tr.width / 2;
+    var aboveBoxY  = tr.top  - pad - 6;
 
     var complete = tutRetailComplete();
-    var colCenter = localLeft + localWidth / 2;
-    var arrowTop  = localTop  - pad - 12;
 
-    if (complete) {
-      // Show "Play" button floating above the outline
-      var playBtn = document.createElement('button');
+    // Bubble label (hidden when complete)
+    var lbl = document.getElementById('tut3-lbl');
+    if (!lbl) {
+      lbl = document.createElement('div');
+      lbl.id = 'tut3-lbl';
+      lbl.className = 'tut-cell-outline';
+      lbl.style.cssText =
+        'position:fixed;pointer-events:none;border:none;animation:none;z-index:1401;' +
+        'max-width:220px;background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:8px;' +
+        'padding:8px 12px;color:#fff;font-size:0.75rem;line-height:1.5;' +
+        'text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.6);' +
+        'transform:translateX(-50%) translateY(-100%);';
+      lbl.innerHTML = 'Spell <strong>RETAILED</strong> here';
+      document.body.appendChild(lbl);
+    }
+    lbl.style.left    = colCenterX + 'px';
+    lbl.style.top     = aboveBoxY  + 'px';
+    lbl.style.display = complete ? 'none' : '';
+
+    // Play button (shown when complete)
+    var playBtn = document.getElementById('tut3-play');
+    if (!playBtn) {
+      playBtn = document.createElement('button');
+      playBtn.id = 'tut3-play';
       playBtn.className = 'tut-cell-outline';
       playBtn.style.cssText =
-        'position:absolute;border:none;animation:none;z-index:14;' +
-        'left:' + colCenter + 'px;' +
-        'top:' + arrowTop + 'px;' +
-        'transform:translateX(-50%) translateY(-100%);' +
+        'position:fixed;border:none;animation:none;z-index:1402;' +
         'background:linear-gradient(135deg,#7b2ff7,#f72585);' +
         'color:#fff;font-weight:700;font-size:0.85rem;font-family:inherit;' +
         'border-radius:10px;padding:8px 20px;cursor:pointer;' +
-        'box-shadow:0 2px 12px rgba(0,0,0,0.5);pointer-events:auto;';
+        'box-shadow:0 2px 12px rgba(0,0,0,0.5);pointer-events:auto;' +
+        'transform:translateX(-50%) translateY(-100%);';
       playBtn.textContent = 'Play →';
       playBtn.onclick = function() { tutorialAdvance(); };
-      boardEl2.appendChild(playBtn);
-
-      // Arrow tail below button
-      var arr2 = document.createElement('div');
-      arr2.className = 'tut-cell-outline';
-      arr2.style.cssText =
-        'position:absolute;border:none;animation:none;' +
-        'left:' + colCenter + 'px;top:' + arrowTop + 'px;' +
-        'transform:translateX(-50%);' +
-        'color:#f72585;font-size:1.1rem;line-height:1;text-align:center;' +
-        'text-shadow:0 0 8px rgba(247,37,133,0.8);';
-      arr2.textContent = '▼';
-      boardEl2.appendChild(arr2);
-    } else {
-      // Callout bubble above outline
-      var lbl = document.createElement('div');
-      lbl.className = 'tut-cell-outline';
-      lbl.style.cssText =
-        'position:absolute;pointer-events:none;z-index:12;border:none;animation:none;' +
-        'left:' + colCenter + 'px;top:' + arrowTop + 'px;' +
-        'transform:translateX(-50%) translateY(-100%);' +
-        'max-width:220px;' +
-        'background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:8px;' +
-        'padding:8px 12px;color:#fff;font-size:0.75rem;line-height:1.5;' +
-        'text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.6);';
-      lbl.innerHTML = 'Spell <strong>RETAILED</strong> here';
-      boardEl2.appendChild(lbl);
-
-      // Arrow tail
-      var arr = document.createElement('div');
-      arr.className = 'tut-cell-outline';
-      arr.style.cssText =
-        'position:absolute;border:none;animation:none;' +
-        'left:' + colCenter + 'px;top:' + arrowTop + 'px;' +
-        'transform:translateX(-50%);' +
-        'color:#b794f4;font-size:1.1rem;line-height:1;text-align:center;' +
-        'text-shadow:0 0 8px rgba(183,148,244,0.8);';
-      arr.textContent = '▼';
-      boardEl2.appendChild(arr);
+      document.body.appendChild(playBtn);
     }
+    playBtn.style.left    = colCenterX + 'px';
+    playBtn.style.top     = aboveBoxY  + 'px';
+    playBtn.style.display = complete ? '' : 'none';
   }
 
   // Full board state shared by steps 3 & 4: RETAILED + CARS + opponent's REIN

@@ -4970,12 +4970,9 @@ function computeBestScore() {
   _bestScoreTimer = setTimeout(() => {
     const rack = [...playerRack];
 
-    // Use the full WORDS dictionary so the meter reflects the true best possible play,
-    // including valid Scrabble words not in the curated AI list (e.g. BIZE, QI, etc.).
-    // For the first move (empty board) we still need rack-only spellable words.
     const firstMoveWords = [];
     if (isEmpty()) {
-      for (const w of WORDS) {
+      for (const w of AI_WORDS) {
         if (w.length >= 2 && w.length <= rack.length && canSpell(w, rack)) firstMoveWords.push(w);
       }
     }
@@ -5018,67 +5015,12 @@ function computeBestScore() {
         }
       }
     } else {
+      // Use AI_WORDS (smaller curated list) to avoid freezing the main thread.
+      // Swap/steal loops are skipped — they call findBestPlayWithRack hundreds of
+      // times and block the UI for many seconds on a mid-game board.
       const boardCopy = board.map(r => [...r]);
-      const best = findBestPlayWithRack(rack, boardCopy, WORDS);
+      const best = findBestPlayWithRack(rack, boardCopy, AI_WORDS);
       bestScore = best ? best.score : 0;
-
-      // Also consider swap moves (replace a board tile with a rack tile, then play)
-      for (let ri = 0; ri < rack.length; ri++) {
-        const rackLetter = rack[ri];
-        for (let r = 0; r < BS; r++) {
-          for (let c = 0; c < BS; c++) {
-            if (!board[r][c]) continue;
-            const boardLetter = board[r][c];
-            if (boardLetter === ' ' || boardLetter !== boardLetter.toUpperCase()) continue;
-            const trySwapLetter = (placed) => {
-              if (placed.toUpperCase() === boardLetter) return;
-              const tb = board.map(row => [...row]);
-              tb[r][c] = placed;
-              let valid = true;
-              for (const [dr, dc] of [[0,1],[1,0]]) {
-                const w = getWordAt(tb, r, c, dr, dc);
-                if (w && !WORDS.has(w.word.toUpperCase())) { valid = false; break; }
-              }
-              if (!valid) return;
-              const newRack = [...rack];
-              newRack[ri] = boardLetter;
-              const p = findBestPlayWithRack(newRack, tb, WORDS, new Set([ri]));
-              if (p && p.placements.some(pl => pl.rackIdx === ri)) bestScore = Math.max(bestScore, p.score);
-            };
-            if (rackLetter === ' ') {
-              for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') trySwapLetter(ch.toLowerCase());
-            } else {
-              trySwapLetter(rackLetter);
-            }
-          }
-        }
-      }
-
-      // Also consider steal moves (take an end tile, then play with it)
-      for (let r = 0; r < BS; r++) {
-        for (let c = 0; c < BS; c++) {
-          if (!board[r][c]) continue;
-          const boardLetter = board[r][c];
-          if (boardLetter === ' ' || boardLetter !== boardLetter.toUpperCase()) continue;
-          const wordsHere = [[0,1],[1,0]].filter(([dr,dc]) => getWordAt(board, r, c, dr, dc));
-          if (wordsHere.length !== 1) continue;
-          const [dr, dc] = wordsHere[0];
-          const w = getWordAt(board, r, c, dr, dc);
-          const cells = w.cells;
-          const idx = cells.findIndex(cell => cell.row === r && cell.col === c);
-          if (idx !== 0 && idx !== cells.length - 1) continue;
-          const remaining = cells.filter((_, i) => i !== idx);
-          if (remaining.length < 2) continue;
-          if (!WORDS.has(remaining.map(cell => cell.letter).join('').toUpperCase())) continue;
-          const tb = board.map(row => [...row]);
-          tb[r][c] = null;
-          if (!isBoardConnected(tb)) continue;
-          const newRack = [...rack, boardLetter];
-          const stolenIdx = newRack.length - 1;
-          const p = findBestPlayWithRack(newRack, tb, WORDS, new Set([stolenIdx]));
-          if (p && p.placements.some(pl => pl.rackIdx === stolenIdx)) bestScore = Math.max(bestScore, p.score);
-        }
-      }
     }
 
     bestPossibleScore = bestScore;

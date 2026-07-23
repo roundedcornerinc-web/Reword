@@ -305,7 +305,7 @@ body {
 }
 
 .cell.swap-target-hover .tile-on-board { box-shadow: inset 0 -2px 0 var(--tile-shadow), 0 0 10px rgba(230,57,70,0.9); }
-.cell.drop-target { outline: 2px dashed rgba(255,255,255,0.8); outline-offset: -2px; }
+.cell.drop-target { box-shadow: inset 0 0 0 2px rgba(255,255,255,0.7); }
 
 /* ── RACK ── */
 #rack-area {
@@ -3688,7 +3688,7 @@ function onPendingTouchStart(e, key) {
 
   touchGhost = document.createElement('div');
   touchGhost.className = 'tile-on-board ' + (pending.isSwap ? 'is-swap' : 'is-new');
-  touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;transform:translate(-50%,-50%);transition:none;`;
+  touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;width:34px;height:34px;border-radius:4px;inset:unset;transform:translate(-50%,-50%);transition:none;display:flex;flex-direction:column;align-items:center;justify-content:center;`;
   touchGhost.innerHTML = `<span class="tile-letter">${pending.letter}</span><span class="tile-val">${VAL[pending.letter]??0}</span>`;
   document.body.appendChild(touchGhost);
 
@@ -5982,7 +5982,8 @@ async function saveOnlineState() {
   const payload = buildOnlinePayload(gameOver ? null : opRole);
   try {
     await db.collection('games').doc(onlineGameId).update(payload);
-    // Refresh our own push subscription so the opponent always has our latest endpoint
+    // Refresh our own push token/subscription so the opponent always has our latest
+    if (myApnsToken) saveApnsTokenToGame(onlineGameId, myOnlineRole);
     subscribeToPush().then(sub => { if (sub) savePushSubToGame(onlineGameId, myOnlineRole); });
     sendPushToOpponent(); // fire-and-forget push to opponent's device
     if (!gameOver) checkAndShowNextGamePrompt(); // prompt if other games await
@@ -6944,24 +6945,29 @@ async function sendPushToOpponent() {
       const opId   = snap.data()?.players?.[opRole]?.id;
       if (opData?.apnsToken) {
         opponentApnsToken = opData.apnsToken;
+        console.log('[Push] found apnsToken in game doc');
       } else if (opData?.pushSub?.endpoint) {
         opponentPushSub = opData.pushSub;
+        console.log('[Push] found web push sub in game doc');
       } else if (opId) {
         // Fallback: check user-level doc (set when opponent registers push)
         const userSnap = await db.collection('users').doc(opId).get();
         const uData = userSnap.data();
         if (uData?.apnsToken) {
           opponentApnsToken = uData.apnsToken;
-          // Back-fill game doc so future moves are faster
+          console.log('[Push] found apnsToken in users doc, back-filling game');
           saveApnsTokenToGame(onlineGameId, opRole);
         } else {
-          return; // no push info for opponent
+          console.warn('[Push] no push token found for opponent', opId);
+          return;
         }
       } else {
-        return; // no opponent info
+        console.warn('[Push] no opponent id in game doc for role', opRole);
+        return;
       }
     } catch(e) {
-      return; // Firestore fetch failed — skip push silently
+      console.warn('[Push] Firestore fetch error:', e.message);
+      return;
     }
   }
 
@@ -6981,10 +6987,10 @@ async function sendPushToOpponent() {
         : { ...payload, subscription: opponentPushSub }
       )
     });
+    console.log('[Push] notify response:', res.status);
     if (res.status === 410) {
       opponentPushSub = null;
     }
-    // other failures are silent — the game move already saved to Firestore
   } catch(e) {
     // network error sending push — not critical, opponent will see update via Firestore
   }

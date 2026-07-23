@@ -5146,7 +5146,7 @@ function updateUI() {
   const showRecall = hasPlaced || swapCount > 0;
   if (srIco) srIco.innerHTML = showRecall ? recallSVG : shuffleSVG;
   if (srLbl) srLbl.textContent = showRecall ? 'Recall' : 'Shuffle';
-  if (window._tutPostRender) window._tutPostRender();
+  if (window._tutPostRender) { const _tpr = window._tutPostRender; requestAnimationFrame(function() { if (window._tutPostRender === _tpr) _tpr(); }); }
 }
 
 function showMsg(text, type = 'info') {

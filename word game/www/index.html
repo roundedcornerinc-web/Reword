@@ -3314,7 +3314,9 @@ function onCellClick(r, c) {
       const tileDesc = isCommittedBlank ? 'A blank tile' : `"${boardLetter.toUpperCase()}"`;
       showMsg(`${tileDesc} is now in your rack (purple). Place it this turn. ${remaining > 0 ? `${remaining} swap${remaining===1?'':'s'} left.` : 'No more swaps this turn.'}`, 'info');
       playDrop();
+      computeBestScore();
       updateUI();
+      if (!window.tutorialMode) zoomToCell(r, c);
     };
     if (rackLetter === ' ') { showBlankPicker(chosen => finishClickSwap(chosen.toLowerCase(), true)); }
     else { finishClickSwap(rackLetter, false); }
@@ -3329,7 +3331,9 @@ function onCellClick(r, c) {
       pendingPlacements[k] = {letter: chosen.toLowerCase(), rackIdx: si, isBlank: true};
       showMsg('', 'info');
       playDrop();
+      computeBestScore();
       updateUI();
+      if (!window.tutorialMode) zoomToCell(r, c);
     });
     return;
   }
@@ -3337,7 +3341,9 @@ function onCellClick(r, c) {
   document.querySelectorAll('.rack-tile.selected').forEach(el => el.classList.remove('selected'));
   showMsg('', 'info');
   playDrop();
+  computeBestScore();
   updateUI();
+  if (!window.tutorialMode) zoomToCell(r, c);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -7007,7 +7013,7 @@ async function sendPushToOpponent() {
       opponentPushSub = null;
     }
   } catch(e) {
-    // network error sending push — not critical, opponent will see update via Firestore
+    console.warn('[Push] fetch error:', e?.message || e);
   }
 }
 
@@ -7627,7 +7633,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
         var cell = boardCell(7, 9);
         document.getElementById('tut-ring').style.display = 'none';
         tutHeader('Now that you know how to swap letters, let\'s steal one. The first or last letter from an existing word can be stolen by clicking on it, provided the remaining letters still form a valid word. Let\'s steal the S from CARS.');
-        tutBubble(cell, 'Tap or drag the S to move it into your rack', true);
+        tutBubble(cell, 'Tap the S to move it into your rack', true);
         document.getElementById('tut-bar').style.display = 'none';
       });
     });

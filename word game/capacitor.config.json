@@ -1,0 +1,16 @@
+{
+  "appId": "com.roundedcornerinc.reword",
+  "appName": "Reword",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "always"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

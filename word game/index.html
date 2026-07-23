@@ -7013,12 +7013,14 @@ async function sendPushToOpponent() {
         gameId:        payload.gameId,
         recipientRole: payload.recipientRole
       });
+      console.log('[Push] sending to', WEB_BASE + '/api/notify', 'token:', opponentApnsToken.slice(0,10) + '…');
       const apnsRes = await fetch(`${WEB_BASE}/api/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body:   form.toString()
       });
-      console.log('[Push] APNs notify response:', apnsRes.status);
+      const apnsBody = await apnsRes.text();
+      console.log('[Push] APNs notify response:', apnsRes.status, apnsBody);
     } else if (opponentPushSub) {
       // Web push: runs in a browser (not WKWebView), regular JSON fetch is fine
       const res = await fetch(`${WEB_BASE}/api/notify`, {
@@ -7296,12 +7298,22 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     return document.querySelector('#board [data-r="' + r + '"][data-c="' + c + '"]');
   }
 
+  // tut-ring and tut-bubble live inside #game-screen which has transform:translateX(-50%).
+  // On iPad the game-screen is centered within a wider viewport, so position:fixed children
+  // use game-screen as their containing block. We must subtract game-screen's left offset
+  // so that getBoundingClientRect() viewport coords map correctly.
+  function gsLeft() {
+    var gs = document.getElementById('game-screen');
+    return gs ? gs.getBoundingClientRect().left : 0;
+  }
+
   function tutHighlight(el, blue, yOffset) {
     if (!el) return;
     var r = el.getBoundingClientRect();
+    var gsl = gsLeft();
     var ring = document.getElementById('tut-ring');
     ring.style.transition = 'none';
-    ring.style.left = (r.left - 3) + 'px';
+    ring.style.left = (r.left - 3 - gsl) + 'px';
     ring.style.top = (r.top - 3 + (yOffset || 0)) + 'px';
     ring.style.width = (r.width + 6) + 'px';
     ring.style.height = (r.height + 6) + 'px';
@@ -7313,14 +7325,16 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   function tutBubble(el, text, above, bw) {
     if (!el) return;
     var r = el.getBoundingClientRect();
+    var gsl = gsLeft();
     var bub = document.getElementById('tut-bubble');
     bub.style.display = 'block';
     bub.innerHTML = (above ? '' : '<div id="tut-bubble-arrow" class="up"></div>') +
       '<div id="tut-bubble-inner">' + text + '</div>' +
       (above ? '<div id="tut-bubble-arrow" class="down"></div>' : '');
     var bw = bw || 190;
-    var left = r.left + r.width / 2 - bw / 2;
-    left = Math.max(8, Math.min(left, window.innerWidth - bw - 8));
+    var left = r.left + r.width / 2 - bw / 2 - gsl;
+    var gsWidth = document.getElementById('game-screen').offsetWidth || window.innerWidth;
+    left = Math.max(8, Math.min(left, gsWidth - bw - 8));
     bub.style.left = left + 'px';
     bub.style.width = bw + 'px';
     if (above) {

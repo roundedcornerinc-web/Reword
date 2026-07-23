@@ -5896,6 +5896,7 @@ function buildOnlinePayload(nextTurn) {
       [myOnlineRole]: playerScore,
       [opRole]:       aiScore
     },
+    [`players.${myOnlineRole}.name`]: playerName,
     currentTurn: nextTurn,
     passCount,
     gameOver,

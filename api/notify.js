@@ -1,6 +1,6 @@
 const webpush = require('web-push');
 const jwt      = require('jsonwebtoken');
-const https    = require('https');
+const http2    = require('http2');
 
 // APNs config — set these in Vercel environment variables
 const APNS_KEY_ID  = process.env.APNS_KEY_ID  || 'LDGH72AK2K';
@@ -27,29 +27,33 @@ function sendApns(deviceToken, title, body, gameId, recipientRole) {
       gameId,
       recipientRole
     });
-    const options = {
-      hostname: 'api.push.apple.com',
-      port:     443,
-      path:     `/3/device/${deviceToken}`,
-      method:   'POST',
-      headers: {
-        'authorization':   `bearer ${token}`,
-        'apns-topic':      APNS_BUNDLE,
-        'apns-push-type':  'alert',
-        'apns-priority':   '10',
-        'content-type':    'application/json',
-        'content-length':  Buffer.byteLength(payload)
-      }
-    };
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', d => data += d);
-      res.on('end', () => {
-        if (res.statusCode === 200) resolve();
-        else reject(new Error(`APNs ${res.statusCode}: ${data}`));
-      });
+    // APNs ONLY speaks HTTP/2 — Node's https module (HTTP/1.1) cannot talk to
+    // it and fails with "Parse Error: Expected HTTP/, RTSP/ or ICE/".
+    const client = http2.connect('https://api.push.apple.com');
+    client.on('error', reject);
+
+    const req = client.request({
+      ':method':        'POST',
+      ':path':          `/3/device/${deviceToken}`,
+      'authorization':  `bearer ${token}`,
+      'apns-topic':     APNS_BUNDLE,
+      'apns-push-type': 'alert',
+      'apns-priority':  '10',
+      'content-type':   'application/json'
+    });
+
+    let status = 0;
+    let data   = '';
+    req.on('response', (headers) => { status = headers[':status']; });
+    req.setEncoding('utf8');
+    req.on('data',  (chunk) => { data += chunk; });
+    req.on('end',   () => {
+      client.close();
+      if (status === 200) resolve();
+      else reject(new Error(`APNs ${status}: ${data}`));
     });
     req.on('error', reject);
+
     req.write(payload);
     req.end();
   });

@@ -5577,6 +5577,17 @@ function markResultViewed(gameId) {
   const v = getViewedResults(); v.add(gameId);
   localStorage.setItem(VIEWED_RESULTS_KEY, JSON.stringify([...v]));
 }
+// A freshly-finished game shows in the Results box for the current home visit,
+// then drops into Completed Games on the NEXT visit. IDs shown as results are
+// held here and promoted to "viewed" when the user re-enters the home screen.
+let _pendingResultViewed = new Set();
+function promotePendingResultViews() {
+  if (!_pendingResultViewed.size) return;
+  const v = getViewedResults();
+  _pendingResultViewed.forEach(id => v.add(id));
+  localStorage.setItem(VIEWED_RESULTS_KEY, JSON.stringify([...v]));
+  _pendingResultViewed = new Set();
+}
 
 const STATS_KEY = 'reword_stats';
 function getStats() { return JSON.parse(localStorage.getItem(STATS_KEY) || '{}'); }
@@ -7965,6 +7976,11 @@ function syncHomeButtonWidth() {
 }
 
 function showHomeScreen() {
+  // On a fresh return to home, promote the previous visit's results to "viewed"
+  // so they drop out of the Results box into Completed Games.
+  if (!document.getElementById('home-screen')?.classList.contains('active')) {
+    promotePendingResultViews();
+  }
   // Cancel any pending best-score computation so it can't fire when the next game opens
   clearTimeout(_bestScoreTimer); _bestScoreTimer = null; bestPossibleScore = null;
   document.getElementById('home-screen').classList.add('active');
@@ -8486,6 +8502,7 @@ function buildHomeGamesList() {
           showGameScreen();
         }; })(g.id);
         resultsCards.push(resultNotifCard(g.playerScore||0, g.aiScore||0, opp, won, viewAction));
+        _pendingResultViewed.add(g.id);
       } else {
         let label;
         if (g.rematchDeclined) label = 'You declined';
@@ -8513,7 +8530,7 @@ function buildHomeGamesList() {
   });
 
   const sections = [
-    makeSection('Results', resultsCards, false),
+    makeSection('Results', resultsCards, true),
     makeSection('Your Move', myMoveCards, false),
     makeSection('Their Move', theirMoveCards, true),
     makeSection('Completed Games', completedCards, true),

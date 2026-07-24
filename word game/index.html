@@ -1950,13 +1950,17 @@ body {
           <div class="settings-toggle-thumb"></div>
         </label>
       </div>
-      <span class="settings-section-label">Notifications</span>
-      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
-        <div id="notif-debug-status" style="font-size:0.78rem;color:#9b8ec4;line-height:1.5;">Checking…</div>
-        <button onclick="debugNotifStatus()" style="background:#7234ee;border:none;border-radius:20px;color:#fff;font-size:0.8rem;font-weight:700;padding:8px 18px;cursor:pointer;font-family:inherit;">Re-register &amp; Save Token</button>
+      <div class="settings-row">
+        <div class="settings-row-label">
+          Haptics
+          <div class="settings-row-sublabel">Vibration feedback (iPhone only)</div>
+        </div>
+        <label class="settings-toggle">
+          <input type="checkbox" id="toggle-haptics" onchange="saveSettingsToggle('haptics',this.checked)">
+          <div class="settings-toggle-track"></div>
+          <div class="settings-toggle-thumb"></div>
+        </label>
       </div>
-
-      <span class="settings-section-label">Game</span>
       <div class="settings-row">
         <div class="settings-row-label">
           Word zoom
@@ -4723,10 +4727,15 @@ async function getAC() {
 }
 
 // ── Haptics (native; no-op until @capacitor/haptics is installed + cap-synced) ──
+function hapticsEnabled() {
+  try { return JSON.parse(localStorage.getItem('reword_settings') || '{}').haptics !== false; } catch(e) { return true; }
+}
 function haptic(style) {
+  if (!hapticsEnabled()) return;
   try { window.Capacitor?.Plugins?.Haptics?.impact({ style: style || 'LIGHT' }); } catch(e) {}
 }
 function hapticNotify(type) {
+  if (!hapticsEnabled()) return;
   try { window.Capacitor?.Plugins?.Haptics?.notification({ type: type || 'SUCCESS' }); } catch(e) {}
 }
 
@@ -8222,40 +8231,11 @@ function openSettings() {
   const s = JSON.parse(localStorage.getItem('reword_settings') || '{}');
   document.getElementById('settings-name-input').value = playerName !== 'You' ? playerName : '';
   document.getElementById('toggle-sound').checked = s.sound !== false;
+  document.getElementById('toggle-haptics').checked = s.haptics !== false;
   document.getElementById('toggle-zoom').checked = s.zoom !== false;
   document.getElementById('settings-overlay').classList.add('active');
-  updateNotifDebugStatus();
 }
 
-function updateNotifDebugStatus() {
-  const el = document.getElementById('notif-debug-status');
-  if (!el) return;
-  const isNative = !!window.Capacitor?.isNativePlatform?.();
-  const stored = getStoredGames();
-  if (!isNative) {
-    el.textContent = 'Native push not available (web browser).';
-    return;
-  }
-  if (!myApnsToken) {
-    el.textContent = '⚠️ No APNs token registered yet. Try tapping Re-register.';
-    return;
-  }
-  el.textContent = `✓ Token: ${myApnsToken.slice(0,12)}… | ${stored.length} game(s) stored`;
-}
-
-async function debugNotifStatus() {
-  const el = document.getElementById('notif-debug-status');
-  if (el) el.textContent = 'Re-registering…';
-  await registerNativePush();
-  await new Promise(r => setTimeout(r, 2000));
-  if (!myApnsToken) {
-    if (el) el.textContent = '❌ Still no token — check notification permissions in iOS Settings.';
-    return;
-  }
-  if (el) el.textContent = `Saving token to ${getStoredGames().length} game(s)…`;
-  await saveApnsTokenToAllGames();
-  if (el) el.textContent = `✓ Saved! Token: ${myApnsToken.slice(0,12)}… → ${getStoredGames().length} game(s)`;
-}
 function closeSettings() {
   document.getElementById('settings-overlay').classList.remove('active');
 }

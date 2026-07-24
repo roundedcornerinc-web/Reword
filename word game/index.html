@@ -1407,7 +1407,7 @@ body {
   transition: transform 0.2s ease;
   will-change: transform;
 }
-.home-game-card:active { background: rgba(114,52,238,0.12); }
+.home-game-card:active { background-image: linear-gradient(rgba(114,52,238,0.12), rgba(114,52,238,0.12)); }
 .hgc-left { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
 .hgc-time { font-size: 0.72rem; color: #888; display: flex; align-items: center; gap: 4px; }
 .hgc-time svg { flex-shrink: 0; }
@@ -4722,7 +4722,16 @@ async function getAC() {
   return _ac;
 }
 
+// ── Haptics (native; no-op until @capacitor/haptics is installed + cap-synced) ──
+function haptic(style) {
+  try { window.Capacitor?.Plugins?.Haptics?.impact({ style: style || 'LIGHT' }); } catch(e) {}
+}
+function hapticNotify(type) {
+  try { window.Capacitor?.Plugins?.Haptics?.notification({ type: type || 'SUCCESS' }); } catch(e) {}
+}
+
 async function playPickup() {
+  haptic('LIGHT');   // little bump when a tile is grabbed
   try {
     const ctx = await getAC();
     const now = ctx.currentTime;
@@ -4739,6 +4748,7 @@ async function playPickup() {
 }
 
 async function playDrop() {
+  haptic('LIGHT');   // little bump when a tile is placed
   try {
     const ctx = await getAC();
     const now = ctx.currentTime;
@@ -5298,6 +5308,8 @@ async function declineRematchChallenge(gameId) {
 function celebrateScore(pts) {
   if (pts < 30) return;
   const tier = pts >= 100 ? 4 : pts >= 75 ? 3 : pts >= 50 ? 2 : 1;
+  // Celebratory haptic, scaled to the scoring tier
+  if (tier >= 3) hapticNotify('SUCCESS'); else haptic('MEDIUM');
   const labels = { 1: '30+', 2: '50+', 3: '75+', 4: '100+' };
   const counts = { 1: 40, 2: 90, 3: 130, 4: 160 };
   const durations = { 1: 2200, 2: 3000, 3: 3400, 4: 3800 };

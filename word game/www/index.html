@@ -5293,14 +5293,34 @@ async function acceptRematchChallenge(gameId, myRole) {
   showGameScreen();
 }
 
-async function declineRematchChallenge(gameId) {
+// Send a push to a specific role in a game (used by rematch decline, from the home screen)
+async function notifyGameRole(gameId, recipientRole, title, message) {
   try {
-    await db.collection('games').doc(gameId).update({
-      gameOver: true, rematchDeclined: true,
-    });
-  } catch(e) {}
+    const d = (await db.collection('games').doc(gameId).get()).data();
+    const p = d?.players?.[recipientRole];
+    let apnsToken = p?.apnsToken || null;
+    let pushSub   = p?.pushSub?.endpoint ? p.pushSub : null;
+    if (!apnsToken && !pushSub && p?.id) {
+      const u = (await db.collection('users').doc(p.id).get()).data();
+      apnsToken = u?.apnsToken || null;
+      pushSub   = u?.pushSub?.endpoint ? u.pushSub : null;
+    }
+    if (apnsToken) {
+      const form = new URLSearchParams({ apnsToken, title, message, gameId, recipientRole });
+      await fetch(`${WEB_BASE}/api/notify`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString() });
+    } else if (pushSub) {
+      await fetch(`${WEB_BASE}/api/notify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: pushSub, title, message, gameId, recipientRole }) });
+    }
+  } catch(e) { console.warn('[Push] notifyGameRole error:', e?.message || e); }
+}
+
+async function declineRematchChallenge(gameId) {
+  // Notify the challenger (always p1 in a rematch), then cancel the game so it
+  // disappears from BOTH players' home screens with no win/loss/draw recorded.
+  const declinerName = playerName || 'Your opponent';
+  await notifyGameRole(gameId, 'p1', 'Rematch declined', `${declinerName} declined your rematch.`);
+  try { await db.collection('games').doc(gameId).update({ status: 'cancelled' }); } catch(e) {}
   removeStoredGame(gameId);
-  // Refresh home screen so the card disappears
   window._homeGames = (window._homeGames || []).filter(g => g.id !== gameId);
   buildHomeGamesList();
 }
@@ -6034,6 +6054,17 @@ function startOnlineListener(gameId) {
   onlineUnsubscribe = db.collection('games').doc(gameId).onSnapshot(snap => {
     if (!snap.exists) return;
     const data = snap.data();
+
+    // Game cancelled (e.g. a declined rematch) — don't apply stale state.
+    // If the challenger is sitting in the rematch, bump them home with a note.
+    if (data.status === 'cancelled') {
+      if (data.rematchChallengerName && document.getElementById('game-screen')?.classList.contains('active')) {
+        if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+        showMsg('Your rematch was declined.', 'info');
+        showHomeScreen();
+      }
+      return;
+    }
 
     // Update opponent name panel + cache their push subscription
     const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
@@ -6840,14 +6871,19 @@ async function registerNativePush() {
       // App is foregrounded — show in-app message
       showMsg(notification.title || 'Your turn!', 'info');
     });
-    Push.addListener('pushNotificationActionPerformed', (action) => {
+    Push.addListener('pushNotificationActionPerformed', async (action) => {
       const gameId = action.notification?.data?.gameId;
       const myRole = action.notification?.data?.recipientRole;
-      if (gameId) {
-        const stored = getStoredGames().find(g => g.gameId === gameId);
-        if (stored) loadOnlineGame(stored.gameId, stored.myRole);
-        else if (myRole) loadOnlineGame(gameId, myRole);
-      }
+      if (!gameId) return;
+      // A pending rematch challenge opens the home screen (accept/decline card),
+      // not the game itself.
+      try {
+        const d = (await db.collection('games').doc(gameId).get()).data();
+        if (d && d.rematchChallenge && !d.gameOver) { showHomeScreen(); return; }
+      } catch(e) {}
+      const stored = getStoredGames().find(g => g.gameId === gameId);
+      if (stored) loadOnlineGame(stored.gameId, stored.myRole);
+      else if (myRole) loadOnlineGame(gameId, myRole);
     });
     await Push.register();
   } catch(e) {
@@ -6973,9 +7009,11 @@ async function sendPushToOpponent() {
 
   // Always fetch fresh opponent data — APNs takes priority over any cached web push sub
   let opponentApnsToken = null;
+  let isRematch = false;
   try {
     const snap = await db.collection('games').doc(onlineGameId).get();
     const snapData = snap.data();
+    isRematch = !!snapData?.rematchChallenge;
     const opData = snapData?.players?.[opRole];
     const opId   = opData?.id;
     if (opData?.apnsToken) {
@@ -7009,8 +7047,8 @@ async function sendPushToOpponent() {
   }
 
   const payload = {
-    title:         'Your turn in Reword!',
-    message:       `${playerName} has played. Your move!`,
+    title:         isRematch ? 'Rematch challenge!' : 'Your turn in Reword!',
+    message:       isRematch ? `${playerName} has challenged you to a rematch!` : `${playerName} has played. Your move!`,
     gameId:        onlineGameId,
     recipientRole: opRole
   };
@@ -7987,12 +8025,14 @@ async function loadHomeGames() {
   function onQuerySnap(role, querySnap) {
     const seenInQuery = new Set();
     querySnap.forEach(snap => {
-      seenInQuery.add(snap.id);
       const g = snapToGame(snap, role);
       if (g) {
+        seenInQuery.add(snap.id);
         upsertHomeGame(g);
         addStoredGame(snap.id, role);
       }
+      // Cancelled/invalid docs are left OUT of seenInQuery on purpose, so the
+      // filter below removes them from the home screen in real time (both sides).
     });
     // Remove games this query no longer returns (deleted/cancelled)
     window._homeGames = (window._homeGames || []).filter(g => {

@@ -15,11 +15,36 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationWillEnterForeground(_ application: UIApplication) {}
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        // Deferred deep link: on the very first launch (e.g. installed from a
+        // challenge link), recover the game code the web prompt stashed on the
+        // clipboard, since iOS doesn't pass the original link to a fresh install.
+        checkDeferredInvite()
         // Disable native scroll-view bouncing so the fixed header/footer can't be dragged
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             if let bridge = (self.window?.rootViewController as? CAPBridgeViewController)?.bridge {
                 bridge.webView?.scrollView.bounces = false
                 bridge.webView?.scrollView.alwaysBounceVertical = false
+            }
+        }
+    }
+
+    private func checkDeferredInvite() {
+        let key = "rewordDeferredInviteChecked"
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: key) { return }   // only ever read the clipboard once, at first launch
+        defaults.set(true, forKey: key)
+
+        // hasURLs is a metadata check (no paste banner); only read contents if a URL is present.
+        let pasteboard = UIPasteboard.general
+        guard pasteboard.hasURLs, let str = pasteboard.string,
+              let components = URLComponents(string: str),
+              (components.host?.contains("rewordgame.app") ?? false),
+              let gameId = components.queryItems?.first(where: { $0.name == "game" })?.value,
+              !gameId.isEmpty else { return }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            if let bridge = (self.window?.rootViewController as? CAPBridgeViewController)?.bridge {
+                bridge.webView?.evaluateJavaScript("window.dispatchEvent(new CustomEvent('deferredInvite', { detail: { gameId: '\(gameId)' } }))")
             }
         }
     }

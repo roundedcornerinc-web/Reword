@@ -6005,13 +6005,22 @@ const _urlGame = new URLSearchParams(window.location.search).get('game');
 // On iOS without the app installed, show an App Store download prompt
 const _isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 if (_urlGame && _isiOS && !window.Capacitor?.isNativePlatform()) {
+  // Stash the invite on the clipboard so the freshly-installed app can recover
+  // the game code across the install boundary (deferred deep link — iOS does
+  // not pass the original link to a newly-installed app).
+  const _inviteURL = `${WEB_BASE}?game=${_urlGame}`;
+  const _copyInvite = () => { try { navigator.clipboard?.writeText(_inviteURL).catch(() => {}); } catch(e) {} };
   document.body.innerHTML = `
     <div style="min-height:100vh;background:#0e0825;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;font-family:-apple-system,sans-serif;color:#fff;text-align:center;">
       <img src="icons/icon-1024.png" style="width:100px;height:100px;border-radius:22px;margin-bottom:24px;" />
       <h1 style="font-size:28px;font-weight:700;margin:0 0 8px;">You've been challenged!</h1>
       <p style="font-size:16px;color:#b39ddb;margin:0 0 32px;">Download Reword Game to accept the challenge and play.</p>
-      <a href="https://testflight.apple.com/join/7B6CMRnZ" style="background:#6c3fc5;color:#fff;font-size:17px;font-weight:600;padding:16px 40px;border-radius:14px;text-decoration:none;display:inline-block;">Download on TestFlight</a>
+      <a id="tf-download" href="https://testflight.apple.com/join/7B6CMRnZ" style="background:#6c3fc5;color:#fff;font-size:17px;font-weight:600;padding:16px 40px;border-radius:14px;text-decoration:none;display:inline-block;">Download on TestFlight</a>
+      <p style="font-size:13px;color:#6d6592;margin:24px 0 0;">After installing, open Reword and it'll pick up your challenge.</p>
     </div>`;
+  _copyInvite();                                                              // best-effort immediate copy
+  document.getElementById('tf-download')?.addEventListener('click', _copyInvite);
+  document.addEventListener('touchstart', _copyInvite, { once: true, passive: true });
 } else if (_urlGame) {
   startGame();
   showGameScreen(); // show board immediately while async join resolves
@@ -6082,23 +6091,26 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Handle Universal Links from iOS (https://www.rewordgame.app?game=XXXXXX)
-window.addEventListener('universalLink', (e) => {
-  const gameId = e.detail?.gameId;
+// Handle an incoming game invite — from an iOS Universal Link (app already
+// installed, dispatched by AppDelegate) or a deferred invite the native app
+// recovers from the clipboard on first launch after installing from a link.
+function handleIncomingInvite(gameId) {
   if (!gameId) return;
   const stored = getStoredGames().find(g => g.gameId === gameId);
   if (stored) {
     loadOnlineGame(stored.gameId, stored.myRole);
-  } else {
-    const storedName = localStorage.getItem('playerName');
-    if (storedName && storedName !== 'You') {
-      playerName = storedName;
-      joinOnlineGame(gameId);
-    } else {
-      showNameModal('Join the Game', 'Your opponent will see this', 'Join Game', () => joinOnlineGame(gameId));
-    }
+    return;
   }
-});
+  const storedName = localStorage.getItem('playerName');
+  if (storedName && storedName !== 'You') {
+    playerName = storedName;
+    joinOnlineGame(gameId);
+  } else {
+    showNameModal('Join the Game', 'Your opponent will see this', 'Join Game', () => joinOnlineGame(gameId));
+  }
+}
+window.addEventListener('universalLink', (e) => handleIncomingInvite(e.detail?.gameId));
+window.addEventListener('deferredInvite', (e) => handleIncomingInvite(e.detail?.gameId));
 
 // Re-attach Firestore listener if app comes back to foreground after being killed
 document.addEventListener('visibilitychange', () => {

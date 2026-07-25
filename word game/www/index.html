@@ -2827,6 +2827,7 @@ function submitPlay() {
     return bNew > aNew || (bNew === aNew && b.word.length > a.word.length) ? b : a;
   }).word.toUpperCase();
   updateStatsAfterPlay(lastPlayScore, scoredWords);
+  playFanfare();          // Sparkle celebration for playing a word
   celebrateScore(lastPlayScore);
 
   // All-tiles bonus — fires when every rack tile was placed this turn
@@ -4739,46 +4740,66 @@ function hapticNotify(type) {
   try { window.Capacitor?.Plugins?.Haptics?.notification({ type: type || 'SUCCESS' }); } catch(e) {}
 }
 
+// ── Sound ── honours the Settings › Sound effects toggle
+function soundEnabled() {
+  try { return JSON.parse(localStorage.getItem('reword_settings') || '{}').sound !== false; } catch(e) { return true; }
+}
+// A single sine "voice" (used by the word fanfare)
+function blip(ctx, freq, t0, dur, gain, type) {
+  const osc = ctx.createOscillator(), g = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g); g.connect(ctx.destination);
+  osc.start(t0); osc.stop(t0 + dur + 0.03);
+}
+
 async function playPickup() {
   haptic('LIGHT');   // little bump when a tile is grabbed
+  if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const g   = ctx.createGain();
-    osc.connect(g); g.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1100, now);
-    osc.frequency.exponentialRampToValueAtTime(700, now + 0.055);
-    g.gain.setValueAtTime(0.18, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
-    osc.start(now); osc.stop(now + 0.07);
+    const lp  = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 260;
+    osc.type = 'sine';                                  // light bass thump (softer sibling of place)
+    osc.frequency.setValueAtTime(80, now);
+    osc.frequency.exponentialRampToValueAtTime(56, now + 0.13);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.42, now + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+    osc.connect(lp); lp.connect(g); g.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.16);
   } catch(e) {}
 }
 
 async function playDrop() {
   haptic('LIGHT');   // little bump when a tile is placed
+  if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
     const now = ctx.currentTime;
-    const len = Math.floor(ctx.sampleRate * 0.11);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const d   = buf.getChannelData(0);
-    for (let i = 0; i < len; i++)
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    const flt = ctx.createBiquadFilter();
-    flt.type = 'bandpass'; flt.frequency.value = 380; flt.Q.value = 0.6;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.55, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
-    src.connect(flt); flt.connect(g); g.connect(ctx.destination);
-    src.start(now);
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    const lp  = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 200;
+    osc.type = 'sine';                                  // "Deep Sub" low bass thump
+    osc.frequency.setValueAtTime(62, now);
+    osc.frequency.exponentialRampToValueAtTime(44, now + 0.24);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.75, now + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+    osc.connect(lp); lp.connect(g); g.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.27);
   } catch(e) {}
 }
 
 async function playRecall() {
+  if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
     const now = ctx.currentTime;
@@ -4791,6 +4812,20 @@ async function playRecall() {
     g.gain.setValueAtTime(0.1, now);
     g.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
     osc.start(now); osc.stop(now + 0.07);
+  } catch(e) {}
+}
+
+// "Sparkle" — short celebratory bell shimmer when a word is played
+async function playFanfare() {
+  if (!soundEnabled()) return;
+  try {
+    const ctx = await getAC();
+    const t = ctx.currentTime;
+    [784, 987.77, 1174.66, 1567.98].forEach((f, i) => {
+      const t0 = t + i * 0.05;
+      blip(ctx, f, t0, 0.28, 0.3);       // bright bell
+      blip(ctx, f * 2, t0, 0.16, 0.06);  // octave shimmer
+    });
   } catch(e) {}
 }
 

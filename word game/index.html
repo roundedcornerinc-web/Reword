@@ -2291,7 +2291,11 @@ let WORDS = new Set(AI_WORDS);
         setTimeout(processBatch, 0);
       } else {
         const full = new Set(words);
-        if (full.size > 1000) WORDS = full;
+        if (full.size > 1000) {
+          WORDS = full;
+          // Hand the full dictionary to the strength worker if it's already running
+          try { if (_strengthWorker) _strengthWorker.postMessage({ type: 'dict', words: [...full] }); } catch(e) {}
+        }
       }
     }
     setTimeout(processBatch, 0);
@@ -5103,12 +5107,100 @@ function updateRemainingPanel() {
     }).join('');
 }
 
+// ── Strength meter: full-dictionary best-play search in a background Worker ──
+// The solver is too heavy over the full ~190k dictionary to run on the main
+// thread, so it runs in a Worker. Falls back to the on-thread curated-list
+// search if Workers are unavailable (e.g. blocked by CSP).
+let _strengthWorker = null, _strengthWorkerReady = false, _strengthReqId = 0;
+const _strengthPending = {};
+
+// Runs INSIDE the worker (stringified). BS/VAL/PREMIUM/WORDS + solver fns are injected above it.
+function _strengthWorkerMain() {
+  function _tryFirst(w, r0, c0, dr, dc) {
+    var pMap = {}, tb = [];
+    for (var i = 0; i < BS; i++) tb.push(new Array(BS).fill(null));
+    for (var j = 0; j < w.length; j++) {
+      var rr = r0 + j * dr, cc = c0 + j * dc;
+      pMap[rr + ',' + cc] = { letter: w[j], row: rr, col: cc };
+      tb[rr][cc] = w[j];
+    }
+    if (!pMap['7,7']) return 0;
+    var wds = getWordsFormed(pMap, tb);
+    if (!wds.length) return 0;
+    for (var k = 0; k < wds.length; k++) if (!WORDS.has(wds[k].word.toUpperCase())) return 0;
+    return scoreWords(wds, new Set(Object.keys(pMap)));
+  }
+  self.onmessage = function (e) {
+    var d = e.data;
+    if (d.type === 'dict') { WORDS = new Set(d.words); AI_WORDS = WORDS; self.postMessage({ type: 'ready' }); return; }
+    if (d.type === 'compute') {
+      var best = 0;
+      try {
+        if (d.isEmpty) {
+          for (var w of WORDS) {
+            if (w.length < 2 || w.length > d.rack.length || !canSpell(w, d.rack)) continue;
+            for (var pos = 0; pos < w.length; pos++) {
+              var sc = 7 - pos; if (sc >= 0 && sc + w.length <= BS) { var a = _tryFirst(w, 7, sc, 0, 1); if (a > best) best = a; }
+              var sr = 7 - pos; if (sr >= 0 && sr + w.length <= BS) { var b = _tryFirst(w, sr, 7, 1, 0); if (b > best) best = b; }
+            }
+          }
+        } else {
+          var r = findBestPlayWithRack(d.rack, d.board, WORDS);
+          best = r ? r.score : 0;
+        }
+      } catch (err) {}
+      self.postMessage({ type: 'result', id: d.id, best: best });
+    }
+  };
+}
+
+function initStrengthWorker() {
+  if (_strengthWorker) return;
+  try {
+    const src =
+      'var BS=15,aiSkill="hard";' +
+      'var VAL=' + JSON.stringify(VAL) + ';' +
+      'var PREMIUM=' + JSON.stringify(PREMIUM) + ';' +
+      'var WORDS=new Set(),AI_WORDS;' +
+      getWordAt.toString() + ';' +
+      getWordsFormed.toString() + ';' +
+      hasAdjacentTile.toString() + ';' +
+      scoreWords.toString() + ';' +
+      canSpell.toString() + ';' +
+      findBestPlayWithRack.toString() + ';' +
+      '(' + _strengthWorkerMain.toString() + ')();';
+    const blob = new Blob([src], { type: 'application/javascript' });
+    _strengthWorker = new Worker(URL.createObjectURL(blob));
+    _strengthWorker.onmessage = function (e) {
+      const m = e.data;
+      if (m.type === 'ready') { _strengthWorkerReady = true; }
+      else if (m.type === 'result') { const cb = _strengthPending[m.id]; delete _strengthPending[m.id]; if (cb) cb(m.best); }
+    };
+    _strengthWorker.onerror = function () { _strengthWorker = null; _strengthWorkerReady = false; };
+    _strengthWorker.postMessage({ type: 'dict', words: [...WORDS] });
+  } catch (e) { _strengthWorker = null; _strengthWorkerReady = false; }
+}
+
 function computeBestScore() {
   bestPossibleScore = null;
   clearTimeout(_bestScoreTimer);
   _bestScoreTimer = setTimeout(() => {
     _bestScoreTimer = null;
     const rack = [...playerRack];
+
+    // Preferred path: full-dictionary search off the main thread.
+    initStrengthWorker();
+    if (_strengthWorker && _strengthWorkerReady) {
+      const id = ++_strengthReqId;
+      _strengthPending[id] = (best) => {
+        if (id !== _strengthReqId) return;   // superseded by a newer request
+        bestPossibleScore = best;
+        updateStrengthBar();
+      };
+      _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: board.map(r => [...r]) });
+      return;
+    }
+    // Fallback: on-thread curated-list (AI_WORDS) search.
 
     const firstMoveWords = [];
     if (isEmpty()) {

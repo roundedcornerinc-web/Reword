@@ -6828,7 +6828,7 @@ async function resendInvite(gameId) {
 async function sendNudge(gameId, myRole) {
   const opRole = myRole === 'p1' ? 'p2' : 'p1';
   const senderName = playerName || 'Your opponent';
-  await notifyGameRole(gameId, opRole, 'It's your turn!', `${senderName} is waiting for your move.`);
+  await notifyGameRole(gameId, opRole, "It's your turn!", `${senderName} is waiting for your move.`);
   showMsg('Nudge sent!', 'info');
 }
 async function cancelWaitingGame(gameId) {
@@ -8573,8 +8573,7 @@ function buildHomeGamesList() {
   }
 
   function scoreCard(myScore, oppScore, oppName, timeStr, btnText, btnAction, cardAction) {
-    const onclick = btnAction;  // Default behavior for backwards compat
-    cardAction = cardAction || btnAction;  // Default: card does same as button
+    cardAction = cardAction || btnAction;  // card falls back to the button's action
     const card = document.createElement('div');
     card.className = 'home-game-card';
     card.innerHTML =
@@ -8598,8 +8597,8 @@ function buildHomeGamesList() {
         '<div class="hgc-score-line">' + scoreLine(myScore, oppScore, oppName) + '</div>' +
       '</div>' +
       '<button class="hgc-action-btn">VIEW</button>';
-    card.querySelector('button').onclick = function(e) { e.stopPropagation(); btnAction(); };
-    card.onclick = cardAction;
+    card.querySelector('button').onclick = function(e) { e.stopPropagation(); onclick(); };
+    card.onclick = onclick;
     return card;
   }
 
@@ -8615,8 +8614,8 @@ function buildHomeGamesList() {
         '<div class="hgc-score-line">' + scoreLine(myScore, oppScore, oppName) + '</div>' +
       '</div>' +
       '<button class="hgc-action-btn">VIEW</button>';
-    card.querySelector('button').onclick = function(e) { e.stopPropagation(); btnAction(); };
-    card.onclick = cardAction;
+    card.querySelector('button').onclick = function(e) { e.stopPropagation(); onclick(); };
+    card.onclick = onclick;
     return card;
   }
 

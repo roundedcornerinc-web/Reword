@@ -2,6 +2,8 @@
   "name": "reword",
   "version": "1.0.0",
   "scripts": {
+    "check": "node scripts/check-syntax.js",
+    "presync": "npm run check",
     "sync": "cp index.html sw.js reword_logo.png manifest.json www/ && cp -r icons www/ && npx cap sync ios"
   },
   "dependencies": {

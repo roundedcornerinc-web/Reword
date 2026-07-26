@@ -6016,7 +6016,8 @@ if (_urlGame && _isiOS && !window.Capacitor?.isNativePlatform()) {
       <h1 style="font-size:28px;font-weight:700;margin:0 0 8px;">You've been challenged!</h1>
       <p style="font-size:16px;color:#b39ddb;margin:0 0 32px;">Download Reword Game to accept the challenge and play.</p>
       <a id="tf-download" href="https://testflight.apple.com/join/7B6CMRnZ" style="background:#6c3fc5;color:#fff;font-size:17px;font-weight:600;padding:16px 40px;border-radius:14px;text-decoration:none;display:inline-block;">Download on TestFlight</a>
-      <p style="font-size:13px;color:#6d6592;margin:24px 0 0;">After installing, open Reword and it'll pick up your challenge.</p>
+      <p style="font-size:13px;color:#6d6592;margin:24px 0 0;">After installing, open Reword and it'll automatically get your game from the clipboard. You may need to allow clipboard access when prompted.</p>
+      <p style="font-size:12px;color:#5d5582;margin:16px 0 0;">If the clipboard was cleared, you can return to this link to join the game.</p>
     </div>`;
   _copyInvite();                                                              // best-effort immediate copy
   document.getElementById('tf-download')?.addEventListener('click', _copyInvite);
@@ -6824,6 +6825,12 @@ async function resendInvite(gameId) {
   const link = `${WEB_BASE}?game=${gameId}`;
   document.getElementById('online-modal-link').value = link;
   await shareOnlineInvite();
+}
+async function sendNudge(gameId, myRole) {
+  const opRole = myRole === 'p1' ? 'p2' : 'p1';
+  const senderName = playerName || 'Your opponent';
+  await notifyGameRole(gameId, opRole, 'It's your turn!', `${senderName} is waiting for your move.`);
+  showMsg('Nudge sent!', 'info');
 }
 async function cancelWaitingGame(gameId) {
   try {
@@ -8723,7 +8730,7 @@ function buildHomeGamesList() {
     } else {
       const myTurn = g.currentPlayer === 'player';
       const btnLabel = g.isWaiting ? 'RESEND' : (myTurn ? 'PLAY' : 'NUDGE');
-      const action = g.isWaiting ? function() { resendInvite(g.id); return; } : resume;
+      const action = g.isWaiting ? function() { resendInvite(g.id); return; } : (myTurn ? resume : function() { sendNudge(g.id, g.myRole); });
       const card = scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action);
       const swipeable = makeSwipeable(card, g);
       if (myTurn) myMoveCards.push(swipeable);

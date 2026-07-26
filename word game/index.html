@@ -8572,7 +8572,9 @@ function buildHomeGamesList() {
            (skill ? '<span class="hgc-skill">' + skill + '</span>' : '');
   }
 
-  function scoreCard(myScore, oppScore, oppName, timeStr, btnText, onclick) {
+  function scoreCard(myScore, oppScore, oppName, timeStr, btnText, btnAction, cardAction) {
+    const onclick = btnAction;  // Default behavior for backwards compat
+    cardAction = cardAction || btnAction;  // Default: card does same as button
     const card = document.createElement('div');
     card.className = 'home-game-card';
     card.innerHTML =
@@ -8581,8 +8583,8 @@ function buildHomeGamesList() {
         '<div class="hgc-score-line">' + scoreLine(myScore, oppScore, oppName) + '</div>' +
       '</div>' +
       '<button class="hgc-action-btn">' + btnText + '</button>';
-    card.querySelector('button').onclick = function(e) { e.stopPropagation(); onclick(); };
-    card.onclick = onclick;
+    card.querySelector('button').onclick = function(e) { e.stopPropagation(); btnAction(); };
+    card.onclick = cardAction;
     return card;
   }
 
@@ -8596,8 +8598,8 @@ function buildHomeGamesList() {
         '<div class="hgc-score-line">' + scoreLine(myScore, oppScore, oppName) + '</div>' +
       '</div>' +
       '<button class="hgc-action-btn">VIEW</button>';
-    card.querySelector('button').onclick = function(e) { e.stopPropagation(); onclick(); };
-    card.onclick = onclick;
+    card.querySelector('button').onclick = function(e) { e.stopPropagation(); btnAction(); };
+    card.onclick = cardAction;
     return card;
   }
 
@@ -8613,8 +8615,8 @@ function buildHomeGamesList() {
         '<div class="hgc-score-line">' + scoreLine(myScore, oppScore, oppName) + '</div>' +
       '</div>' +
       '<button class="hgc-action-btn">VIEW</button>';
-    card.querySelector('button').onclick = function(e) { e.stopPropagation(); onclick(); };
-    card.onclick = onclick;
+    card.querySelector('button').onclick = function(e) { e.stopPropagation(); btnAction(); };
+    card.onclick = cardAction;
     return card;
   }
 
@@ -8633,7 +8635,7 @@ function buildHomeGamesList() {
       const aiAgo = s.lastUpdated ? timeAgo(s.lastUpdated) : 'just now';
       if (!s.gameOver) {
         const resume = function() { showGameScreen(); loadAiGameState(); };
-        myMoveCards.push(scoreCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', aiAgo, 'PLAY', resume));
+        myMoveCards.push(scoreCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', aiAgo, 'PLAY', resume, resume));
       } else {
         const aiId = 'ai:' + (s.lastUpdated || 0);
         const view = function() { markResultViewed(aiId); window._suppressWinnerModal = true; showGameScreen(); loadAiGameState(); };
@@ -8729,8 +8731,8 @@ function buildHomeGamesList() {
     } else {
       const myTurn = g.currentPlayer === 'player';
       const btnLabel = g.isWaiting ? 'RESEND' : (myTurn ? 'PLAY' : 'NUDGE');
-      const action = g.isWaiting ? function() { resendInvite(g.id); return; } : (myTurn ? resume : function() { sendNudge(g.id, g.myRole); });
-      const card = scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, action);
+      const btnAction = g.isWaiting ? function() { resendInvite(g.id); return; } : (myTurn ? resume : function() { sendNudge(g.id, g.myRole); });
+      const card = scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, btnAction, resume);
       const swipeable = makeSwipeable(card, g);
       if (myTurn) myMoveCards.push(swipeable);
       else theirMoveCards.push(swipeable);

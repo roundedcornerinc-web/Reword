@@ -2524,10 +2524,9 @@ function getRemovableInfo(r, c) {
   if (pendingRemovals.has(key)) return {removable: false, reason: 'Already pending removal.'};
   if (pendingPlacements[key]) return {removable: false, reason: 'A tile is being placed here.'};
 
-  // Build effective board with existing pending removals cleared (but this tile still present)
-  const effectiveBoard = board.map(row => [...row]);
-  for (const k of pendingRemovals)
-    effectiveBoard[+k.split(',')[0]][+k.split(',')[1]] = null;
+  // Build effective board including pending placements (e.g., swapped-in tiles)
+  // This validates removal against the dynamic board state, not just the committed state
+  const effectiveBoard = boardWithPending().map(row => [...row]);
 
   // A tile that connects two crossing words can't be taken.
   const crossingWords = [[0,1],[1,0]].filter(([dr,dc]) => getWordAt(effectiveBoard, r, c, dr, dc));

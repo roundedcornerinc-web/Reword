@@ -2616,11 +2616,20 @@ function recallRemoval(key) {
 // ═══════════════════════════════════════════════════════
 //  SCORING
 // ═══════════════════════════════════════════════════════
+// Single place that decides which squares are exempt from premiums when a turn is scored.
+// Only an in-place swap is exempt: that square already held a tile, so its bonus was spent.
+// A tile taken off the board and replayed at a fresh square scores that square in full —
+// exempting those too scored a DL-placed Z as 10 instead of 20.
+// The commit, preview and strength-bar paths all go through here so they cannot drift apart.
+function scorePlay(words, placementKeys, swapKeys) {
+  return scoreWords(words, placementKeys, swapKeys, swapKeys);
+}
+
 function scoreWords(words, newKeys, noScoreKeys = new Set(), noWordGateKeys = noScoreKeys) {
   let total = 0;
   for (const {cells} of words) {
     // Skip words where every new tile is an in-place swap position (word was already on the board).
-    // Stolen tiles placed at NEW positions do count — they earn word score, just no letter bonuses.
+    // Tiles taken off the board and replayed at NEW positions score in full, bonuses included.
     const hasGenuineNewTile = cells.some(({row, col}) => {
       const k = `${row},${col}`;
       return newKeys.has(k) && !noWordGateKeys.has(k);
@@ -2767,14 +2776,10 @@ function submitPlay() {
   const result = validatePlay(allPlacements, swapKeys);
   if (!result.ok) { showMsg(result.err, 'bad'); return; }
 
-  // Swap positions and stolen-tile positions don't earn premium bonuses
-  const stolenTileKeys = new Set(
-    Object.entries(allPlacements)
-      .filter(([, p]) => swappedRackIndices.has(p.rackIdx) && !p.isSwap)
-      .map(([k]) => k)
-  );
-  const noScoreKeys = new Set([...swapKeys, ...stolenTileKeys]);
-  const pts = scoreWords(result.words, playKeys, noScoreKeys, swapKeys);
+  // Only swap positions miss out on premiums — that square already held a tile, so its
+  // bonus was spent. A tile taken off the board and replayed at a fresh square earns that
+  // square's bonuses normally.
+  const pts = scorePlay(result.words, playKeys, swapKeys);
 
   // Record last-move keys in word order (for animation + highlight)
   const primaryKeys = Object.keys(allPlacements).filter(k => !allPlacements[k].isSwap);
@@ -5025,13 +5030,8 @@ function renderScorePreview() {
   // (e.g. the placed tile is still floating/isolated).
   if (!words.some(w => w.cells.some(c => primaryKeySet.has(`${c.row},${c.col}`)))) return;
 
-  const stolenPreviewKeys = new Set(
-    Object.entries(pendingPlacements)
-      .filter(([, p]) => swappedRackIndices.has(p.rackIdx) && !p.isSwap)
-      .map(([k]) => k)
-  );
-  const noScorePreview = new Set([...swapPendingPositions, ...stolenPreviewKeys]);
-  const pts = scoreWords(words, new Set(keys), noScorePreview, swapPendingPositions);
+  // Same rule as the commit path: only the swap square is denied premiums.
+  const pts = scorePlay(words, new Set(keys), swapPendingPositions);
   const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
   const bonus = usedIdx.size === 7 ? 35 : 0;
 
@@ -5302,12 +5302,7 @@ function updateStrengthBar() {
     if (result.ok) {
       const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
       const bonus = usedIdx.size === 7 ? 35 : 0;
-      const stolenStrKeys = new Set(
-        Object.entries(pendingPlacements)
-          .filter(([, p]) => swappedRackIndices.has(p.rackIdx) && !p.isSwap)
-          .map(([k]) => k)
-      );
-      currentScore = scoreWords(result.words, new Set(keys), new Set([...swapPendingPositions, ...stolenStrKeys]), swapPendingPositions) + bonus;
+      currentScore = scorePlay(result.words, new Set(keys), swapPendingPositions) + bonus;
     }
   }
 

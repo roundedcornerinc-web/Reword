@@ -2838,14 +2838,15 @@ function submitPlay() {
   zoomBoardOut();
   updateUI();
 
-  // Build per-word breakdown for the score message (use same noScoreKeys as pts)
+  // Build per-word breakdown for the score message. Must use the same premium exemption
+  // as scorePlay above — only in-place swap squares — or the breakdown won't add up to pts.
   const scoredWords = result.words.filter(({cells}) =>
-    cells.some(({row, col}) => { const k=`${row},${col}`; return playKeys.has(k) && !noScoreKeys.has(k); })
+    cells.some(({row, col}) => { const k=`${row},${col}`; return playKeys.has(k) && !swapKeys.has(k); })
   ).map(({word, cells}) => {
     let ws = 0, wm = 1;
     for (const {row, col, letter} of cells) {
       const k = `${row},${col}`;
-      const isNew = playKeys.has(k) && !noScoreKeys.has(k);
+      const isNew = playKeys.has(k) && !swapKeys.has(k);
       const prem = isNew ? PREMIUM[k] : null;
       const lv = VAL[letter] ?? 0;
       let ls = lv;

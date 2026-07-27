@@ -2293,8 +2293,14 @@ let WORDS = new Set(AI_WORDS);
         const full = new Set(words);
         if (full.size > 1000) {
           WORDS = full;
-          // Hand the full dictionary to the strength worker if it's already running
-          try { if (_strengthWorker) _strengthWorker.postMessage({ type: 'dict', words: [...full] }); } catch(e) {}
+          // Start the strength worker now and hand it the full dictionary, so it has already
+          // reported ready by the time the first tile is placed. Waiting until the first
+          // computeBestScore() meant that search always missed the worker and ran its
+          // fallback on the main thread, stalling the board on the very first placement.
+          try {
+            initStrengthWorker();
+            if (_strengthWorker) _strengthWorker.postMessage({ type: 'dict', words: [...full] });
+          } catch(e) {}
         }
       }
     }
@@ -2610,11 +2616,20 @@ function recallRemoval(key) {
 // ═══════════════════════════════════════════════════════
 //  SCORING
 // ═══════════════════════════════════════════════════════
+// Single place that decides which squares are exempt from premiums when a turn is scored.
+// Only an in-place swap is exempt: that square already held a tile, so its bonus was spent.
+// A tile taken off the board and replayed at a fresh square scores that square in full —
+// exempting those too scored a DL-placed Z as 10 instead of 20.
+// The commit, preview and strength-bar paths all go through here so they cannot drift apart.
+function scorePlay(words, placementKeys, swapKeys) {
+  return scoreWords(words, placementKeys, swapKeys, swapKeys);
+}
+
 function scoreWords(words, newKeys, noScoreKeys = new Set(), noWordGateKeys = noScoreKeys) {
   let total = 0;
   for (const {cells} of words) {
     // Skip words where every new tile is an in-place swap position (word was already on the board).
-    // Stolen tiles placed at NEW positions do count — they earn word score, just no letter bonuses.
+    // Tiles taken off the board and replayed at NEW positions score in full, bonuses included.
     const hasGenuineNewTile = cells.some(({row, col}) => {
       const k = `${row},${col}`;
       return newKeys.has(k) && !noWordGateKeys.has(k);
@@ -2667,20 +2682,40 @@ function validatePlay(placements, swapKeys = new Set()) {
 
   const tb = boardWithPending();
 
-  // Verify each pending removal still leaves valid words in the final board state
+  // Verify each pending removal still leaves valid words in the final board state.
+  // Walk the word on a board that has pending placements applied but removals NOT yet
+  // applied, so the removed tile is still there to anchor the walk while any tile swapped
+  // into the same word is seen at its new letter. Reading the committed `board` here made
+  // a swap invisible: swapping B onto the Z of AZO and stealing the A still read "ZO".
+  const preRemoval = board.map(row => [...row]);
+  for (const [k, p] of Object.entries(pendingPlacements)) {
+    const [pr, pc] = k.split(',').map(Number);
+    preRemoval[pr][pc] = p.letter;
+  }
   for (const remKey of pendingRemovals) {
     const [rr, rc] = remKey.split(',').map(Number);
     for (const [dr, dc] of [[0,1],[1,0]]) {
-      const wordBefore = getWordAt(board.map(row=>[...row]), rr, rc, dr, dc);
+      const wordBefore = getWordAt(preRemoval, rr, rc, dr, dc);
       if (!wordBefore) continue;
-      const cells = wordBefore.cells;
-      const remainingCells = cells.filter(cell => !pendingRemovals.has(`${cell.row},${cell.col}`));
-      if (remainingCells.length === 0) continue;
-      if (remainingCells.length === 1)
-        return {ok:false, err:'Removal leaves an isolated tile.'};
-      const remainingWord = remainingCells.map(c=>c.letter).join('');
-      if (!WORDS.has(remainingWord.toUpperCase()))
-        return {ok:false, err:`"${remainingWord.toUpperCase()}" is not a valid word.`};
+      // Keep whatever still stands in the final board — a square that was removed and then
+      // re-filled this turn is still occupied. Taking a tile out can split the old word into
+      // two fragments, so validate each surviving fragment rather than joining the leftovers.
+      const seenFragments = new Set();
+      for (const cell of wordBefore.cells) {
+        if (!tb[cell.row][cell.col]) continue;
+        const frag = getWordAt(tb, cell.row, cell.col, dr, dc);
+        if (!frag) {
+          // A lone leftover is fine as long as it still belongs to a word running the other way.
+          if (!getWordAt(tb, cell.row, cell.col, dc, dr))
+            return {ok:false, err:'Removal leaves an isolated tile.'};
+          continue;
+        }
+        const fragKey = `${frag.cells[0].row},${frag.cells[0].col}`;
+        if (seenFragments.has(fragKey)) continue;
+        seenFragments.add(fragKey);
+        if (!WORDS.has(frag.word.toUpperCase()))
+          return {ok:false, err:`"${frag.word.toUpperCase()}" is not a valid word.`};
+      }
     }
   }
 
@@ -2741,14 +2776,10 @@ function submitPlay() {
   const result = validatePlay(allPlacements, swapKeys);
   if (!result.ok) { showMsg(result.err, 'bad'); return; }
 
-  // Swap positions and stolen-tile positions don't earn premium bonuses
-  const stolenTileKeys = new Set(
-    Object.entries(allPlacements)
-      .filter(([, p]) => swappedRackIndices.has(p.rackIdx) && !p.isSwap)
-      .map(([k]) => k)
-  );
-  const noScoreKeys = new Set([...swapKeys, ...stolenTileKeys]);
-  const pts = scoreWords(result.words, playKeys, noScoreKeys, swapKeys);
+  // Only swap positions miss out on premiums — that square already held a tile, so its
+  // bonus was spent. A tile taken off the board and replayed at a fresh square earns that
+  // square's bonuses normally.
+  const pts = scorePlay(result.words, playKeys, swapKeys);
 
   // Record last-move keys in word order (for animation + highlight)
   const primaryKeys = Object.keys(allPlacements).filter(k => !allPlacements[k].isSwap);
@@ -4999,13 +5030,8 @@ function renderScorePreview() {
   // (e.g. the placed tile is still floating/isolated).
   if (!words.some(w => w.cells.some(c => primaryKeySet.has(`${c.row},${c.col}`)))) return;
 
-  const stolenPreviewKeys = new Set(
-    Object.entries(pendingPlacements)
-      .filter(([, p]) => swappedRackIndices.has(p.rackIdx) && !p.isSwap)
-      .map(([k]) => k)
-  );
-  const noScorePreview = new Set([...swapPendingPositions, ...stolenPreviewKeys]);
-  const pts = scoreWords(words, new Set(keys), noScorePreview, swapPendingPositions);
+  // Same rule as the commit path: only the swap square is denied premiums.
+  const pts = scorePlay(words, new Set(keys), swapPendingPositions);
   const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
   const bonus = usedIdx.size === 7 ? 35 : 0;
 
@@ -5181,7 +5207,10 @@ function initStrengthWorker() {
 }
 
 function computeBestScore() {
-  bestPossibleScore = null;
+  // Keep the previous best on screen while the new one is computed. Clearing it here blanked
+  // the strength bar on every single tile placement — the 50ms debounce restarts with each
+  // tile, so during an active placement run the meter never had a value to draw.
+  // A new game clears bestPossibleScore explicitly.
   clearTimeout(_bestScoreTimer);
   _bestScoreTimer = setTimeout(() => {
     _bestScoreTimer = null;
@@ -5273,12 +5302,7 @@ function updateStrengthBar() {
     if (result.ok) {
       const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
       const bonus = usedIdx.size === 7 ? 35 : 0;
-      const stolenStrKeys = new Set(
-        Object.entries(pendingPlacements)
-          .filter(([, p]) => swappedRackIndices.has(p.rackIdx) && !p.isSwap)
-          .map(([k]) => k)
-      );
-      currentScore = scoreWords(result.words, new Set(keys), new Set([...swapPendingPositions, ...stolenStrKeys]), swapPendingPositions) + bonus;
+      currentScore = scorePlay(result.words, new Set(keys), swapPendingPositions) + bonus;
     }
   }
 

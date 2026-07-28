@@ -142,7 +142,10 @@ body {
   font-size: 14.7px; color: #aaa; letter-spacing: 0.02em;
   cursor: pointer; display: flex; align-items: center; gap: 3px;
   margin-top: 1px;
+  max-width: 100%; min-width: 0; white-space: nowrap;
 }
+.score-panel .name > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+#score-left, #score-right, .score-panel { min-width: 0; }
 .score-panel .name:hover { color: #ddd; }
 
 .name-input {
@@ -165,8 +168,17 @@ body {
   gap: 5px;
   margin-top: 2px;
   justify-content: flex-end;
+  max-width: 100%;
+  min-width: 0;
 }
-.ai-name-lbl { font-size: 14.7px; color: #aaa; letter-spacing: 0.02em; }
+/* Names must stay on one line — a two-line name ("LOVE MONKE") shoves the scoreboard around.
+   fitNameLabels() shrinks the font until it fits; nowrap is what makes the overflow
+   measurable in the first place. */
+.ai-name-lbl {
+  font-size: 14.7px; color: #aaa; letter-spacing: 0.02em;
+  white-space: nowrap; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis;
+}
 
 #difficulty-badge {
   background: #0d0920;
@@ -388,8 +400,12 @@ body {
 }
 
 .rack-tile {
-  width: 46px;
-  height: 52px;
+  /* Size is driven by --rack-tile-w so the rack can shrink to fit. Stealing tiles pushes the
+     rack past the usual 7 (up to 11), which at a fixed width ran off both edges of the screen.
+     fitRack() lowers the variable when the tiles no longer fit; 46px stays the maximum, so a
+     normal rack is unchanged. */
+  width: var(--rack-tile-w, 46px);
+  height: var(--rack-tile-h, 52px);
   background: var(--tile-bg);
   border-radius: 6px;
   display: flex;
@@ -414,8 +430,10 @@ body {
   transform: translateY(-8px);
   box-shadow: 0 10px 0 #c00000, 0 12px 20px rgba(0,0,0,0.5);
 }
-.rack-tile .tile-letter { font-size: 1.69rem; color: var(--tile-text); }
-.rack-tile .tile-val { font-size: 0.6rem; color: var(--tile-text); opacity: 0.7; position: absolute; right: 4px; bottom: 3px; }
+/* Fonts scale with the tile so a shrunken rack stays legible instead of overflowing its tiles.
+   The ratios reproduce the original 1.69rem / 0.6rem at the full 46px width. */
+.rack-tile .tile-letter { font-size: calc(var(--rack-tile-w, 46px) * 0.588); color: var(--tile-text); }
+.rack-tile .tile-val { font-size: calc(var(--rack-tile-w, 46px) * 0.209); color: var(--tile-text); opacity: 0.7; position: absolute; right: 4px; bottom: 3px; }
 .rack-tile.empty-slot { background: rgba(255,255,255,0.06); box-shadow: none; cursor: default; border: 2px dashed rgba(255,255,255,0.15); }
 .rack-tile.empty-slot:hover { transform: none; }
 
@@ -852,7 +870,7 @@ body {
   box-shadow: 0 7px 0 #7b2ff7, 0 8px 16px rgba(123,47,247,0.5);
 }
 .rack-tile.blank-tile { background: #f0ece0; box-shadow: 0 3px 0 #999, 0 4px 8px rgba(0,0,0,0.3); border: 1.5px dashed #aaa; }
-.rack-tile.blank-tile .tile-letter { color: #888; font-size: 1rem; }
+.rack-tile.blank-tile .tile-letter { color: #888; font-size: calc(var(--rack-tile-w, 46px) * 0.348); }
 .rack-tile.blank-tile:hover { transform: translateY(-4px); box-shadow: 0 7px 0 #999, 0 8px 16px rgba(0,0,0,0.4); }
 .rack-tile.swapped-tile.blank-tile { background: #c070ff; box-shadow: 0 3px 0 #7b2ff7, 0 4px 8px rgba(123,47,247,0.5); border: none; }
 .rack-tile.swapped-tile.blank-tile:hover { background: #d090ff; box-shadow: 0 7px 0 #7b2ff7, 0 8px 16px rgba(123,47,247,0.5); }
@@ -3590,10 +3608,15 @@ function onTouchStart(e, idx) {
   playPickup();
   const letter = playerRack[idx];
 
-  // Create ghost tile that follows finger
+  // Create ghost tile that follows finger. Match the real tile's size rather than assuming
+  // 46x52 — fitRack() shrinks tiles when steals push the rack past 7, and a full-size ghost
+  // over a shrunken rack looks wrong.
+  const _srcRect = document.getElementById('rack')?.querySelectorAll('.rack-tile')[idx]?.getBoundingClientRect();
+  const _gw = Math.round(_srcRect?.width  || 46);
+  const _gh = Math.round(_srcRect?.height || 52);
   touchGhost = document.createElement('div');
   touchGhost.className = 'rack-tile';
-  touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;width:46px;height:52px;transform:translate(-50%,-50%);transition:none;`;
+  touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;width:${_gw}px;height:${_gh}px;transform:translate(-50%,-50%);transition:none;`;
   touchGhost.innerHTML = `<span class="tile-letter">${letter}</span><span class="tile-val">${VAL[letter]??0}</span>`;
   document.body.appendChild(touchGhost);
 
@@ -3608,8 +3631,9 @@ function onTouchStart(e, idx) {
   const srcTile = rEl?.querySelectorAll('.rack-tile')[idx];
   if (srcTile) srcTile.style.opacity = '0.4';
 
-  document.addEventListener('touchmove', onTouchMove, {passive: false});
-  document.addEventListener('touchend',  onTouchEnd,  {passive: false});
+  document.addEventListener('touchmove',   onTouchMove,   {passive: false});
+  document.addEventListener('touchend',    onTouchEnd,    {passive: false});
+  document.addEventListener('touchcancel', onTouchCancel, {passive: false});
 }
 
 function onTouchMove(e) {
@@ -3672,8 +3696,9 @@ function onTouchMove(e) {
 }
 
 function onTouchEnd(e) {
-  document.removeEventListener('touchmove', onTouchMove);
-  document.removeEventListener('touchend',  onTouchEnd);
+  document.removeEventListener('touchmove',   onTouchMove);
+  document.removeEventListener('touchend',    onTouchEnd);
+  document.removeEventListener('touchcancel', onTouchCancel);
   clearTimeout(_dropTargetTimer);
   document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
 
@@ -3734,6 +3759,24 @@ function onTouchEnd(e) {
   setTimeout(() => { _suppressClick = false; }, 50);
 }
 
+// iOS fires touchcancel when the system takes the touch away mid-drag — a notification, an
+// incoming call, a system edge gesture, palm rejection. Without this, touchend never runs and
+// the drag is abandoned in place: the ghost tile stays stranded over the rack, the source tile
+// stays at 0.4 opacity, tiles sit frozen mid-slide, and the drag state never resets. Tear the
+// drag down without dropping anything.
+function onTouchCancel() {
+  document.removeEventListener('touchmove',   onTouchMove);
+  document.removeEventListener('touchend',    onTouchEnd);
+  document.removeEventListener('touchcancel', onTouchCancel);
+  clearTimeout(_dropTargetTimer);
+  document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
+  if (touchGhost) { touchGhost.remove(); touchGhost = null; }
+  clearRackSlide();
+  dragRackIdx     = null;
+  touchDragIdx    = null;
+  touchPendingKey = null;
+}
+
 function onPendingTouchStart(e, key) {
   if (gameOver) return;
   const pending = pendingPlacements[key];
@@ -3756,8 +3799,9 @@ function onPendingTouchStart(e, key) {
   touchGhost.style.left = t.clientX + 'px';
   touchGhost.style.top  = t.clientY + 'px';
 
-  document.addEventListener('touchmove', onTouchMove, {passive: false});
-  document.addEventListener('touchend',  onTouchEnd,  {passive: false});
+  document.addEventListener('touchmove',   onTouchMove,   {passive: false});
+  document.addEventListener('touchend',    onTouchEnd,    {passive: false});
+  document.addEventListener('touchcancel', onTouchCancel, {passive: false});
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4744,7 +4788,88 @@ function renderRack() {
       if (from !== to) reorderRackTile(from, to);
     }
   });
+
+  fitRack();
 }
+
+// Shrink the rack tiles when there are too many to fit across the screen. Stealing tiles grows
+// the rack beyond the usual 7 — up to 11 — which at the fixed 46px overflowed both edges.
+// 46px stays the cap, so a normal rack renders exactly as before.
+const RACK_TILE_MAX = 46, RACK_TILE_RATIO = 52 / 46, RACK_GAP = 5;
+function fitRack() {
+  const rackEl = document.getElementById('rack');
+  if (!rackEl) return;
+  const count = rackEl.children.length;
+  if (!count) return;
+  // Measure the padded container, not the rack itself — the rack is as wide as its contents.
+  const holder = rackEl.parentElement || rackEl;
+  const style = getComputedStyle(holder);
+  const avail = holder.clientWidth - parseFloat(style.paddingLeft || 0) - parseFloat(style.paddingRight || 0);
+  if (avail <= 0) return;   // laid out while hidden; the next render will size it
+  const width = Math.min(RACK_TILE_MAX, Math.floor((avail - RACK_GAP * (count - 1)) / count));
+  if (!(width > 0)) return;
+  rackEl.style.setProperty('--rack-tile-w', width + 'px');
+  rackEl.style.setProperty('--rack-tile-h', Math.round(width * RACK_TILE_RATIO) + 'px');
+}
+
+// Re-fit on rotation and window resize, where the available width changes without a re-render.
+window.addEventListener('resize', fitRack);
+window.addEventListener('orientationchange', () => setTimeout(fitRack, 100));
+
+// ── Scoreboard name auto-fit ────────────────────────────
+// A long opponent name ("LOVE MONKE") wrapped onto a second line and pushed the scoreboard
+// out of shape. Shrink the label until it fits its column on one line.
+// Floor is a readability limit, not a fitting one — below ~11px the name is unreadable, so
+// anything still too long at the floor is ellipsised by CSS rather than shrunk into nothing.
+const NAME_FONT_MAX = 14.7, NAME_FONT_MIN = 11, NAME_FONT_STEP = 0.3;
+
+function _fitOneName(el, gap) {
+  const row   = el?.parentElement;
+  const panel = el?.closest('.score-panel');
+  // Measure against #score-left / #score-right, whose width comes from `flex: 1` rather than
+  // from content. Measuring the row instead ratchets: shrinking the label narrows the row,
+  // which shrinks the next measurement, dragging even a two-letter name down to the floor.
+  const container = panel?.parentElement;
+  if (!row || !panel || !container) return;
+
+  let avail = container.clientWidth;
+  // Space taken beside the panel — the home button, the right-hand spacer.
+  for (const sib of container.children) {
+    if (sib === panel || getComputedStyle(sib).display === 'none') continue;
+    avail -= sib.getBoundingClientRect().width;
+  }
+  const cgap = parseFloat(getComputedStyle(container).gap) || 0;
+  avail -= cgap * Math.max(0, container.children.length - 1);
+  // Space taken beside the label inside its own row — the difficulty badge.
+  for (const sib of row.children) {
+    if (sib === el || getComputedStyle(sib).display === 'none') continue;
+    avail -= sib.getBoundingClientRect().width + gap;
+  }
+  if (!(avail > 0)) return;   // laid out while hidden — a later call will size it
+  let size = NAME_FONT_MAX;
+  el.style.fontSize = size + 'px';
+  // white-space:nowrap means scrollWidth is the full unwrapped text width.
+  while (size > NAME_FONT_MIN && el.scrollWidth > avail) {
+    size = Math.max(NAME_FONT_MIN, size - NAME_FONT_STEP);   // clamp: never step past the floor
+    el.style.fontSize = size + 'px';
+  }
+}
+
+function fitNameLabels() {
+  _fitOneName(document.getElementById('ai-name-display'), 5);   // .ai-name-row gap
+  _fitOneName(document.getElementById('player-name-text'), 3);  // .score-panel .name gap
+}
+
+// The opponent name is assigned from many places, so watch the elements instead of chasing
+// every call site. Only text changes are observed — fitting sets style, which is an attribute,
+// so this cannot loop.
+['ai-name-display', 'player-name-text'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) new MutationObserver(fitNameLabels)
+    .observe(el, { childList: true, characterData: true, subtree: true });
+});
+window.addEventListener('resize', fitNameLabels);
+window.addEventListener('orientationchange', () => setTimeout(fitNameLabels, 100));
 
 // ═══════════════════════════════════════════════════════
 //  SOUND
@@ -5217,20 +5342,43 @@ function computeBestScore() {
     _bestScoreTimer = null;
     const rack = [...playerRack];
 
+    const apply = (best) => { bestPossibleScore = best; updateStrengthBar(); };
+
     // Preferred path: full-dictionary search off the main thread.
     initStrengthWorker();
     if (_strengthWorker && _strengthWorkerReady) {
       const id = ++_strengthReqId;
-      _strengthPending[id] = (best) => {
-        if (id !== _strengthReqId) return;   // superseded by a newer request
-        bestPossibleScore = best;
-        updateStrengthBar();
+      let settled = false, timeoutId = null;
+      const finish = (best) => {
+        if (settled || id !== _strengthReqId) return;   // already done, or superseded
+        settled = true;
+        if (timeoutId !== null) clearTimeout(timeoutId);
+        delete _strengthPending[id];
+        // A 0 means the worker found nothing playable. On a board where the player can
+        // obviously play, that is the search failing, not a dead rack — so fall back
+        // instead of drawing an empty bar.
+        apply(best > 0 ? best : _bestScoreOnThread(rack));
       };
+      _strengthPending[id] = finish;
+      // The worker searches the full ~190k dictionary. On a crowded board, or with a blank
+      // in the rack (which matches every letter), that can crawl or wedge. Until it answers,
+      // bestPossibleScore stays null and the meter renders completely blank — so cap the wait.
+      timeoutId = setTimeout(() => {
+        if (settled || id !== _strengthReqId) return;
+        settled = true;
+        delete _strengthPending[id];
+        apply(_bestScoreOnThread(rack));
+      }, 1500);
       _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: board.map(r => [...r]) });
       return;
     }
-    // Fallback: on-thread curated-list (AI_WORDS) search.
+    apply(_bestScoreOnThread(rack));
+  }, 50);
+}
 
+// Curated-list search on the main thread. Cheap enough not to stall the board and it always
+// returns a number, which is why it backstops the worker rather than only replacing it.
+function _bestScoreOnThread(rack) {
     const firstMoveWords = [];
     if (isEmpty()) {
       for (const w of AI_WORDS) {
@@ -5284,10 +5432,7 @@ function computeBestScore() {
       bestScore = best ? best.score : 0;
     }
 
-    bestPossibleScore = bestScore;
-    console.log('[Strength] bestPossibleScore:', bestPossibleScore, 'rack:', playerRack.join(''));
-    updateStrengthBar();
-  }, 50);
+    return bestScore;
 }
 
 function updateStrengthBar() {
@@ -6002,6 +6147,7 @@ auth.onAuthStateChanged(user => {
     _authReadyResolve(getPlayerId());
     // Pull game list from Firestore so it survives refreshes
     syncGamesFromFirestore();
+    recordDeviceIdentity();   // capture this device id for the future account migration
   } else {
     auth.signInAnonymously().catch(err => {
       console.warn('[Auth] anonymous sign-in failed:', err);
@@ -6140,16 +6286,40 @@ window.addEventListener('deferredInvite', (e) => handleIncomingInvite(e.detail?.
 // Re-attach Firestore listener if app comes back to foreground after being killed
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
-    // Reconnect in-game listener if needed
-    if (isOnlineMode && onlineGameId && !onlineUnsubscribe) {
-      startOnlineListener(onlineGameId);
-    }
+    if (isOnlineMode && onlineGameId) resyncOnlineGame(onlineGameId);
     // Refresh home screen game list when app comes back to foreground
     if (document.getElementById('home-screen')?.classList.contains('active')) {
       loadHomeGames();
     }
   }
 });
+
+// Catch up after the app was in the background. `onlineUnsubscribe` still holding a function
+// is NOT evidence the stream is alive — iOS suspends the WebView and the Firestore connection
+// can die without the SDK noticing, so snapshots get missed. The old code only reconnected
+// when that variable was null, so it skipped the catch-up entirely and left the board on the
+// pre-suspend turn while the push notification (delivered by APNs, independent of the app)
+// correctly said it was your move.
+//
+// Read from the server rather than the cache, and only restart the listener when the document
+// is genuinely newer than what we applied — re-applying unconditionally would call
+// resetPending() and clear tiles the player had placed before backgrounding.
+async function resyncOnlineGame(gameId) {
+  if (!onlineUnsubscribe) startOnlineListener(gameId);
+  try {
+    const snap = await db.collection('games').doc(gameId).get({ source: 'server' });
+    if (!snap.exists) return;
+    const data = snap.data();
+    const stamp = data.lastUpdated?.toMillis?.() || 0;
+    if (stamp && stamp <= _lastAppliedUpdate) return;   // already up to date
+    if (data.status === 'waiting' || data.status === 'cancelled') return;
+    if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+    startOnlineListener(gameId);                        // fresh listener re-applies current state
+  } catch (e) {
+    // Offline, or the server read failed — the listener will catch up when the network returns.
+    console.warn('[Resync] could not refresh game on resume:', e);
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 //  FIREBASE / ONLINE MULTIPLAYER  (functions only below)
@@ -6163,6 +6333,29 @@ function getPlayerId() {
   let id = localStorage.getItem('reword_pid');
   if (!id) { id = Date.now().toString(36) + Math.random().toString(36).slice(2); localStorage.setItem('reword_pid', id); }
   return id;
+}
+
+// Groundwork for accounts. Player identity today is per-device, not per-person: one human on
+// a phone and a tablet is two players, and clearing site data mints a new id. Everything is
+// keyed on it — players.p1.id / players.p2.id on every game, the users/{id} document, and
+// friends[].id.
+//
+// When accounts with a static username land, each account has to absorb the device ids that
+// preceded it or every existing game and friendship is orphaned. Storing the id as a *field*
+// rather than only as the document key gives that migration something to work with: it can
+// merge several device documents into one account, and locate them with
+//     db.collection('users').where('legacyIds', 'array-contains', deviceId)
+// This has to be captured now — a device id is unrecoverable once its browser is wiped, so
+// anything not written down before then is lost for good.
+function recordDeviceIdentity() {
+  const id = getPlayerId();
+  if (!id) return;
+  db.collection('users').doc(id).set({
+    playerId: id,
+    legacyIds: firebase.firestore.FieldValue.arrayUnion(id),
+    name: playerName || null,
+    lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true }).catch(() => {});
 }
 
 function generateGameId() {
@@ -6205,8 +6398,13 @@ function buildOnlinePayload(nextTurn) {
 }
 
 // ── Load Firestore state into local variables ──────────
+// Timestamp of the most recent doc we've applied, so a resume can tell whether it missed a
+// turn while suspended without blindly re-applying and wiping tiles the player had placed.
+let _lastAppliedUpdate = 0;
+
 function applyOnlineState(data) {
   if (!isOnlineMode) return;
+  _lastAppliedUpdate = data.lastUpdated?.toMillis?.() || _lastAppliedUpdate;
   const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
   const wasGameOver = gameOver;
 
@@ -6335,7 +6533,10 @@ function startOnlineListener(gameId) {
       return;
     }
 
+    // Past 'waiting', so the opponent has accepted and both players are known. This is the
+    // challenger's side of it — they may be sat in the invite modal when the join lands.
     hideInviteModal();
+    recordFriend(opInfo?.id, opInfo?.name);
     applyOnlineState(data);
   }, err => {
     showMsg('Connection lost. Retrying…', 'bad');
@@ -6443,6 +6644,8 @@ async function joinOnlineGame(gameId) {
     const el = document.getElementById('ai-name-display');
     if (el) el.textContent = opponentOnlineName;
     addStoredGame(gameId.toUpperCase(), 'p2');
+    // Accepting a challenge makes the challenger a friend.
+    recordFriend(data.players?.p1?.id, data.players?.p1?.name);
 
     const activeExpiry = new Date();
     activeExpiry.setDate(activeExpiry.getDate() + 15);
@@ -6692,6 +6895,82 @@ async function syncGamesFromFirestore() {
       }
     }
   } catch(e) { console.warn('[Sync] could not load games from Firestore:', e); }
+}
+
+// ── Friends ────────────────────────────────────────────
+// A friend is recorded once a challenge is accepted — the game leaves 'waiting' and both
+// players are known. Mirrored to users/{uid}.friends so the list survives a reinstall, the
+// same way stored games are.
+function getFriends() {
+  try { return JSON.parse(localStorage.getItem('reword_friends') || '[]'); }
+  catch { return []; }
+}
+
+// Placeholder names used while a game is still waiting — never store these as a friend.
+const _FRIEND_PLACEHOLDERS = new Set(['Opponent', 'a friend', '']);
+
+// Never throws. This runs inside the game snapshot listener, immediately before the
+// opponent's move is applied — an exception here would leave the board frozen on the previous
+// turn while a push notification insisted it was your move. Keeping a friends list is a
+// nicety; it must never be able to block gameplay.
+function recordFriend(id, name, lastPlayed) {
+  try {
+    _recordFriend(id, name, lastPlayed);
+  } catch (e) {
+    console.warn('[Friends] could not record friend:', e);
+  }
+}
+
+function _recordFriend(id, name, lastPlayed) {
+  if (!id || !name) return;
+  if (id === getPlayerId()) return;                 // never friend yourself
+  if (_FRIEND_PLACEHOLDERS.has(name)) return;
+
+  const friends = getFriends();
+  const when = lastPlayed || Date.now();
+  const existing = friends.find(f => f.id === id);
+  if (existing) {
+    // Only write when something actually changed — this runs on every game snapshot.
+    const newer = when > (existing.lastPlayed || 0);
+    if (existing.name === name && !newer) return;
+    existing.name = name;
+    if (newer) existing.lastPlayed = when;
+  } else {
+    friends.push({ id, name, lastPlayed: when });
+  }
+  friends.sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0));
+  localStorage.setItem('reword_friends', JSON.stringify(friends));
+
+  const uid = getPlayerId();
+  if (uid) db.collection('users').doc(uid).set({ friends }, { merge: true }).catch(() => {});
+
+  // Keep an open Friends panel current.
+  if (document.getElementById('friends-overlay')?.classList.contains('active')) buildFriendsList();
+}
+
+// Merge the Firestore copy in on load, so a reinstall or a second device recovers the list.
+async function syncFriendsFromCloud() {
+  const uid = getPlayerId();
+  if (!uid) return;
+  try {
+    const snap = await db.collection('users').doc(uid).get();
+    const remote = snap.data()?.friends;
+    if (!Array.isArray(remote) || remote.length === 0) return;
+    const merged = getFriends();
+    let changed = false;
+    remote.forEach(rf => {
+      if (!rf?.id) return;
+      const local = merged.find(f => f.id === rf.id);
+      if (!local) { merged.push(rf); changed = true; }
+      else if ((rf.lastPlayed || 0) > (local.lastPlayed || 0)) {
+        local.lastPlayed = rf.lastPlayed; local.name = rf.name || local.name; changed = true;
+      }
+    });
+    if (!changed) return;
+    merged.sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0));
+    localStorage.setItem('reword_friends', JSON.stringify(merged));
+    if (document.getElementById('friends-overlay')?.classList.contains('active')) buildFriendsList();
+  } catch(e) { /* offline or rules — the local list still works */ }
 }
 
 // ── Games badge (shows count of games with your turn) ──
@@ -8279,6 +8558,10 @@ function snapToGame(snap, myRole) {
 
 function upsertHomeGame(g) {
   if (!g) return;
+  // Any game past 'waiting' has an accepted challenge behind it. Catches the challenger when
+  // they were on the home screen rather than in the game, and backfills opponents from games
+  // that were already running before friends were recorded at all.
+  if (!g.isWaiting) recordFriend(g.opponentId, g.opponentName, g.updatedAt);
   const idx = (window._homeGames || []).findIndex(x => x.id === g.id);
   if (idx >= 0) window._homeGames[idx] = g;
   else (window._homeGames = window._homeGames || []).push(g);
@@ -8489,6 +8772,7 @@ function saveSettingsName() {
   const val = document.getElementById('settings-name-input').value.trim();
   playerName = val || 'You';
   localStorage.setItem('playerName', playerName);
+  recordDeviceIdentity();   // keep the name on the identity record current
   const el = document.getElementById('player-name-text');
   if (el) el.textContent = playerName;
   closeSettings();
@@ -8501,6 +8785,7 @@ function saveSettingsToggle(key, val) {
 
 function openFriends() {
   buildFriendsList();
+  syncFriendsFromCloud();   // refreshes the list in place if the cloud copy has more
   document.getElementById('friends-overlay').classList.add('active');
 }
 
@@ -8508,21 +8793,27 @@ function closeFriends() {
   document.getElementById('friends-overlay').classList.remove('active');
 }
 
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
 function buildFriendsList() {
   const list = document.getElementById('friends-list');
-  const friends = window._friends || [];
+  const friends = getFriends();
   if (friends.length === 0) {
     list.innerHTML = '<div id="friends-empty">No friends yet.<br>Add one to start playing!</div>';
     return;
   }
+  // Names come from the other player, so they are escaped before going into innerHTML.
   list.innerHTML = friends.map(f => {
     const ago = f.lastPlayed ? timeAgo(f.lastPlayed) : 'Never played';
     return `<div class="friend-row">
       <div class="friend-info">
-        <div class="friend-name">${f.name}</div>
+        <div class="friend-name">${escHtml(f.name)}</div>
         <div class="friend-meta">Last played ${ago}</div>
       </div>
-      <button class="friend-play-btn" onclick="friendPlay('${f.id}')">PLAY</button>
+      <button class="friend-play-btn" onclick="friendPlay('${escHtml(f.id)}')">PLAY</button>
     </div>`;
   }).join('');
 }
@@ -8530,9 +8821,10 @@ function buildFriendsList() {
 function timeAgo(ts) {
   const diff = Math.floor((Date.now() - ts) / 1000);
   if (diff < 60) return 'just now';
-  if (diff < 3600) return Math.floor(diff/60) + ' minutes ago';
-  if (diff < 86400) return Math.floor(diff/3600) + ' hours ago';
-  return Math.floor(diff/86400) + ' days ago';
+  const ago = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'} ago`;
+  if (diff < 3600) return ago(Math.floor(diff/60), 'minute');
+  if (diff < 86400) return ago(Math.floor(diff/3600), 'hour');
+  return ago(Math.floor(diff/86400), 'day');
 }
 
 function friendPlay(friendId) {

@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import UserNotifications
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -15,6 +16,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationWillEnterForeground(_ application: UIApplication) {}
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        // Clear the app icon badge. Every turn notification ships badge: 1 (see api/notify.js),
+        // and nothing else resets it — there's no badge plugin, and the in-app games badge is a
+        // DOM element, not the icon. Without this the red 1 sticks permanently once a push has
+        // arrived, no matter how many times the app is opened.
+        clearIconBadge(application)
         // Deferred deep link: on the very first launch (e.g. installed from a
         // challenge link), recover the game code the web prompt stashed on the
         // clipboard, since iOS doesn't pass the original link to a fresh install.
@@ -26,6 +32,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 bridge.webView?.scrollView.alwaysBounceVertical = false
             }
         }
+    }
+
+    /// Reset the icon badge, and drop already-delivered turn notifications so Notification
+    /// Center matches. setBadgeCount is the iOS 16+ API; the deployment target is iOS 15,
+    /// so fall back to applicationIconBadgeNumber below that.
+    private func clearIconBadge(_ application: UIApplication) {
+        if #available(iOS 16.0, *) {
+            UNUserNotificationCenter.current().setBadgeCount(0)
+        } else {
+            application.applicationIconBadgeNumber = 0
+        }
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
 
     private func checkDeferredInvite() {

@@ -142,7 +142,10 @@ body {
   font-size: 14.7px; color: #aaa; letter-spacing: 0.02em;
   cursor: pointer; display: flex; align-items: center; gap: 3px;
   margin-top: 1px;
+  max-width: 100%; min-width: 0; white-space: nowrap;
 }
+.score-panel .name > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+#score-left, #score-right, .score-panel { min-width: 0; }
 .score-panel .name:hover { color: #ddd; }
 
 .name-input {
@@ -165,8 +168,17 @@ body {
   gap: 5px;
   margin-top: 2px;
   justify-content: flex-end;
+  max-width: 100%;
+  min-width: 0;
 }
-.ai-name-lbl { font-size: 14.7px; color: #aaa; letter-spacing: 0.02em; }
+/* Names must stay on one line — a two-line name ("LOVE MONKE") shoves the scoreboard around.
+   fitNameLabels() shrinks the font until it fits; nowrap is what makes the overflow
+   measurable in the first place. */
+.ai-name-lbl {
+  font-size: 14.7px; color: #aaa; letter-spacing: 0.02em;
+  white-space: nowrap; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis;
+}
 
 #difficulty-badge {
   background: #0d0920;
@@ -3596,10 +3608,15 @@ function onTouchStart(e, idx) {
   playPickup();
   const letter = playerRack[idx];
 
-  // Create ghost tile that follows finger
+  // Create ghost tile that follows finger. Match the real tile's size rather than assuming
+  // 46x52 — fitRack() shrinks tiles when steals push the rack past 7, and a full-size ghost
+  // over a shrunken rack looks wrong.
+  const _srcRect = document.getElementById('rack')?.querySelectorAll('.rack-tile')[idx]?.getBoundingClientRect();
+  const _gw = Math.round(_srcRect?.width  || 46);
+  const _gh = Math.round(_srcRect?.height || 52);
   touchGhost = document.createElement('div');
   touchGhost.className = 'rack-tile';
-  touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;width:46px;height:52px;transform:translate(-50%,-50%);transition:none;`;
+  touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;width:${_gw}px;height:${_gh}px;transform:translate(-50%,-50%);transition:none;`;
   touchGhost.innerHTML = `<span class="tile-letter">${letter}</span><span class="tile-val">${VAL[letter]??0}</span>`;
   document.body.appendChild(touchGhost);
 
@@ -3614,8 +3631,9 @@ function onTouchStart(e, idx) {
   const srcTile = rEl?.querySelectorAll('.rack-tile')[idx];
   if (srcTile) srcTile.style.opacity = '0.4';
 
-  document.addEventListener('touchmove', onTouchMove, {passive: false});
-  document.addEventListener('touchend',  onTouchEnd,  {passive: false});
+  document.addEventListener('touchmove',   onTouchMove,   {passive: false});
+  document.addEventListener('touchend',    onTouchEnd,    {passive: false});
+  document.addEventListener('touchcancel', onTouchCancel, {passive: false});
 }
 
 function onTouchMove(e) {
@@ -3678,8 +3696,9 @@ function onTouchMove(e) {
 }
 
 function onTouchEnd(e) {
-  document.removeEventListener('touchmove', onTouchMove);
-  document.removeEventListener('touchend',  onTouchEnd);
+  document.removeEventListener('touchmove',   onTouchMove);
+  document.removeEventListener('touchend',    onTouchEnd);
+  document.removeEventListener('touchcancel', onTouchCancel);
   clearTimeout(_dropTargetTimer);
   document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
 
@@ -3740,6 +3759,24 @@ function onTouchEnd(e) {
   setTimeout(() => { _suppressClick = false; }, 50);
 }
 
+// iOS fires touchcancel when the system takes the touch away mid-drag — a notification, an
+// incoming call, a system edge gesture, palm rejection. Without this, touchend never runs and
+// the drag is abandoned in place: the ghost tile stays stranded over the rack, the source tile
+// stays at 0.4 opacity, tiles sit frozen mid-slide, and the drag state never resets. Tear the
+// drag down without dropping anything.
+function onTouchCancel() {
+  document.removeEventListener('touchmove',   onTouchMove);
+  document.removeEventListener('touchend',    onTouchEnd);
+  document.removeEventListener('touchcancel', onTouchCancel);
+  clearTimeout(_dropTargetTimer);
+  document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
+  if (touchGhost) { touchGhost.remove(); touchGhost = null; }
+  clearRackSlide();
+  dragRackIdx     = null;
+  touchDragIdx    = null;
+  touchPendingKey = null;
+}
+
 function onPendingTouchStart(e, key) {
   if (gameOver) return;
   const pending = pendingPlacements[key];
@@ -3762,8 +3799,9 @@ function onPendingTouchStart(e, key) {
   touchGhost.style.left = t.clientX + 'px';
   touchGhost.style.top  = t.clientY + 'px';
 
-  document.addEventListener('touchmove', onTouchMove, {passive: false});
-  document.addEventListener('touchend',  onTouchEnd,  {passive: false});
+  document.addEventListener('touchmove',   onTouchMove,   {passive: false});
+  document.addEventListener('touchend',    onTouchEnd,    {passive: false});
+  document.addEventListener('touchcancel', onTouchCancel, {passive: false});
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4777,6 +4815,61 @@ function fitRack() {
 // Re-fit on rotation and window resize, where the available width changes without a re-render.
 window.addEventListener('resize', fitRack);
 window.addEventListener('orientationchange', () => setTimeout(fitRack, 100));
+
+// ── Scoreboard name auto-fit ────────────────────────────
+// A long opponent name ("LOVE MONKE") wrapped onto a second line and pushed the scoreboard
+// out of shape. Shrink the label until it fits its column on one line.
+// Floor is a readability limit, not a fitting one — below ~11px the name is unreadable, so
+// anything still too long at the floor is ellipsised by CSS rather than shrunk into nothing.
+const NAME_FONT_MAX = 14.7, NAME_FONT_MIN = 11, NAME_FONT_STEP = 0.3;
+
+function _fitOneName(el, gap) {
+  const row   = el?.parentElement;
+  const panel = el?.closest('.score-panel');
+  // Measure against #score-left / #score-right, whose width comes from `flex: 1` rather than
+  // from content. Measuring the row instead ratchets: shrinking the label narrows the row,
+  // which shrinks the next measurement, dragging even a two-letter name down to the floor.
+  const container = panel?.parentElement;
+  if (!row || !panel || !container) return;
+
+  let avail = container.clientWidth;
+  // Space taken beside the panel — the home button, the right-hand spacer.
+  for (const sib of container.children) {
+    if (sib === panel || getComputedStyle(sib).display === 'none') continue;
+    avail -= sib.getBoundingClientRect().width;
+  }
+  const cgap = parseFloat(getComputedStyle(container).gap) || 0;
+  avail -= cgap * Math.max(0, container.children.length - 1);
+  // Space taken beside the label inside its own row — the difficulty badge.
+  for (const sib of row.children) {
+    if (sib === el || getComputedStyle(sib).display === 'none') continue;
+    avail -= sib.getBoundingClientRect().width + gap;
+  }
+  if (!(avail > 0)) return;   // laid out while hidden — a later call will size it
+  let size = NAME_FONT_MAX;
+  el.style.fontSize = size + 'px';
+  // white-space:nowrap means scrollWidth is the full unwrapped text width.
+  while (size > NAME_FONT_MIN && el.scrollWidth > avail) {
+    size = Math.max(NAME_FONT_MIN, size - NAME_FONT_STEP);   // clamp: never step past the floor
+    el.style.fontSize = size + 'px';
+  }
+}
+
+function fitNameLabels() {
+  _fitOneName(document.getElementById('ai-name-display'), 5);   // .ai-name-row gap
+  _fitOneName(document.getElementById('player-name-text'), 3);  // .score-panel .name gap
+}
+
+// The opponent name is assigned from many places, so watch the elements instead of chasing
+// every call site. Only text changes are observed — fitting sets style, which is an attribute,
+// so this cannot loop.
+['ai-name-display', 'player-name-text'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) new MutationObserver(fitNameLabels)
+    .observe(el, { childList: true, characterData: true, subtree: true });
+});
+window.addEventListener('resize', fitNameLabels);
+window.addEventListener('orientationchange', () => setTimeout(fitNameLabels, 100));
 
 // ═══════════════════════════════════════════════════════
 //  SOUND
@@ -6193,16 +6286,40 @@ window.addEventListener('deferredInvite', (e) => handleIncomingInvite(e.detail?.
 // Re-attach Firestore listener if app comes back to foreground after being killed
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
-    // Reconnect in-game listener if needed
-    if (isOnlineMode && onlineGameId && !onlineUnsubscribe) {
-      startOnlineListener(onlineGameId);
-    }
+    if (isOnlineMode && onlineGameId) resyncOnlineGame(onlineGameId);
     // Refresh home screen game list when app comes back to foreground
     if (document.getElementById('home-screen')?.classList.contains('active')) {
       loadHomeGames();
     }
   }
 });
+
+// Catch up after the app was in the background. `onlineUnsubscribe` still holding a function
+// is NOT evidence the stream is alive — iOS suspends the WebView and the Firestore connection
+// can die without the SDK noticing, so snapshots get missed. The old code only reconnected
+// when that variable was null, so it skipped the catch-up entirely and left the board on the
+// pre-suspend turn while the push notification (delivered by APNs, independent of the app)
+// correctly said it was your move.
+//
+// Read from the server rather than the cache, and only restart the listener when the document
+// is genuinely newer than what we applied — re-applying unconditionally would call
+// resetPending() and clear tiles the player had placed before backgrounding.
+async function resyncOnlineGame(gameId) {
+  if (!onlineUnsubscribe) startOnlineListener(gameId);
+  try {
+    const snap = await db.collection('games').doc(gameId).get({ source: 'server' });
+    if (!snap.exists) return;
+    const data = snap.data();
+    const stamp = data.lastUpdated?.toMillis?.() || 0;
+    if (stamp && stamp <= _lastAppliedUpdate) return;   // already up to date
+    if (data.status === 'waiting' || data.status === 'cancelled') return;
+    if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
+    startOnlineListener(gameId);                        // fresh listener re-applies current state
+  } catch (e) {
+    // Offline, or the server read failed — the listener will catch up when the network returns.
+    console.warn('[Resync] could not refresh game on resume:', e);
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 //  FIREBASE / ONLINE MULTIPLAYER  (functions only below)
@@ -6281,8 +6398,13 @@ function buildOnlinePayload(nextTurn) {
 }
 
 // ── Load Firestore state into local variables ──────────
+// Timestamp of the most recent doc we've applied, so a resume can tell whether it missed a
+// turn while suspended without blindly re-applying and wiping tiles the player had placed.
+let _lastAppliedUpdate = 0;
+
 function applyOnlineState(data) {
   if (!isOnlineMode) return;
+  _lastAppliedUpdate = data.lastUpdated?.toMillis?.() || _lastAppliedUpdate;
   const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
   const wasGameOver = gameOver;
 
@@ -6787,7 +6909,19 @@ function getFriends() {
 // Placeholder names used while a game is still waiting — never store these as a friend.
 const _FRIEND_PLACEHOLDERS = new Set(['Opponent', 'a friend', '']);
 
+// Never throws. This runs inside the game snapshot listener, immediately before the
+// opponent's move is applied — an exception here would leave the board frozen on the previous
+// turn while a push notification insisted it was your move. Keeping a friends list is a
+// nicety; it must never be able to block gameplay.
 function recordFriend(id, name, lastPlayed) {
+  try {
+    _recordFriend(id, name, lastPlayed);
+  } catch (e) {
+    console.warn('[Friends] could not record friend:', e);
+  }
+}
+
+function _recordFriend(id, name, lastPlayed) {
   if (!id || !name) return;
   if (id === getPlayerId()) return;                 // never friend yourself
   if (_FRIEND_PLACEHOLDERS.has(name)) return;

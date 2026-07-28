@@ -6487,7 +6487,12 @@ async function saveOnlineState() {
     // Refresh our own push token/subscription so the opponent always has our latest
     if (myApnsToken) saveApnsTokenToGame(onlineGameId, myOnlineRole);
     subscribeToPush().then(sub => { if (sub) savePushSubToGame(onlineGameId, myOnlineRole); });
-    sendPushToOpponent(); // fire-and-forget push to opponent's device
+    // A move that ends the game sends no push. The finished game surfaces by itself under
+    // VIEW RESULTS on the home screen, and a rematch challenge — which sends its own
+    // notification — usually follows straight after, so notifying here means two alerts from
+    // the same opponent back to back. The "your turn" wording was wrong for a finished game
+    // anyway: it opened the final board behind the You Won modal.
+    if (!gameOver) sendPushToOpponent(); // fire-and-forget push to opponent's device
     if (!gameOver) checkAndShowNextGamePrompt(); // prompt if other games await
   } catch(e) {
     showMsg('Save error — your move may not have reached your opponent.', 'bad');
@@ -7436,6 +7441,18 @@ async function registerNativePush() {
   }
 }
 
+// Cache the OPPONENT's token on the game doc so later turns skip the users-doc lookup.
+// This must write their token, not ours — saveApnsTokenToGame() below always writes
+// myApnsToken, so calling it with the opponent's role stamped this device into their slot
+// and sent every later notification meant for them to us instead.
+async function backfillOpponentApnsToken(gameId, role, token) {
+  if (!token || !gameId) return;
+  try {
+    await db.collection('games').doc(gameId).update({ [`players.${role}.apnsToken`]: token });
+  } catch(e) {}
+}
+
+// Writes THIS device's token. Only ever call with your own role.
 async function saveApnsTokenToGame(gameId, role) {
   if (!myApnsToken || !gameId) return;
   try {
@@ -7574,7 +7591,7 @@ async function sendPushToOpponent() {
       if (uData?.apnsToken) {
         opponentApnsToken = uData.apnsToken;
         console.log('[Push] found apnsToken in users doc, back-filling game');
-        saveApnsTokenToGame(onlineGameId, opRole);
+        backfillOpponentApnsToken(onlineGameId, opRole, uData.apnsToken);
       } else if (uData?.pushSub?.endpoint) {
         opponentPushSub = uData.pushSub;
         console.log('[Push] found web push sub in users doc');

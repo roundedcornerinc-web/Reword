@@ -883,6 +883,12 @@ body {
 #blank-picker-letters { display:grid; grid-template-columns:repeat(9,1fr); gap:5px; }
 .blank-letter-btn { background:#f5deb3; color:#2c1a00; border:none; border-radius:5px; padding:7px 2px; font-size:0.85rem; font-weight:800; cursor:pointer; }
 .blank-letter-btn:hover { background:#e8c870; }
+#blank-picker-cancel {
+  width:100%; margin-top:12px; background:transparent; color:#c0b3ff;
+  border:1px solid #4b3a8f; border-radius:8px; padding:9px 0;
+  font-size:0.82rem; font-weight:800; letter-spacing:0.5px; cursor:pointer;
+}
+#blank-picker-cancel:active { background:#3a2a7a; }
 
 .rack-tile.rack-reorder-target {
   outline: 2px solid #ffd050;
@@ -2191,10 +2197,11 @@ body {
   <button class="btn btn-swap" style="padding:6px 14px;font-size:0.8rem;" onclick="stopAiVsAiGame()">Stop</button>
 </div>
 
-<div id="blank-picker">
+<div id="blank-picker" onclick="if(event.target===this)cancelBlankPicker()">
   <div id="blank-picker-inner">
     <div id="blank-picker-title">Choose a letter for the blank tile</div>
     <div id="blank-picker-letters"></div>
+    <button id="blank-picker-cancel" onclick="cancelBlankPicker()">Cancel</button>
   </div>
 </div>
 
@@ -5230,6 +5237,22 @@ function showBlankPicker(callback) {
   lettersDiv.style.pointerEvents = 'none';
   setTimeout(() => { lettersDiv.style.pointerEvents = ''; }, 200);
 }
+
+// Back out of the blank picker — for a blank dropped on the wrong square. Nothing needs
+// undoing: all four callers place the tile inside the callback, so dropping the callback
+// leaves the board untouched and the blank still in the rack. Clearing blankPickerCallback
+// also re-arms the drag handler, which skips snap-to-cell while a picker is open.
+function cancelBlankPicker() {
+  const picker = document.getElementById('blank-picker');
+  if (!picker?.classList.contains('show')) return;
+  picker.classList.remove('show');
+  blankPickerCallback = null;
+  updateUI();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') cancelBlankPicker();
+});
 
 function setSkill(level) {
   aiSkill = level;

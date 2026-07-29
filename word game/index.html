@@ -6458,8 +6458,15 @@ function applyOnlineState(data) {
   // Don't run computeBestScore here — it blocks the main thread for several seconds
   // on a large board. It will fire lazily when the player places their first tile.
 
-  if (data.gameOver && !wasGameOver) {
-    // Opponent triggered the game end — show winner modal
+  if (data.gameOver && !wasGameOver && window._suppressWinnerModal) {
+    // Opening an already-finished game from RESULTS — show the final board and nothing else.
+    // The home-screen view actions set this flag; until now only the AI path honoured it, so
+    // online results always reopened behind the You Won modal. Skipping the whole block
+    // matters beyond the modal: updateStatsAfterGame() would re-count the win or loss every
+    // single time the game was reopened.
+    window._suppressWinnerModal = false;
+  } else if (data.gameOver && !wasGameOver) {
+    // Game just ended in front of us — show the winner modal
     if (onlineGameId) removeStoredGame(onlineGameId);
     updateGamesBadge();
     updateStatsAfterGame(playerScore, playerScore > aiScore, playerScore === aiScore);
@@ -6481,6 +6488,8 @@ function applyOnlineState(data) {
       });
     }
   } else if (!data.gameOver) {
+    // Clear a stale flag so it can't swallow the modal when this game genuinely ends later.
+    window._suppressWinnerModal = false;
     if (data.currentTurn === myOnlineRole) {
       const opName = opponentOnlineName || 'Opponent';
       const scoreNote = (lastPlayScore != null) ? ` ${opName} scored ${lastPlayScore} pts.` : '';

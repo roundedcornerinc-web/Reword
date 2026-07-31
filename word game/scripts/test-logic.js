@@ -58,6 +58,7 @@ vm.runInContext([
   grabFunction('scoreWords'),
   grabFunction('scorePlay'),
   grabFunction('validatePlay'),
+  grabFunction('getRemovableInfo'),
   'function isEmpty(){ return board.every(r => r.every(c => !c)); }',
 ].join('\n'), ctx);
 
@@ -127,6 +128,57 @@ check('a steal that leaves a non-word is rejected', {
   placements: { '6,7': { letter: 'T', rackIdx: 0 } },
   removals: ['5,4'],
 }, { allowed: false, errorContains: 'not a valid word' });
+
+console.log('\nSteal eligibility — getRemovableInfo\n');
+
+// tiles: committed board. placements: tiles already laid out this turn. [r,c]: the steal target.
+function checkSteal(name, position, expect) {
+  const b = Array.from({ length: 15 }, () => Array(15).fill(null));
+  for (const [r, c, letter] of position.tiles) b[r][c] = letter;
+  ctx.board = b;
+  ctx.pendingPlacements = position.placements || {};
+  ctx.pendingRemovals = new Set(position.removals || []);
+  ctx.swapPendingPositions = new Set(position.swaps || []);
+
+  const res = ctx.getRemovableInfo(position.at[0], position.at[1]);
+  const ok = expect.removable
+    ? res.removable
+    : !res.removable && (res.reason || '').includes(expect.reasonContains);
+  if (ok) { passed++; console.log('  pass  ' + name); return; }
+  failures.push(name);
+  console.log('  FAIL  ' + name);
+  console.log('          expected: ' + (expect.removable ? 'removable' : `blocked containing "${expect.reasonContains}"`));
+  console.log('          actual:   ' + JSON.stringify(res));
+}
+
+['CARS', 'CAR', 'TEA', 'TEAS', 'ART', 'TAR'].forEach(w => ctx.WORDS.add(w));
+const CARS = [[7,5,'C'], [7,6,'A'], [7,7,'R'], [7,8,'S']];
+
+// Reported bug: tiles laid out for the word you're building are still floating mid-turn, so
+// the connectivity check blamed the steal for a disconnection it did not cause. Laying out
+// T-E-A and then stealing the S to finish TEAS is the natural order of operations.
+checkSteal('steal is allowed while this turn\'s tiles are still unconnected', {
+  tiles: CARS,
+  at: [7, 8],
+  placements: {
+    '10,5': { letter: 'T', rackIdx: 0 },
+    '10,6': { letter: 'E', rackIdx: 1 },
+    '10,7': { letter: 'A', rackIdx: 2 },
+  },
+}, { removable: true });
+
+// The relaxation must not make the steal rules permissive generally: this turn's tiles are
+// ignored only for connectivity, and every other rule still reads the effective board.
+checkSteal('this turn\'s tiles still make a tile a two-word junction', {
+  tiles: CARS,
+  at: [7, 8],
+  placements: { '8,8': { letter: 'O', rackIdx: 0 }, '9,8': { letter: 'N', rackIdx: 1 } },
+}, { removable: false, reasonContains: 'connects two words' });
+
+checkSteal('a steal leaving a non-word is still blocked', {
+  tiles: CARS,
+  at: [7, 5],
+}, { removable: false, reasonContains: 'not a valid word' });
 
 console.log('\nScoring — replayed tiles keep their square bonuses\n');
 

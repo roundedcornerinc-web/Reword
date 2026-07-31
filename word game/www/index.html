@@ -1175,6 +1175,7 @@ body {
 .tut-card h2 { font-size: 1.5rem; font-weight: 600; color: #fff; margin: 0 0 12px; font-family: inherit; }
 .tut-card p  { color: #c8b8f8; font-size: 0.88rem; line-height: 1.6; margin: 0 0 12px; }
 .tut-card p strong { color: #f0c4ff; }
+.tut-card p a { color: #f0c4ff; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .tut-btn {
   display: block; margin: 20px auto 0; width: 68%;
   background: #7234ee; color: #fff; border: none; border-radius: 999px;
@@ -2653,9 +2654,17 @@ function getRemovableInfo(r, c) {
   if (!wasAtEnd) return {removable: false, reason: 'Tile must be at the start or end of a word.'};
 
   // Connectivity check: removing this tile must not split the board into disconnected pieces.
-  const boardAfter = effectiveBoard.map(row => [...row]);
-  boardAfter[r][c] = null;
-  if (!isBoardConnected(boardAfter))
+  // Mid-turn, tiles you've already laid out are often still floating — you place T-E-A and
+  // then steal the S that connects them. Those tiles make the effective board disconnected
+  // through no fault of the steal, so a failure there is re-checked against the committed
+  // board alone; validatePlay is what proves the finished play connects.
+  const splits = (b) => { const after = b.map(row => [...row]); after[r][c] = null; return !isBoardConnected(after); };
+  const committedBoard = board.map(row => [...row]);
+  for (const key of pendingRemovals) {
+    const [pr, pc] = key.split(',').map(Number);
+    committedBoard[pr][pc] = null;
+  }
+  if (splits(effectiveBoard) && splits(committedBoard))
     return {removable: false, reason: 'Removing this tile would leave tiles disconnected.'};
 
   return {removable: true, letter: board[r][c]};
@@ -2678,8 +2687,11 @@ function tryRemoveTile(r, c) {
   pendingRemovalInfo[key] = { letter, rackIdx, isBlank };
   swapCount++;
 
-  const remaining = 4 - swapCount;
-  showMsg(`"${letter.toUpperCase()}" removed — place it this turn. ${remaining > 0 ? `${remaining} swap${remaining===1?'':'s'} left.` : 'No more swaps this turn.'}`, 'info');
+  // The tutorial narrates the steal itself, so the swap counter would just talk over it.
+  if (!window.tutorialMode) {
+    const remaining = 4 - swapCount;
+    showMsg(`"${letter.toUpperCase()}" removed — place it this turn. ${remaining > 0 ? `${remaining} swap${remaining===1?'':'s'} left.` : 'No more swaps this turn.'}`, 'info');
+  }
   playDrop();
   updateUI();
 }
@@ -8588,8 +8600,10 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     el.innerHTML =
       '<div class="tut-card">' +
         '<h2>You\'re ready to play!</h2>' +
-        '<p>You can swap or steal up to <strong>four letters</strong> every turn.</p>' +
-        '<p>If you need to reset your tiles, tap the <strong>Recall</strong> button.</p>' +
+        '<p>You can swap or steal up to <strong>four letters</strong> every turn. ' +
+        'If you need to reset your tiles, tap the <strong>Recall</strong> button. ' +
+        'For more details on swaps, steals, and scoring, read the ' +
+        '<a href="#" onclick="openFaq();return false;">FAQ</a>.</p>' +
         '<button class="tut-btn" onclick="closeTutorial()">Start Playing →</button>' +
       '</div>';
     document.body.appendChild(el);

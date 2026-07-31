@@ -19,11 +19,14 @@
 <meta property="og:title" content="Reword — The board's in play.">
 <meta property="og:description" content="Like Scrabble, but the board's in play. Swap and steal tiles straight off the board to build new words.">
 <meta property="og:url" content="https://www.rewordgame.app">
-<meta property="og:image" content="https://www.rewordgame.app/icons/icon-1024.png">
+<meta property="og:image" content="https://www.rewordgame.app/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Reword — The board's in play.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Reword — The board's in play.">
 <meta name="twitter:description" content="Like Scrabble, but the board's in play. Swap and steal tiles straight off the board to build new words.">
-<meta name="twitter:image" content="https://www.rewordgame.app/icons/icon-1024.png">
+<meta name="twitter:image" content="https://www.rewordgame.app/og-card.png">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -2068,6 +2071,16 @@ body {
       <div class="faq-item">
         <div class="faq-q">Do swapped and stolen tiles still score points?</div>
         <div class="faq-a">Yes. A swapped or stolen tile counts its full face value in the word you build with it, exactly like a tile drawn from the bag — and if you play it on a bonus square, it earns that bonus too. That's what makes taking a high-value letter worthwhile: pulling a <strong>J</strong>, <strong>Q</strong>, <strong>X</strong> or <strong>Z</strong> off the board and replaying it somewhere stronger is one of the biggest scoring swings in the game. A stolen Z landing on a double-letter square is worth 20 on its own, before any word multiplier.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Do new words created by swaps and steals score points?</div>
+        <div class="faq-a">No. Swapping or stealing letters from existing words lets you set up a bigger play, but the words left behind on the board don't earn points. The square a swapped tile lands on gives no letter bonus either, since that square was already used earlier in the game. The tile you take does still score — in the new word you build with it.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">How does scoring work at the end of a game?</div>
+        <div class="faq-a">Each player loses the total value of the tiles left on their rack. If you go out first — playing every tile you're holding — you also <strong>gain</strong> the value of whatever your opponent is still holding, so it counts twice over. If they're left with a D and an I (4 points), they lose 4 and you gain 4: an <strong>8-point swing</strong>. A leftover Q or Z is a 20-point swing on its own. Blanks count as 0, so being caught with one costs nothing. If nobody goes out — the game ends on passes, or someone resigns — each player still loses their leftover tiles, but nobody gains.</div>
       </div>
 
       <div class="faq-item">

@@ -1163,6 +1163,30 @@ body {
 .go-rematch-btn { display:block; margin:0 auto; width:68%; background:#7234ee; color:#fff; border:none; border-radius:999px; padding:13px; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; letter-spacing:0.01em; }
 .go-rematch-btn:active { transform:scale(0.97); }
 .go-nothanks-btn { display:block; width:100%; background:none; border:none; color:rgba(255,255,255,0.4); font-size:0.88rem; font-weight:600; cursor:pointer; font-family:inherit; padding:12px 6px 6px; letter-spacing:0.01em; }
+
+/* Tutorial cards reuse the game-over modal's look — dark-to-light purple gradient and a
+   fully rounded purple button — so the tutorial doesn't read as a different app. */
+.tut-card {
+  background: linear-gradient(180deg, #100b2c 0%, #2a1c64 100%);
+  border-radius: 20px; padding: 32px 28px 28px;
+  max-width: 340px; width: 90%; text-align: center; position: relative;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.8);
+}
+.tut-card h2 { font-size: 1.5rem; font-weight: 600; color: #fff; margin: 0 0 12px; font-family: inherit; }
+.tut-card p  { color: #c8b8f8; font-size: 0.88rem; line-height: 1.6; margin: 0 0 12px; }
+.tut-card p strong { color: #f0c4ff; }
+.tut-btn {
+  display: block; margin: 20px auto 0; width: 68%;
+  background: #7234ee; color: #fff; border: none; border-radius: 999px;
+  padding: 13px; font-size: 1rem; font-weight: 700; cursor: pointer;
+  font-family: inherit; letter-spacing: 0.01em;
+}
+.tut-btn:active { transform: scale(0.97); }
+.tut-card-close {
+  position: absolute; top: 8px; right: 12px; background: none; border: none;
+  color: #8d7fc7; font-size: 1.5rem; line-height: 1; padding: 4px 8px;
+  cursor: pointer; font-family: inherit;
+}
 /* rematch difficulty picker */
 .go-skill-row { display:flex; gap:8px; margin-bottom:16px; }
 .go-skill-btn { flex:1; background:none; border:none; color:rgba(255,255,255,0.4); padding:8px 4px; font-size:0.85rem; font-weight:600; cursor:pointer; font-family:inherit; }
@@ -2256,7 +2280,7 @@ body {
   <div id="tut-bar-text" style="flex:1;font-size:0.84rem;color:#ccc;line-height:1.4;"></div>
   <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
     <button id="tut-skip-btn" onclick="closeTutorial()" style="background:none;border:none;color:#666;font-size:0.75rem;cursor:pointer;text-decoration:underline;font-family:inherit;">Skip</button>
-    <button id="tut-next-btn" onclick="tutorialAdvance()" style="background:linear-gradient(135deg,#7b2ff7,#f72585);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Next →</button>
+    <button id="tut-next-btn" onclick="tutorialAdvance()" style="background:#7234ee;color:#fff;border:none;border-radius:999px;padding:9px 22px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Next →</button>
   </div>
 </div>
 <div id="remaining-modal" onclick="if(event.target===this)toggleRemaining()">
@@ -3088,15 +3112,29 @@ function snapToNearestBoardCell(rackIdx, x, y) {
   if (y > br.bottom) return;
   if (x < br.left - margin || x > br.right + margin || y < br.top - margin) return;
 
-  let nearest = null, minDist = Infinity;
+  // Track the nearest empty square and the nearest square of any kind. Occupied squares used
+  // to be skipped entirely, which meant a near-miss onto a tile you were trying to SWAP with
+  // could never land — it snapped to some empty neighbour instead and silently did nothing.
+  // Board squares are ~23px on a phone, so most swap attempts missed.
+  let nearestEmpty = null, minEmpty = Infinity;
+  let nearestAny   = null, minAny   = Infinity;
+  let cellSize = 0;
   for (const cell of boardEl.querySelectorAll('.cell')) {
     const r = +cell.dataset.r, c = +cell.dataset.c;
-    if (board[r][c] || pendingPlacements[`${r},${c}`]) continue;
     const rect = cell.getBoundingClientRect();
+    if (!cellSize) cellSize = rect.width;
     const dist = Math.hypot(rect.left + rect.width / 2 - x, rect.top + rect.height / 2 - y);
-    if (dist < minDist) { minDist = dist; nearest = cell; }
+    if (dist < minAny) { minAny = dist; nearestAny = cell; }
+    if (board[r][c] || pendingPlacements[`${r},${c}`]) continue;
+    if (dist < minEmpty) { minEmpty = dist; nearestEmpty = cell; }
   }
-  if (nearest) onCellDrop(+nearest.dataset.r, +nearest.dataset.c, rackIdx);
+  // Prefer an empty square, but when the release lands essentially on top of an occupied one,
+  // take that — it's a swap or steal attempt, not a misplaced tile.
+  if (nearestAny && nearestAny !== nearestEmpty && minAny <= cellSize * 0.8) {
+    onCellDrop(+nearestAny.dataset.r, +nearestAny.dataset.c, rackIdx);
+    return;
+  }
+  if (nearestEmpty) onCellDrop(+nearestEmpty.dataset.r, +nearestEmpty.dataset.c, rackIdx);
 }
 
 // Move rack tile from index `from` to `to`, updating all pending rackIdx pointers.
@@ -8107,28 +8145,13 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       'position:fixed;inset:0;z-index:200;display:flex;align-items:center;' +
       'justify-content:center;padding:20px;background:rgba(8,4,24,0.82);';
     el.innerHTML =
-      '<div style="background:#16093a;border:1.5px solid #7b2ff7;border-radius:18px;' +
-        'padding:32px 26px;max-width:310px;width:100%;text-align:center;position:relative;' +
-        'box-shadow:0 8px 40px rgba(0,0,0,0.7);">' +
-        '<button onclick="closeTutorial()" style="' +
-          'position:absolute;top:10px;right:12px;background:none;border:none;' +
-          'color:#888;font-size:1.3rem;cursor:pointer;line-height:1;padding:2px 6px;' +
-          'font-family:inherit;" title="Exit tutorial">✕</button>' +
-        '<h2 style="margin:0 0 10px;font-size:1.25rem;color:#b794f4;font-family:inherit;">' +
-          'Welcome to Reword!' +
-        '</h2>' +
-        '<p style="margin:0 0 8px;font-size:0.85rem;line-height:1.55;color:#ccc;">' +
-          'Reword is like Scrabble — but you can <strong style="color:#f0c4ff;">swap or take</strong> ' +
-          'tiles from the board to build new words.' +
-        '</p>' +
-        '<p style="margin:0 0 22px;font-size:0.85rem;line-height:1.55;color:#ccc;">' +
-          'This quick tutorial shows you the basics.' +
-        '</p>' +
-        '<button onclick="tutorialAdvance()" style="' +
-          'background:linear-gradient(135deg,#7b2ff7,#f72585);color:#fff;border:none;' +
-          'border-radius:12px;padding:11px 28px;font-size:0.95rem;font-weight:700;' +
-          'cursor:pointer;font-family:inherit;width:100%;' +
-        '">Let\'s Go →</button>' +
+      '<div class="tut-card">' +
+        '<button class="tut-card-close" onclick="closeTutorial()" title="Exit tutorial">✕</button>' +
+        '<h2>Welcome to Reword!</h2>' +
+        '<p>Reword is like Scrabble — but you can <strong>swap or steal</strong> ' +
+          'tiles from the board to build new words.</p>' +
+        '<p>This quick tutorial shows you the basics.</p>' +
+        '<button class="tut-btn" onclick="tutorialAdvance()">Let\'s Go →</button>' +
       '</div>';
     document.body.appendChild(el);
   }
@@ -8277,13 +8300,14 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       playBtn.className = 'tut-cell-outline';
       playBtn.style.cssText =
         'position:fixed;border:none;animation:none;z-index:1402;' +
-        'background:linear-gradient(135deg,#7b2ff7,#f72585);' +
+        // Matches the game-over modal's button: solid purple, fully rounded ends.
+        'background:#7234ee;' +
         'color:#fff;font-weight:700;font-size:0.85rem;font-family:inherit;' +
-        'border-radius:10px;padding:8px 20px;cursor:pointer;' +
+        'border-radius:999px;padding:9px 22px;cursor:pointer;' +
         'box-shadow:0 2px 12px rgba(0,0,0,0.5);pointer-events:auto;' +
         'transform:translateX(-50%) translateY(-100%);';
       playBtn.textContent = 'Play →';
-      playBtn.onclick = function() { tutorialAdvance(); };
+      playBtn.onclick = function() { showSwapValueCard(); };
       document.body.appendChild(playBtn);
     }
     playBtn.style.left    = colCenterX + 'px';
@@ -8326,7 +8350,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
         showMsg('', 'info');
         var cell = boardCell(7, 9);
         document.getElementById('tut-ring').style.display = 'none';
-        tutHeader('Now that you know how to swap letters, let\'s steal one. The first or last letter from an existing word can be stolen by clicking on it, provided the remaining letters still form a valid word. Let\'s steal the S from CARS.');
+        tutHeader('Now that you know how to swap letters, let\'s steal one. The first or last letter of a word three letters or longer can be stolen by clicking on it, provided it does not join two words and the remaining letters still form a valid word. Steal the S from CARS.');
         tutBubble(cell, 'Tap the S to move it into your rack', true);
         document.getElementById('tut-bar').style.display = 'none';
       });
@@ -8506,9 +8530,10 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
         'position:absolute;border:none;animation:none;z-index:14;' +
         'left:' + (colLeft - 10) + 'px;top:' + localTop + 'px;' +
         'transform:translateX(-100%);' +
-        'background:linear-gradient(135deg,#7b2ff7,#f72585);' +
+        // Matches the game-over modal's button: solid purple, fully rounded ends.
+        'background:#7234ee;' +
         'color:#fff;font-weight:700;font-size:0.85rem;font-family:inherit;' +
-        'border-radius:10px;padding:8px 20px;cursor:pointer;' +
+        'border-radius:999px;padding:9px 22px;cursor:pointer;' +
         'box-shadow:0 2px 12px rgba(0,0,0,0.5);pointer-events:auto;';
       playBtn.textContent = 'Play →';
       playBtn.onclick = function() { tutorialAdvance(); };
@@ -8531,6 +8556,29 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     }
   }
 
+  // Shown when the player hits Play on RETAILED — the moment the payoff of swapping lands,
+  // so that's where the tactic is worth explaining. Deliberately NOT a tutorial step: adding
+  // one here would renumber steps 4, 6 and 7, and the _tutStep === N gates scattered through
+  // the drag and drop handlers key off those numbers. Its Next button advances instead.
+  function showSwapValueCard() {
+    clearAnims();
+    document.getElementById('tut-bar').style.display = 'none';
+    var el = document.createElement('div');
+    el.id = 'tut-welcome';
+    el.style.cssText = 'position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,4,24,0.82);';
+    el.innerHTML =
+      '<div class="tut-card">' +
+        '<button class="tut-card-close" onclick="closeTutorial()" title="Exit tutorial">✕</button>' +
+        '<h2>Nice play!</h2>' +
+        '<p>Swapped and stolen letters <strong>keep their full value</strong>, so taking a ' +
+          'high-value tile lets you set up a bigger play.</p>' +
+        '<p>You can swap for a <strong>blank</strong> too — and give it a different letter ' +
+          'when you play it.</p>' +
+        '<button class="tut-btn" onclick="tutorialAdvance()">Next →</button>' +
+      '</div>';
+    document.body.appendChild(el);
+  }
+
   function tutStep8() {
     clearAnims();
     document.getElementById('tut-bar').style.display = 'none';
@@ -8538,11 +8586,11 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     el.id = 'tut-welcome';
     el.style.cssText = 'position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,4,24,0.82);';
     el.innerHTML =
-      '<div style="background:#16093a;border:1.5px solid #7b2ff7;border-radius:18px;padding:32px 26px;max-width:310px;width:100%;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,0.7);">' +
-        '<h2 style="font-size:1.3rem;margin:0 0 14px;color:#fff;">You\'re ready to play!</h2>' +
-        '<p style="color:#c8b8f8;font-size:0.88rem;line-height:1.6;margin:0 0 10px;">You can take or swap up to <strong style="color:#f0c4ff;">four letters</strong> every turn.</p>' +
-        '<p style="color:#c8b8f8;font-size:0.88rem;line-height:1.6;margin:0 0 22px;">If you need to reset your tiles, tap the <strong style="color:#f0c4ff;">Recall</strong> button.</p>' +
-        '<button onclick="closeTutorial()" style="background:linear-gradient(135deg,#7b2ff7,#f72585);color:#fff;font-weight:700;font-size:1rem;font-family:inherit;border:none;border-radius:12px;padding:12px 32px;cursor:pointer;box-shadow:0 4px 16px rgba(123,47,247,0.5);">Start Playing →</button>' +
+      '<div class="tut-card">' +
+        '<h2>You\'re ready to play!</h2>' +
+        '<p>You can swap or steal up to <strong>four letters</strong> every turn.</p>' +
+        '<p>If you need to reset your tiles, tap the <strong>Recall</strong> button.</p>' +
+        '<button class="tut-btn" onclick="closeTutorial()">Start Playing →</button>' +
       '</div>';
     document.body.appendChild(el);
   }

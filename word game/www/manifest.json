@@ -1,7 +1,7 @@
 {
   "name": "Reword",
   "short_name": "Reword",
-  "description": "A tile-based word game",
+  "description": "Like Scrabble, but the board's in play. Swap and steal tiles straight off the board to build new words.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0e0825",

@@ -216,20 +216,60 @@ body {
   max-width: 520px;
   min-height: 32px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
   font-size: 0.82rem;
   font-weight: 600;
-  padding: 7px 10px 4px;
   background: #3c2d75;
   color: #ccc;
   text-align: center;
 }
+/* The text centres in what's left of the bar, not in the bar as a whole, so the
+   replay button doesn't push it visibly off-centre. */
+#msg-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px 4px;
+}
+#replay-btn {
+  flex: 0 0 52px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: #100b2c;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #fff;
+}
+#replay-btn.visible { display: flex; }
+/* Exit sits at the far end of the bar during the tutorial, mirroring the replay button.
+   Below the rack it was grey-on-dark and easy to miss. */
+#tut-exit-btn {
+  flex: 0 0 auto;
+  display: none;
+  align-items: center;
+  background: #100b2c;
+  color: #fff;
+  border: none;
+  padding: 0 13px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+#tut-exit-btn.visible { display: flex; }
+#replay-btn svg { width: 19px; height: 19px; display: block; }
+#replay-btn:active svg { transform: scale(0.9); }
+#replay-btn.playing svg { opacity: 0.55; }
 /* Success and narration share one colour; red stays reserved for rejections. */
-#msg-bar.good { color: var(--msg-info); }
-#msg-bar.bad  { color: var(--msg-bad); }
-#msg-bar.info { color: var(--msg-info); }
-#msg-bar.hidden { color: transparent; }
+#msg-bar.good #msg-text { color: var(--msg-info); }
+#msg-bar.bad  #msg-text { color: var(--msg-bad); }
+#msg-bar.info #msg-text { color: var(--msg-info); }
+#msg-bar.hidden #msg-text { color: transparent; }
 
 /* ── BOARD WRAPPER ── */
 #board-wrapper {
@@ -788,6 +828,15 @@ body {
 .tile-on-board.pop {
   animation: tilePop 0.38s ease-out both;
 }
+/* Replay reveals a tile by fading it up in place. It reaches full opacity early and starts
+   slightly undersized: a tan tile held half-transparent over a TW or centre square blends
+   into a pink flash, so the see-through part has to be brief and small. */
+@keyframes replayFade {
+  0%   { transform: scale(0.6); opacity: 0; }
+  35%  { opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.tile-on-board.replay-fade { animation: replayFade 0.34s ease-out both; }
 .tile-on-board.is-last-swap.pop {
   animation: tileSwapPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
 }
@@ -1689,6 +1738,12 @@ body {
   font-size: 0.84rem; color: #555; line-height: 1.6;
 }
 .faq-purple { color: #7b2ff7; font-weight: 600; }
+/* Icon shown inline in an answer, sitting on the text baseline at roughly cap height. */
+.faq-inline-icon {
+  width: 0.95em; height: 0.95em;
+  vertical-align: -0.12em;
+  color: #2a1c64;
+}
 .faq-color-row {
   display: flex; align-items: flex-start; gap: 10px; margin-top: 8px;
 }
@@ -2126,6 +2181,11 @@ body {
         </div>
       </div>
 
+      <div class="faq-item">
+        <div class="faq-q">How did my opponent make that play?</div>
+        <div class="faq-a">Tap the replay icon <svg class="faq-inline-icon" viewBox="0 0 16.20285 16.81585" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.91292,5.01059v6.79467c0,.48518.52523.78842.94541.54583l5.88435-3.39733c.42018-.24259.42018-.84907,0-1.09166l-5.88435-3.39734c-.42018-.24259-.94541.06065-.94541.54583Z"/><path d="M15.70285,11.45536c-1.68305,4.02887-6.31348,5.93054-10.34235,4.24749S-.57005,9.38937,1.113,5.36049,7.42649-.57005,11.45536,1.113c1.35348.56541,2.46689,1.46346,3.28496,2.5596"/><polyline points="15.48187 1.70549 15.33198 4.29596 12.74151 4.14607"/></svg> left of the play summary above the board to see your opponent's last move. The board rewinds to how it looked before the last move, then shows any swaps or steals made before spelling out the new word.</div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -2185,7 +2245,17 @@ body {
   <div id="tut-header-text" style="display:none;padding:10px 16px;font-size:1.05rem;color:#ddd;line-height:1.55;text-align:center;"></div>
 </div>
 
-<div id="msg-bar" class="hidden"></div>
+<div id="msg-bar" class="hidden">
+  <button id="replay-btn" type="button" aria-label="Replay the last move" onclick="toggleReplay()">
+    <svg viewBox="0 0 16.20285 16.81585" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M5.91292,5.01059v6.79467c0,.48518.52523.78842.94541.54583l5.88435-3.39733c.42018-.24259.42018-.84907,0-1.09166l-5.88435-3.39734c-.42018-.24259-.94541.06065-.94541.54583Z"/>
+      <path d="M15.70285,11.45536c-1.68305,4.02887-6.31348,5.93054-10.34235,4.24749S-.57005,9.38937,1.113,5.36049,7.42649-.57005,11.45536,1.113c1.35348.56541,2.46689,1.46346,3.28496,2.5596"/>
+      <polyline points="15.48187 1.70549 15.33198 4.29596 12.74151 4.14607"/>
+    </svg>
+  </button>
+  <span id="msg-text"></span>
+  <button id="tut-exit-btn" type="button" onclick="closeTutorial()">Exit tutorial</button>
+</div>
 
 <div id="board-wrapper">
   <div id="board"></div>
@@ -2200,9 +2270,6 @@ body {
     <span id="tiles-left-inline"><span id="bag-num">100</span> tiles left</span>
   </div>
   <div id="rack"></div>
-  <div id="tut-exit-row" style="display:none;text-align:center;padding:6px 0 2px;">
-    <button onclick="closeTutorial()" style="background:none;border:none;color:#888;font-size:0.75rem;cursor:pointer;text-decoration:underline;font-family:inherit;letter-spacing:0.02em;">Exit tutorial</button>
-  </div>
 </div>
 
 <div id="controls">
@@ -4553,11 +4620,131 @@ function findAIStealMove(rackOverride = null) {
 // ═══════════════════════════════════════════════════════
 //  RENDERING
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  LAST-MOVE REPLAY
+// ═══════════════════════════════════════════════════════
+// Replays the previous move on the board: the position as it stood before the move, then
+// each swap and steal, then the tiles played from the rack. Nothing extra is stored for
+// this — the move is reconstructed from lastMoveKeys, lastSwapKeys and lastSwapPairMap,
+// all of which are already saved locally and sent to the opponent.
+const REPLAY_HOLD  = 750;   // look at the original position before anything moves
+const REPLAY_SWAP  = 850;   // between swaps/steals — slower, they're the confusing part
+const REPLAY_AFTER = 700;   // extra beat to take in the swaps before the word builds
+const REPLAY_TILE  = 260;   // between rack tiles
+
+// revealed/swapped accumulate across the whole replay and drive the tile styling;
+// justRevealed holds only the squares that changed on the current frame, and is what the
+// fade animation keys off.
+let replayState = { active: false, board: null, revealed: new Set(), swapped: new Set(),
+                    justRevealed: new Set(), timers: [] };
+
+function canReplayLastMove() {
+  return !window.tutorialMode && !gameOver && lastMoveKeys.length > 0
+    && Object.keys(pendingPlacements).length === 0 && pendingRemovals.size === 0;
+}
+
+function updateReplayButton() {
+  const btn = document.getElementById('replay-btn');
+  if (!btn) return;
+  btn.classList.toggle('visible', canReplayLastMove() || replayState.active);
+  btn.classList.toggle('playing', replayState.active);
+}
+
+// Rebuild the position as it stood before the last move. Clearing the played tiles is the
+// easy half; the other half is that a swapped or stolen letter is now sitting wherever it
+// was played, and lastSwapPairMap says which square it came from. Putting it back covers
+// both cases: a steal's source square is empty and gets its letter returned, and a swap's
+// source square holds the incoming letter and gets overwritten with the original.
+function buildReplayFrames() {
+  const pre = board.map(row => [...row]);
+  const pairs = [];
+  for (const srcKey of lastSwapKeys) {
+    const shade = lastSwapPairMap[srcKey];
+    const destKey = Object.keys(lastSwapPairMap).find(k => k !== srcKey && lastSwapPairMap[k] === shade);
+    const [sr, sc] = srcKey.split(',').map(Number);
+    pairs.push({ srcKey, destKey, incoming: board[sr][sc], original: null });
+  }
+  for (const key of lastMoveKeys) {
+    const [r, c] = key.split(',').map(Number);
+    pre[r][c] = null;
+  }
+  for (const pair of pairs) {
+    const [sr, sc] = pair.srcKey.split(',').map(Number);
+    if (!pair.destKey) { pair.original = pre[sr][sc]; continue; }
+    const [dr, dc] = pair.destKey.split(',').map(Number);
+    pair.original = board[dr][dc];
+    pre[sr][sc] = pair.original;
+  }
+  // Rack tiles are everything played that wasn't the other end of a swap or steal.
+  const paired = new Set(pairs.map(p => p.destKey).filter(Boolean));
+  const rackKeys = lastMoveKeys.filter(k => !paired.has(k));
+  return { pre, pairs, rackKeys };
+}
+
+function toggleReplay() {
+  if (replayState.active) { stopReplay(); return; }
+  if (!canReplayLastMove()) return;
+
+  const { pre, pairs, rackKeys } = buildReplayFrames();
+  replayState = { active: true, board: pre, revealed: new Set(), swapped: new Set(),
+                  justRevealed: new Set(), timers: [], moveSig: lastMoveKeys.join('|') };
+  const at = (ms, fn) => replayState.timers.push(setTimeout(fn, ms));
+  renderBoard();
+
+  let t = REPLAY_HOLD;
+  pairs.forEach(pair => {
+    at(t, () => {
+      const [sr, sc] = pair.srcKey.split(',').map(Number);
+      // A swap leaves its incoming letter behind; a steal leaves the square empty.
+      replayState.board[sr][sc] = pair.incoming ?? null;
+      replayState.swapped.add(pair.srcKey);
+      replayState.justRevealed = new Set([pair.srcKey]);
+      if (pair.destKey) {
+        const [dr, dc] = pair.destKey.split(',').map(Number);
+        replayState.board[dr][dc] = pair.original;
+        replayState.swapped.add(pair.destKey);
+        replayState.revealed.add(pair.destKey);
+        replayState.justRevealed.add(pair.destKey);
+      }
+      renderBoard();
+    });
+    t += REPLAY_SWAP;
+  });
+  if (pairs.length) t += REPLAY_AFTER;
+
+  rackKeys.forEach(key => {
+    at(t, () => {
+      const [r, c] = key.split(',').map(Number);
+      replayState.board[r][c] = board[r][c];
+      replayState.revealed.add(key);
+      replayState.justRevealed = new Set([key]);
+      renderBoard();
+    });
+    t += REPLAY_TILE;
+  });
+
+  at(t + REPLAY_HOLD, stopReplay);
+  updateReplayButton();
+}
+
+function stopReplay() {
+  replayState.timers.forEach(clearTimeout);
+  replayState = { active: false, board: null, revealed: new Set(), swapped: new Set(),
+                  justRevealed: new Set(), timers: [] };
+  renderBoard();
+  renderScorePreview();  // renderBoard clears the last-score badge, which lives in the board
+  updateReplayButton();
+}
+
 function renderBoard() {
   const boardEl = document.getElementById('board');
   boardEl.innerHTML = '';
-  const shouldAnim = !lastMoveAnimated;
-  lastMoveAnimated = true;
+  // During a replay the board is a read-only picture of a moment in the last move: it draws
+  // from the replay position and takes no drags, drops or taps.
+  const replaying = replayState.active;
+  const src = replaying ? replayState.board : board;
+  const shouldAnim = !replaying && !lastMoveAnimated;
+  if (!replaying) lastMoveAnimated = true;
   // Sound for the opponent's word revealing on the board (your own play uses the fanfare)
   if (shouldAnim && lastMoveKeys.length && currentPlayer === 'player' && !gameOver && !window.tutorialMode) {
     playWordReveal(lastMoveKeys.length);
@@ -4574,7 +4761,7 @@ function renderBoard() {
 
       if (prem) cell.classList.add(prem.toLowerCase());
 
-      const pending = pendingPlacements[key];
+      const pending = replaying ? null : pendingPlacements[key];
       if (pending) {
         const tile = document.createElement('div');
         tile.className = 'tile-on-board ' + (pending.isSwap || swappedRackIndices.has(pending.rackIdx) ? 'is-swap' : 'is-new');
@@ -4606,35 +4793,45 @@ function renderBoard() {
           setTimeout(() => { _suppressClick = false; }, 50);
         });
         cell.addEventListener('touchstart', e => onPendingTouchStart(e, key), {passive: false});
-      } else if (pendingRemovals.has(key)) {
+      } else if (!replaying && pendingRemovals.has(key)) {
         const tile = document.createElement('div');
         tile.className = 'tile-on-board ' + (PREMIUM[key] ? 'is-removal-bonus' : 'is-removal');
         const letter = board[r][c];
         const isBlank = letter !== letter.toUpperCase();
         tile.innerHTML = `<span class="tile-letter">${letter.toUpperCase()}</span><span class="tile-val">${isBlank ? 0 : (VAL[letter] ?? 0)}</span>`;
         cell.appendChild(tile);
-      } else if (board[r][c]) {
+      } else if (src[r][c]) {
         const tile = document.createElement('div');
         const moveIdx = lastMoveKeys.indexOf(key);
         const swapPairIdx = lastSwapPairMap[key];
-        const isLastSwap = swapPairIdx !== undefined;
+        // Mid-replay a tile is only "part of the last move" once the replay has reached it,
+        // so the highlight arrives with the tile instead of being there from the start.
+        const isLastSwap = swapPairIdx !== undefined && (!replaying || replayState.swapped.has(key));
         let cls = 'tile-on-board';
         if (isLastSwap)        cls += ` is-last-swap swap-shade-${swapPairIdx % 4}`;
-        else if (moveIdx >= 0) cls += ' is-last-move';
+        else if (moveIdx >= 0 && (!replaying || replayState.revealed.has(key))) cls += ' is-last-move';
         tile.className = cls;
+        // Only the tiles that landed on this frame animate. renderBoard rebuilds the whole
+        // board every frame, so keying this off everything revealed so far re-ran the fade
+        // on the entire word each time a new letter arrived.
+        if (replaying && replayState.justRevealed.has(key)) {
+          tile.classList.add('replay-fade');
+        }
         if ((moveIdx >= 0 || isLastSwap) && shouldAnim) {
           tile.style.animationDelay = isLastSwap
             ? `${lastMoveKeys.length * 80 + 80}ms`
             : `${moveIdx * 80}ms`;
           tile.classList.add('pop');
         }
-        const committedIsBlank = board[r][c] !== board[r][c].toUpperCase();
+        const committedIsBlank = src[r][c] !== src[r][c].toUpperCase();
         if (committedIsBlank) tile.classList.add('is-blank');
-        if (boardSwapPositions.has(key) && !isLastSwap) tile.classList.add('swap-shade-0');
-        tile.innerHTML = `<span class="tile-letter">${board[r][c].toUpperCase()}</span><span class="tile-val">${committedIsBlank ? 0 : VAL[board[r][c]]??0}</span>`;
+        if (!replaying && boardSwapPositions.has(key) && !isLastSwap) tile.classList.add('swap-shade-0');
+        tile.innerHTML = `<span class="tile-letter">${src[r][c].toUpperCase()}</span><span class="tile-val">${committedIsBlank ? 0 : VAL[src[r][c]]??0}</span>`;
         cell.appendChild(tile);
         // Tutorial step 4: make the S at (7,9) draggable so user can drag it off
-        if (window.tutorialMode && window._tutStep === 4 && r === 7 && c === 9) {
+        if (replaying) {
+          // no interaction while replaying
+        } else if (window.tutorialMode && window._tutStep === 4 && r === 7 && c === 9) {
           cell.draggable = true;
           cell.addEventListener('dragstart', e => {
             e.dataTransfer.effectAllowed = 'move';
@@ -4691,6 +4888,8 @@ function renderBoard() {
           cell.style.color = '#fff';
         }
       }
+
+      if (replaying) { boardEl.appendChild(cell); continue; }
 
       cell.addEventListener('click', () => onCellClick(r, c));
 
@@ -5609,6 +5808,9 @@ function handleShuffleOrRecall() {
 }
 
 function updateUI() {
+  // A replay is a picture of a move that has now been superseded — drop it if the opponent
+  // has played or the game has ended, but leave it alone for routine refreshes.
+  if (replayState.active && (gameOver || replayState.moveSig !== lastMoveKeys.join('|'))) stopReplay();
   // Safety net: end the game if bag is empty and at least one rack is empty
   if (!window.tutorialMode && !gameOver && bag.length === 0 && (playerRack.length === 0 || aiRack.length === 0)) {
     checkGameOver();
@@ -5623,6 +5825,7 @@ function updateUI() {
   renderBoard();
   renderRack();
   renderScorePreview();
+  updateReplayButton();
   updateStrengthBar();
   updateResignButton();
   // Play button: toggle between Play and Other Games
@@ -5660,8 +5863,9 @@ function updateUI() {
 
 function showMsg(text, type = 'info') {
   const bar = document.getElementById('msg-bar');
-  bar.textContent = text;
+  document.getElementById('msg-text').textContent = text;
   bar.className = type;
+  updateReplayButton();
 }
 
 function showModal(title, body) {
@@ -8636,7 +8840,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     window.tutorialMode = true;
     aiVsAiMode = false;
     document.getElementById('controls').style.display = 'none';
-    document.getElementById('tut-exit-row').style.display = 'block';
+    document.getElementById('tut-exit-btn').classList.add('visible');
     document.getElementById('scoreboard').style.display = 'none';
     document.getElementById('tut-header-text').style.display = 'block';
     _tutStep = 0;
@@ -8647,7 +8851,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     clearAnims();
     window.tutorialMode = false;
     window._tutDraggableIdx = null;
-    document.getElementById('tut-exit-row').style.display = 'none';
+    document.getElementById('tut-exit-btn').classList.remove('visible');
     ['tut-ring2','tut-fly'].forEach(function(id) {
       var e = document.getElementById(id); if (e && e.parentNode) e.parentNode.removeChild(e);
     });

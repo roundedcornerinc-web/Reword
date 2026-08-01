@@ -60,6 +60,7 @@ vm.runInContext([
   grabFunction('validatePlay'),
   grabFunction('getRemovableInfo'),
   grabFunction('earnsAllTilesBonus'),
+  grabFunction('buildReplayFrames'),
   'function isEmpty(){ return board.every(r => r.every(c => !c)); }',
 ].join('\n'), ctx);
 
@@ -202,6 +203,77 @@ checkBonus('a short endgame rack does not', 5, 5, 0, false);
 // A swap trades a rack tile for a board tile, so the rack size never changes and the
 // bonus is unaffected — the swapped-in tile still has to be placed.
 checkBonus('swapping does not disturb the bonus', 7, 7, 0, true);
+
+console.log('\nLast-move replay — reconstructing the board before the move\n');
+
+// The replay stores nothing of its own: it rebuilds the previous position from the current
+// board plus lastMoveKeys/lastSwapKeys/lastSwapPairMap. If that reconstruction is wrong the
+// replay silently shows a position that never existed, which no parse or play check sees.
+function replayCase(name, position) {
+  const b = Array.from({ length: 15 }, () => Array(15).fill(null));
+  for (const [r, c, letter] of position.tiles) b[r][c] = letter;
+  ctx.board = b;
+  ctx.lastMoveKeys = position.moveKeys;
+  ctx.lastSwapKeys = position.swapKeys || [];
+  ctx.lastSwapPairMap = position.pairMap || {};
+  const frames = ctx.buildReplayFrames();
+  const read = cells => cells.map(([r, c]) => frames.pre[r][c] || '.').join('');
+
+  let problem = null;
+  if (position.before && read(position.before.cells) !== position.before.word)
+    problem = `before-board read "${read(position.before.cells)}", expected "${position.before.word}"`;
+  else if (position.rackKeys && frames.rackKeys.join(',') !== position.rackKeys.join(','))
+    problem = `rack tiles were [${frames.rackKeys}], expected [${position.rackKeys}]`;
+
+  if (!problem) { passed++; console.log('  pass  ' + name); return; }
+  failures.push(name);
+  console.log('  FAIL  ' + name);
+  console.log('          ' + problem);
+}
+
+// Steal: CARS stood on row 7; the S was taken and played as the last letter of TEAS.
+replayCase('a steal puts the stolen letter back where it came from', {
+  tiles: [[7,5,'C'], [7,6,'A'], [7,7,'R'],
+          [10,4,'T'], [10,5,'E'], [10,6,'A'], [10,7,'S']],
+  moveKeys: ['10,4', '10,5', '10,6', '10,7'],
+  swapKeys: ['7,8'],
+  pairMap: { '7,8': 0, '10,7': 0 },
+  before: { cells: [[7,5],[7,6],[7,7],[7,8]], word: 'CARS' },
+  rackKeys: ['10,4', '10,5', '10,6'],   // the stolen S replays as a steal, not a rack tile
+});
+
+// Swap: a B was played onto the C of CARS, and the displaced C became the C of COT.
+replayCase('a swap restores the letter that was covered', {
+  tiles: [[7,5,'B'], [7,6,'A'], [7,7,'R'], [7,8,'S'],
+          [10,4,'C'], [10,5,'O'], [10,6,'T']],
+  moveKeys: ['10,4', '10,5', '10,6'],
+  swapKeys: ['7,5'],
+  pairMap: { '7,5': 0, '10,4': 0 },
+  before: { cells: [[7,5],[7,6],[7,7],[7,8]], word: 'CARS' },
+  rackKeys: ['10,5', '10,6'],
+});
+
+replayCase('a plain move leaves an empty before-board', {
+  tiles: [[7,5,'C'], [7,6,'A'], [7,7,'R']],
+  moveKeys: ['7,5', '7,6', '7,7'],
+  before: { cells: [[7,5],[7,6],[7,7]], word: '...' },
+  rackKeys: ['7,5', '7,6', '7,7'],
+});
+
+// Two steals in one turn — the pair map has to keep the sources and destinations straight.
+const twoSteals = {
+  tiles: [[7,5,'C'], [7,6,'A'], [7,7,'R'],
+          [3,5,'D'], [3,6,'O'], [3,7,'M'],
+          [10,4,'S'], [10,5,'E'], [10,6,'A'], [10,7,'T']],
+  moveKeys: ['10,4', '10,5', '10,6', '10,7'],
+  swapKeys: ['7,8', '3,8'],
+  pairMap: { '7,8': 0, '10,4': 0, '3,8': 1, '10,5': 1 },
+};
+replayCase('two steals restore the first word',
+  { ...twoSteals, before: { cells: [[7,5],[7,6],[7,7],[7,8]], word: 'CARS' } });
+replayCase('two steals restore the second word, and only two tiles came from the rack',
+  { ...twoSteals, before: { cells: [[3,5],[3,6],[3,7],[3,8]], word: 'DOME' },
+    rackKeys: ['10,6', '10,7'] });
 
 console.log('\nScoring — replayed tiles keep their square bonuses\n');
 

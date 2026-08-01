@@ -8839,6 +8839,10 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   window.showTutorial = function() {
     window.tutorialMode = true;
     aiVsAiMode = false;
+    // The feed is global and survives screen changes, so without this the tutorial opens
+    // showing the last thing that happened in the game you came from — and, since the
+    // replay button is only re-evaluated when the feed or the UI updates, its button too.
+    showMsg('', 'info');
     document.getElementById('controls').style.display = 'none';
     document.getElementById('tut-exit-btn').classList.add('visible');
     document.getElementById('scoreboard').style.display = 'none';
@@ -8851,6 +8855,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     clearAnims();
     window.tutorialMode = false;
     window._tutDraggableIdx = null;
+    showMsg('', 'info');   // don't carry the tutorial's narration out into a real game
     document.getElementById('tut-exit-btn').classList.remove('visible');
     ['tut-ring2','tut-fly'].forEach(function(id) {
       var e = document.getElementById(id); if (e && e.parentNode) e.parentNode.removeChild(e);

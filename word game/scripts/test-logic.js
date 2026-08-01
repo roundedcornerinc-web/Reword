@@ -59,6 +59,7 @@ vm.runInContext([
   grabFunction('scorePlay'),
   grabFunction('validatePlay'),
   grabFunction('getRemovableInfo'),
+  grabFunction('earnsAllTilesBonus'),
   'function isEmpty(){ return board.every(r => r.every(c => !c)); }',
 ].join('\n'), ctx);
 
@@ -179,6 +180,28 @@ checkSteal('a steal leaving a non-word is still blocked', {
   tiles: CARS,
   at: [7, 5],
 }, { removable: false, reasonContains: 'not a valid word' });
+
+console.log('\nAll-tiles bonus — a stolen tile is not one of your seven\n');
+
+// rackSize counts the rack at submit time, which a steal has already grown by one.
+function checkBonus(name, rackSize, placedFromRack, stolen, expected) {
+  const got = !!ctx.earnsAllTilesBonus(rackSize, placedFromRack, stolen);
+  if (got === expected) { passed++; console.log('  pass  ' + name); return; }
+  failures.push(name);
+  console.log('  FAIL  ' + name);
+  console.log('          expected: ' + expected + '   actual: ' + got);
+}
+
+checkBonus('emptying a full 7-tile rack earns it', 7, 7, 0, true);
+// Reported: 6 tiles left plus a stolen letter is a 7-tile play, but only 6 came from the
+// bag, so the rack was never full — placements alone paid the bonus here.
+checkBonus('six own tiles plus a stolen one does not', 7, 7, 1, false);
+checkBonus('a full rack plus a stolen tile, all placed, earns it', 8, 8, 1, true);
+checkBonus('leaving a tile behind does not', 7, 6, 0, false);
+checkBonus('a short endgame rack does not', 5, 5, 0, false);
+// A swap trades a rack tile for a board tile, so the rack size never changes and the
+// bonus is unaffected — the swapped-in tile still has to be placed.
+checkBonus('swapping does not disturb the bonus', 7, 7, 0, true);
 
 console.log('\nScoring — replayed tiles keep their square bonuses\n');
 

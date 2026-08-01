@@ -16,16 +16,14 @@
      appears in iMessage, WhatsApp and anywhere else a game link gets pasted. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Reword">
-<meta property="og:title" content="Reword — The board's in play.">
-<meta property="og:description" content="Like Scrabble, but the board's in play. Swap and steal tiles straight off the board to build new words.">
+<meta property="og:title" content="Reword — Swap, steal, score.">
 <meta property="og:url" content="https://www.rewordgame.app">
 <meta property="og:image" content="https://www.rewordgame.app/og-card.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Reword — The board's in play.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Reword — The board's in play.">
-<meta name="twitter:description" content="Like Scrabble, but the board's in play. Swap and steal tiles straight off the board to build new words.">
+<meta name="twitter:title" content="Reword — Swap, steal, score.">
 <meta name="twitter:image" content="https://www.rewordgame.app/og-card.png">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -50,7 +48,6 @@
   --btn-swap: #e63946;
   --btn-safe: #2dc653;
   --rack-bg: #2d1b69;
-  --msg-good: #2dc653;
   --msg-bad: #e63946;
   --msg-info: #4cc9f0;
 }
@@ -223,12 +220,13 @@ body {
   justify-content: center;
   font-size: 0.82rem;
   font-weight: 600;
-  padding: 4px 10px;
+  padding: 7px 10px 4px;
   background: #3c2d75;
   color: #ccc;
   text-align: center;
 }
-#msg-bar.good { color: var(--msg-good); }
+/* Success and narration share one colour; red stays reserved for rejections. */
+#msg-bar.good { color: var(--msg-info); }
 #msg-bar.bad  { color: var(--msg-bad); }
 #msg-bar.info { color: var(--msg-info); }
 #msg-bar.hidden { color: transparent; }
@@ -2618,6 +2616,14 @@ function isBoardConnected(b) {
   return visited.size === occupied.length;
 }
 
+// The 35-point bonus is for emptying a full rack, so it counts tiles that came from the
+// bag — not tiles stolen off the board this turn. Stealing pushes the stolen letter onto
+// the rack, so a rack of 7 becomes 8; counting placements alone paid the bonus to a player
+// who laid down 6 of their own tiles plus a stolen one.
+function earnsAllTilesBonus(rackSize, placedFromRack, stolenThisTurn) {
+  return placedFromRack === rackSize && (rackSize - stolenThisTurn) >= 7;
+}
+
 function getRemovableInfo(r, c) {
   if (!board[r][c]) return {removable: false, reason: 'No committed tile here.'};
   const key = `${r},${c}`;
@@ -2930,8 +2936,9 @@ function submitPlay() {
   const usedIdx = new Set(Object.values(allPlacements).map(p=>p.rackIdx).filter(i=>i!=null));
   // Sort descending to remove without index shifting
   [...usedIdx].sort((a,b)=>b-a).forEach(i => playerRack.splice(i, 1));
-  // Bingo bonus only when the full 7-tile rack was emptied this turn
-  const usedAllTiles = rackSizeBeforePlay === 7 && playerRack.length === 0;
+  // Bingo bonus only when a full 7-tile rack from the bag was emptied this turn
+  const usedAllTiles = earnsAllTilesBonus(
+    rackSizeBeforePlay, usedIdx.size, Object.keys(pendingRemovalInfo).length);
   drawTiles(playerRack);
 
   playerScore += pts;
@@ -3971,6 +3978,7 @@ function doPlayerAiTurn() {
       }
       const actualStolenIdx = playerRack.length - 1;
       if (play.placements.some(p => p.rackIdx === stolenRackIdx)) usedIdx.add(actualStolenIdx);
+      const stealRackSize = playerRack.length;  // includes the stolen tile
       [...usedIdx].sort((a,b)=>b-a).forEach(i => playerRack.splice(i,1));
       drawTiles(playerRack);
       lastSwapKeys = [`${stealRow},${stealCol}`];
@@ -3983,11 +3991,11 @@ function doPlayerAiTurn() {
       if (stolenP2) boardSwapPositions.add(`${stolenP2.row},${stolenP2.col}`);
       lastSwapPairMap = { [`${stealRow},${stealCol}`]: 0 };
       if (stolenP2) lastSwapPairMap[`${stolenP2.row},${stolenP2.col}`] = 0;
-      const bonus = play.placements.length === 7 ? 35 : 0;
+      const bonus = earnsAllTilesBonus(stealRackSize, usedIdx.size, 1) ? 35 : 0;
       playerScore += play.score + bonus;
       lastPlayScore = play.score + bonus;
       passCount = 0;
-      const stealWord = (play.words&&play.words.length?play.words.reduce((a,b)=>a.word.length>=b.word.length?a:b).word:play.word).toUpperCase();
+      const stealWord =(play.words&&play.words.length?play.words.reduce((a,b)=>a.word.length>=b.word.length?a:b).word:play.word).toUpperCase();
       showMsg(`AI-1 stole ${stealLetter.toUpperCase()} → played ${stealWord} for ${play.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
     } else if (normalMove) {
       boardSwapPositions = new Set();
@@ -4104,6 +4112,7 @@ function doAiTurn() {
       const actualStolenIdx = aiRack.length - 1;
       if (play.placements.some(p => p.rackIdx === stolenRackIdx)) usedIdx.add(actualStolenIdx);
 
+      const aiStealRackSize = aiRack.length;  // includes the stolen tile
       [...usedIdx].sort((a, b) => b - a).forEach(i => aiRack.splice(i, 1));
       drawTiles(aiRack);
 
@@ -4119,12 +4128,12 @@ function doAiTurn() {
       if (stolenPlacement) lastSwapPairMap[`${stolenPlacement.row},${stolenPlacement.col}`] = 0;
       lastMoveAnimated = false;
 
-      const aiBonus = play.placements.length === 7 ? 35 : 0;
+      const aiBonus = earnsAllTilesBonus(aiStealRackSize, usedIdx.size, 1) ? 35 : 0;
       aiScore += play.score + aiBonus;
       lastPlayScore = play.score + aiBonus;
       passCount = 0;
       aiNoMoveCount = 0;
-      const stealMainWord = (play.words && play.words.length ? play.words.reduce((a,b) => a.word.length >= b.word.length ? a : b).word : play.word).toUpperCase();
+      const stealMainWord =(play.words && play.words.length ? play.words.reduce((a,b) => a.word.length >= b.word.length ? a : b).word : play.word).toUpperCase();
       showMsg(
         `AI stole ${stealLetter.toUpperCase()} from the board and played ${stealMainWord} for ${play.score + aiBonus} points${aiBonus ? ' (+35 bonus)' : ''}!`,
         'info'
@@ -5260,7 +5269,8 @@ function renderScorePreview() {
   // Same rule as the commit path: only the swap square is denied premiums.
   const pts = scorePlay(words, new Set(keys), swapPendingPositions);
   const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
-  const bonus = usedIdx.size === 7 ? 35 : 0;
+  const bonus = earnsAllTilesBonus(
+    playerRack.length, usedIdx.size, Object.keys(pendingRemovalInfo).length) ? 35 : 0;
 
   // Find the primary word (most overlap with non-swap new tiles)
   const primaryWord = words.reduce((best, w) => {
@@ -5564,7 +5574,8 @@ function updateStrengthBar() {
     const result = validatePlay(pendingPlacements, new Set(swapPendingPositions));
     if (result.ok) {
       const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
-      const bonus = usedIdx.size === 7 ? 35 : 0;
+      const bonus = earnsAllTilesBonus(
+        playerRack.length, usedIdx.size, Object.keys(pendingRemovalInfo).length) ? 35 : 0;
       currentScore = scorePlay(result.words, new Set(keys), swapPendingPositions) + bonus;
     }
   }

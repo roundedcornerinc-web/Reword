@@ -3,10 +3,48 @@ const jwt      = require('jsonwebtoken');
 const http2    = require('http2');
 
 // APNs config — set these in Vercel environment variables
-const APNS_KEY_ID  = process.env.APNS_KEY_ID  || 'LDGH72AK2K';
+const APNS_KEY_ID  = process.env.APNS_KEY_ID  || 'TXTHH3A9JT';
 const APNS_TEAM_ID = process.env.APNS_TEAM_ID || 'MGN5YYLFR6';
 const APNS_BUNDLE  = process.env.APNS_BUNDLE  || 'com.roundedcornerinc.reword';
 const APNS_KEY_PEM = process.env.APNS_KEY_PEM; // full PEM content as env var
+
+// ── Server-side push-token lookup ──────────────────────────────────────────────
+// Push tokens used to travel in the request because the sender read them out of the
+// recipient's user document — which every signed-in player can read. Looking them up here
+// with admin credentials lets those tokens live in a collection no client can read.
+//
+// Initialised lazily: without FIREBASE_SERVICE_ACCOUNT set, lookups are skipped and the
+// endpoint falls back to whatever token the client supplied, exactly as before.
+let _adminDb = null;
+function adminDb() {
+  if (_adminDb) return _adminDb;
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!raw) return null;
+  const admin = require('firebase-admin');
+  if (!admin.apps.length) {
+    admin.initializeApp({ credential: admin.credential.cert(JSON.parse(raw)) });
+  }
+  _adminDb = admin.firestore();
+  return _adminDb;
+}
+
+// Returns { apnsToken, subscription } for a player, from whichever store has it. Reads the
+// new pushTokens collection first and falls back to the legacy copy on the user document,
+// so this works before and after clients migrate.
+async function lookupPushTarget(playerId) {
+  const db = adminDb();
+  if (!db) return {};
+  const [tokenSnap, userSnap] = await Promise.all([
+    db.collection('pushTokens').doc(playerId).get(),
+    db.collection('users').doc(playerId).get(),
+  ]);
+  const t = tokenSnap.exists ? tokenSnap.data() : {};
+  const u = userSnap.exists  ? userSnap.data()  : {};
+  return {
+    apnsToken:    t.token || u.apnsToken || null,
+    subscription: t.subscription || u.pushSub || null,
+  };
+}
 
 function makeApnsJwt() {
   // Vercel env vars may store literal \n instead of real newlines — normalize them
@@ -73,8 +111,25 @@ module.exports = async function handler(req, res) {
       body = Object.fromEntries(new URLSearchParams(body));
     }
   }
-  const { subscription, apnsToken, title, message, gameId, recipientRole } = body;
-  console.log('[notify] method:', req.method, 'apnsToken:', apnsToken ? apnsToken.slice(0,10)+'…' : 'none', 'sub:', !!subscription);
+  const { subscription, recipientId, title, message, gameId, recipientRole } = body;
+  let { apnsToken } = body;
+
+  // Preferred path: the client names who to notify and the token is looked up here, so push
+  // tokens never have to sit in a document that other players can read. Clients on older
+  // builds still send apnsToken directly — that fallback stays until those builds age out.
+  let sub = subscription;
+  if (recipientId) {
+    try {
+      const stored = await lookupPushTarget(recipientId);
+      if (stored.apnsToken) apnsToken = stored.apnsToken;
+      if (stored.subscription && !sub) sub = stored.subscription;
+    } catch (err) {
+      console.error('[notify] token lookup failed:', err.message);
+    }
+  }
+
+  console.log('[notify] method:', req.method, 'recipientId:', recipientId || 'none',
+              'apnsToken:', apnsToken ? apnsToken.slice(0,10)+'…' : 'none', 'sub:', !!sub);
 
   const pushTitle = title   || 'Your turn in Reword!';
   const pushBody  = message || 'Your opponent has played. Your move!';
@@ -92,7 +147,7 @@ module.exports = async function handler(req, res) {
   }
 
   // Web push fallback
-  if (!subscription?.endpoint) return res.status(400).send('Missing subscription or apnsToken');
+  if (!sub?.endpoint) return res.status(400).send('Missing subscription or apnsToken');
 
   const vapidPublic  = (process.env.VAPID_PUBLIC_KEY  || '').replace(/=/g, '').trim();
   const vapidPrivate = (process.env.VAPID_PRIVATE_KEY || '').replace(/=/g, '').trim();
@@ -110,7 +165,7 @@ module.exports = async function handler(req, res) {
   });
 
   try {
-    await webpush.sendNotification(subscription, payload);
+    await webpush.sendNotification(sub, payload);
     return res.status(200).send('OK');
   } catch (err) {
     if (err.statusCode === 410 || err.statusCode === 404) return res.status(410).send('Subscription expired');

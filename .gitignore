@@ -1,1 +1,5 @@
 word game/ios/App/App/GoogleService-Info.plist
+
+# Private keys — never commit these
+*.p8
+*.mobileprovision

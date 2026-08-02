@@ -9,7 +9,7 @@ webpush.setVapidDetails(
 );
 
 // APNs config — set these in Vercel environment variables
-const APNS_KEY_ID   = process.env.APNS_KEY_ID   || 'LDGH72AK2K';
+const APNS_KEY_ID   = process.env.APNS_KEY_ID   || 'TXTHH3A9JT';
 const APNS_TEAM_ID  = process.env.APNS_TEAM_ID  || 'MGN5YYLFR6';
 const APNS_BUNDLE   = process.env.APNS_BUNDLE   || 'com.roundedcornerinc.reword';
 const APNS_KEY_PEM  = process.env.APNS_KEY_PEM;  // full PEM content as env var

@@ -1,0 +1,116 @@
+rules_version = '2';
+
+// Reword Firestore security rules.
+//
+// READ THIS BEFORE TRUSTING THESE RULES.
+//
+// Ownership in this database is keyed on getPlayerId() — the value in localStorage — and
+// not on the Firebase auth uid. Rules can only see request.auth.uid, and a signed-in client
+// can put any player id it likes in a request, so these rules cannot prove that a given
+// player id belongs to the caller. What they do:
+//
+//   * close the database to callers who are not signed in at all
+//   * stop a user from taking over a document that is already claimed by another account
+//   * stop writes to collections and fields that no client should be touching
+//
+// What they do NOT do: restrict who may write to a game. The update rule below asks only
+// that the caller is signed in, so any signed-in user who knows a game id — it is the
+// six-character code in a challenge link, and it never expires — can overwrite that game's
+// board, scores and turn. They cannot read personal data doing it, because none is stored,
+// but they can vandalise a game in progress.
+//
+// This is not an oversight that a stricter rule would fix. The check worth having is "the
+// caller must be one of the two players", and it cannot be written while players are
+// identified by a client-chosen id instead of the auth uid. See the migration note at the
+// bottom of this file.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // A user document is claimed once it carries the uid of the account that owns it.
+    // Documents created before accounts existed have no uid and are claimable — that is
+    // deliberate, it is how an existing player keeps their games when they first sign in.
+    function ownsUserDoc(doc) {
+      return doc == null
+          || !('uid' in doc)
+          || doc.uid == null
+          || doc.uid == request.auth.uid;
+    }
+
+    match /users/{playerId} {
+      // Readable by any signed-in player, because the app reads an opponent's document to
+      // find their push token and display name when sending a turn notification.
+      //
+      // WARNING: Firestore cannot restrict reads to particular fields, so this exposes the
+      // whole document — including apnsToken — to any signed-in user who knows a player id.
+      // Moving push tokens out of this document is the fix; see the notes at the bottom.
+      allow read: if signedIn();
+
+      allow create: if signedIn() && ownsUserDoc(request.resource.data);
+      allow update: if signedIn()
+                    && ownsUserDoc(resource.data)
+                    // Once claimed, the uid on a document must never change.
+                    && (!('uid' in request.resource.data)
+                        || request.resource.data.uid == request.auth.uid);
+      allow delete: if signedIn() && ownsUserDoc(resource.data);
+    }
+
+    // Push tokens. Never readable by a client: the only reader is the notification endpoint,
+    // which runs with admin credentials and bypasses these rules. A player may write their
+    // own token, and the document holds nothing else.
+    //
+    // Tokens used to live on the user document and on the game document, both of which any
+    // signed-in player can read. Until Stage C of the rollout purges those copies, this
+    // collection is the safe home but not yet the only one.
+    match /pushTokens/{playerId} {
+      allow read: if false;
+      allow create, update: if signedIn()
+                            && request.resource.data.keys().hasOnly(['token', 'platform', 'updatedAt']);
+      allow delete: if signedIn();
+    }
+
+    match /games/{gameId} {
+      // Any signed-in player may read a game: joining by link or by code requires reading
+      // the document before you are recorded as a player in it.
+      allow read: if signedIn();
+
+      // A new game must name its creator and must not arrive already finished.
+      allow create: if signedIn()
+                    && request.resource.data.players.p1.id is string
+                    && request.resource.data.status in ['waiting', 'active'];
+
+      // Updates are open to signed-in players: both participants write moves, and a joiner
+      // writes themselves into players.p2 before they are a participant. The created
+      // timestamp is pinned so history cannot be rewritten.
+      allow update: if signedIn()
+                    && request.resource.data.created == resource.data.created;
+
+      // Games are never deleted by clients — cancelled games get status: 'cancelled', and
+      // expiry is handled by the expiresAt TTL policy.
+      allow delete: if false;
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// ── Follow-up work these rules cannot do on their own ─────────────────────────────────
+//
+// 1. Identity migration. While games are keyed on getPlayerId(), no rule can verify that a
+//    caller owns a player id. Moving to request.auth.uid as the player identity would let
+//    the games rules become "you must be one of the two players", which is the check that
+//    actually matters. The users/{id}.uid field and the legacyIds array added for accounts
+//    are the bridge for doing this without stranding existing games.
+//
+// 2. Push tokens. apnsToken lives on the user document, which opponents must read. Either
+//    move tokens to a subcollection that only the owner can read and have the notification
+//    endpoint look them up with the Admin SDK, or store them in a separate collection that
+//    no client can read at all. The server already runs with admin credentials, so it does
+//    not need client-readable tokens.

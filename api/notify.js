@@ -20,11 +20,13 @@ function adminDb() {
   if (_adminDb) return _adminDb;
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) return null;
-  const admin = require('firebase-admin');
-  if (!admin.apps.length) {
-    admin.initializeApp({ credential: admin.credential.cert(JSON.parse(raw)) });
-  }
-  _adminDb = admin.firestore();
+  // firebase-admin v13+ dropped the namespaced API — there is no admin.credential.cert or
+  // admin.firestore() any more, and reaching for them throws inside the try/catch below,
+  // which looks exactly like "this player has no token".
+  const { initializeApp, cert, getApps } = require('firebase-admin/app');
+  const { getFirestore } = require('firebase-admin/firestore');
+  if (!getApps().length) initializeApp({ credential: cert(JSON.parse(raw)) });
+  _adminDb = getFirestore();
   return _adminDb;
 }
 

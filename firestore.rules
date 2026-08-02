@@ -69,7 +69,7 @@ service cloud.firestore {
     match /pushTokens/{playerId} {
       allow read: if false;
       allow create, update: if signedIn()
-                            && request.resource.data.keys().hasOnly(['token', 'platform', 'updatedAt']);
+                            && request.resource.data.keys().hasOnly(['token', 'subscription', 'platform', 'updatedAt']);
       allow delete: if signedIn();
     }
 

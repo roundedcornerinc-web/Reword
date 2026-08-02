@@ -61,6 +61,7 @@ vm.runInContext([
   grabFunction('getRemovableInfo'),
   grabFunction('earnsAllTilesBonus'),
   grabFunction('buildReplayFrames'),
+  grabFunction('buildSwapPairing'),
   'function isEmpty(){ return board.every(r => r.every(c => !c)); }',
 ].join('\n'), ctx);
 
@@ -203,6 +204,104 @@ checkBonus('a short endgame rack does not', 5, 5, 0, false);
 // A swap trades a rack tile for a board tile, so the rack size never changes and the
 // bonus is unaffected — the swapped-in tile still has to be placed.
 checkBonus('swapping does not disturb the bonus', 7, 7, 0, true);
+
+console.log('\nLast-move replay — pairing, then reconstruction\n');
+
+// These drive the real producer. The first version of these tests hand-wrote the pair map
+// the way the AI commit path writes it, which is not what a human turn produces — so they
+// passed while a replayed steal showed the stolen tile appearing from nowhere.
+//
+// A turn is described the way submitPlay holds it: placements keyed by square, removals
+// keyed by the square a tile was stolen from, and the rack slots those tiles landed in.
+function replayTurn(position) {
+  const swapKeys = new Set(Object.keys(position.placements).filter(k => position.placements[k].isSwap));
+  const swappedIdx = new Set(position.swappedIdx || []);
+  const pairing = ctx.buildSwapPairing(position.placements, position.removals || {}, swapKeys, swappedIdx);
+
+  // Apply the turn to the board, exactly as submitPlay does, to get the "after" position.
+  const after = Array.from({ length: 15 }, () => Array(15).fill(null));
+  for (const [r, c, letter] of position.tiles) after[r][c] = letter;
+  for (const [key, p] of Object.entries(position.placements)) {
+    const [r, c] = key.split(',').map(Number);
+    after[r][c] = p.letter;
+  }
+  for (const key of Object.keys(position.removals || {})) {
+    const [r, c] = key.split(',').map(Number);
+    after[r][c] = null;
+  }
+
+  ctx.board = after;
+  ctx.lastMoveKeys = Object.keys(position.placements).filter(k => !position.placements[k].isSwap).sort();
+  ctx.lastSwapKeys = pairing.keys;
+  ctx.lastSwapPairMap = pairing.pairMap;
+  return ctx.buildReplayFrames();
+}
+
+function checkReplay(name, position, expect) {
+  const frames = replayTurn(position);
+  const read = cells => cells.map(([r, c]) => frames.pre[r][c] || '.').join('');
+  let problem = null;
+  if (read(expect.cells) !== expect.word)
+    problem = `before-board read "${read(expect.cells)}", expected "${expect.word}"`;
+  else if (expect.rackKeys && frames.rackKeys.join(',') !== expect.rackKeys.join(','))
+    problem = `rack tiles were [${frames.rackKeys}], expected [${expect.rackKeys}]`;
+  if (!problem) { passed++; console.log('  pass  ' + name); return; }
+  failures.push(name);
+  console.log('  FAIL  ' + name);
+  console.log('          ' + problem);
+}
+
+// Steal: CARS on row 7; the S is taken into rack slot 3 and played as the last letter of
+// TEAS. The replay must put the S back on 7,8 and not treat it as an ordinary rack tile.
+checkReplay('a stolen tile is paired with where it was played', {
+  tiles: [[7,5,'C'], [7,6,'A'], [7,7,'R'], [7,8,'S']],
+  removals: { '7,8': { rackIdx: 3 } },
+  placements: {
+    '10,4': { letter: 'T', rackIdx: 0 },
+    '10,5': { letter: 'E', rackIdx: 1 },
+    '10,6': { letter: 'A', rackIdx: 2 },
+    '10,7': { letter: 'S', rackIdx: 3 },
+  },
+  swappedIdx: [3],
+}, { cells: [[7,5],[7,6],[7,7],[7,8]], word: 'CARS', rackKeys: ['10,4', '10,5', '10,6'] });
+
+// Swap: a B from rack slot 0 goes onto the C of CARS, and the displaced C comes back on the
+// same slot and is played in COT.
+checkReplay('a swapped-out tile is paired with where it was played', {
+  tiles: [[7,5,'C'], [7,6,'A'], [7,7,'R'], [7,8,'S']],
+  placements: {
+    '7,5':  { letter: 'B', rackIdx: 0, isSwap: true },
+    '10,4': { letter: 'C', rackIdx: 0 },
+    '10,5': { letter: 'O', rackIdx: 1 },
+    '10,6': { letter: 'T', rackIdx: 2 },
+  },
+  swappedIdx: [0],
+}, { cells: [[7,5],[7,6],[7,7],[7,8]], word: 'CARS', rackKeys: ['10,5', '10,6'] });
+
+// A swap and a steal in the same turn — the shade indices must not cross the pairs over.
+checkReplay('a swap and a steal together keep their own partners', {
+  tiles: [[7,5,'C'], [7,6,'A'], [7,7,'R'], [7,8,'S'], [3,5,'D'], [3,6,'O'], [3,7,'M'], [3,8,'E']],
+  removals: { '3,8': { rackIdx: 5 } },
+  placements: {
+    '7,5':  { letter: 'B', rackIdx: 0, isSwap: true },
+    '10,4': { letter: 'C', rackIdx: 0 },
+    '10,5': { letter: 'E', rackIdx: 5 },
+    '10,6': { letter: 'T', rackIdx: 2 },
+  },
+  swappedIdx: [0, 5],
+}, { cells: [[3,5],[3,6],[3,7],[3,8]], word: 'DOME', rackKeys: ['10,6'] });
+
+checkReplay('and the swapped word too', {
+  tiles: [[7,5,'C'], [7,6,'A'], [7,7,'R'], [7,8,'S'], [3,5,'D'], [3,6,'O'], [3,7,'M'], [3,8,'E']],
+  removals: { '3,8': { rackIdx: 5 } },
+  placements: {
+    '7,5':  { letter: 'B', rackIdx: 0, isSwap: true },
+    '10,4': { letter: 'C', rackIdx: 0 },
+    '10,5': { letter: 'E', rackIdx: 5 },
+    '10,6': { letter: 'T', rackIdx: 2 },
+  },
+  swappedIdx: [0, 5],
+}, { cells: [[7,5],[7,6],[7,7],[7,8]], word: 'CARS' });
 
 console.log('\nLast-move replay — reconstructing the board before the move\n');
 

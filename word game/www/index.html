@@ -2687,6 +2687,36 @@ function isBoardConnected(b) {
 // bag — not tiles stolen off the board this turn. Stealing pushes the stolen letter onto
 // the rack, so a rack of 7 becomes 8; counting placements alone paid the bonus to a player
 // who laid down 6 of their own tiles plus a stolen one.
+// Pair every tile taken off the board this turn with the square where the tile it displaced
+// was played. Two kinds of source square: a swap square, which now holds the incoming tile,
+// and a steal square, which is now empty. Both hand their letter to a rack slot, and the
+// placement that later uses that same rack slot is the other end of the pair.
+//
+// Steal sources used to be left out entirely — only swap squares were recorded — and a
+// stolen tile's destination fell through to shade 0. That was invisible while this only
+// drove tile colouring, but the replay needs the real pairing to walk a move backwards.
+function buildSwapPairing(allPlacements, removalInfo, swapKeys, swappedIdx) {
+  const sourceByRackIdx = {};
+  for (const [srcKey, info] of Object.entries(removalInfo)) sourceByRackIdx[info.rackIdx] = srcKey;
+  for (const [srcKey, p] of Object.entries(allPlacements)) {
+    if (p.isSwap && p.rackIdx != null) sourceByRackIdx[p.rackIdx] = srcKey;
+  }
+
+  const keys = [...new Set([...swapKeys, ...Object.keys(removalInfo)])].sort((a, b) => {
+    const [ar, ac] = a.split(',').map(Number), [br, bc] = b.split(',').map(Number);
+    return ar !== br ? ar - br : ac - bc;
+  });
+
+  const pairMap = {};
+  keys.forEach((srcKey, i) => { pairMap[srcKey] = i; });
+  for (const [placedKey, p] of Object.entries(allPlacements)) {
+    if (p.isSwap || !swappedIdx.has(p.rackIdx)) continue;
+    const srcKey = sourceByRackIdx[p.rackIdx];
+    if (srcKey !== undefined && pairMap[srcKey] !== undefined) pairMap[placedKey] = pairMap[srcKey];
+  }
+  return { keys, pairMap };
+}
+
 function earnsAllTilesBonus(rackSize, placedFromRack, stolenThisTurn) {
   return placedFromRack === rackSize && (rackSize - stolenThisTurn) >= 7;
 }
@@ -2965,7 +2995,6 @@ function submitPlay() {
   lastMoveKeys = [...primaryKeys].sort(new Set(pRows).size === 1
     ? (a, b) => +a.split(',')[1] - +b.split(',')[1]
     : (a, b) => +a.split(',')[0] - +b.split(',')[0]);
-  lastSwapKeys = [...swapKeys].sort((a,b)=>{ const [ar,ac]=a.split(',').map(Number),[br,bc]=b.split(',').map(Number); return ar!==br?ar-br:ac-bc; });
   lastMoveAnimated = false;
 
   // Mark swap source squares and where swapped-in tiles were played (cleared next turn)
@@ -2975,20 +3004,11 @@ function submitPlay() {
     if (swappedRackIndices.has(p.rackIdx)) boardSwapPositions.add(key);
   }
 
-  // Build pair map: both the swap source square and the square where the stolen
-  // tile was placed get the same shade index, so they visually link as a pair.
-  lastSwapPairMap = {};
-  const stolenIdxToSourceKey = {};
-  for (const [srcKey, info] of Object.entries(pendingRemovalInfo)) {
-    stolenIdxToSourceKey[info.rackIdx] = srcKey;
-  }
-  lastSwapKeys.forEach((srcKey, i) => { lastSwapPairMap[srcKey] = i; });
-  for (const [placedKey, p] of Object.entries(allPlacements)) {
-    if (!p.isSwap && swappedRackIndices.has(p.rackIdx)) {
-      const srcKey = stolenIdxToSourceKey[p.rackIdx];
-      if (srcKey !== undefined) lastSwapPairMap[placedKey] = lastSwapPairMap[srcKey] ?? 0;
-    }
-  }
+  // Pair each swap and steal source with the square its displaced tile was played on, so
+  // they share a shade on the board and the replay can walk the move backwards.
+  const pairing = buildSwapPairing(allPlacements, pendingRemovalInfo, swapKeys, swappedRackIndices);
+  lastSwapKeys = pairing.keys;
+  lastSwapPairMap = pairing.pairMap;
 
   // Commit to board
   for (const [key, {letter}] of Object.entries(allPlacements))

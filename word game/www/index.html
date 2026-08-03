@@ -522,14 +522,18 @@ body {
   display: flex;
   flex-wrap: nowrap;
   gap: 8px;
-  padding: 10px 12px;
-  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 6px 12px;
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   background: #110b2e;
   align-items: center;
 }
 
+/* Reserved space for a banner. Nothing is served yet — this exists so the board is laid out
+   against the height an ad will take, rather than discovering the squeeze later. */
 #ad-banner {
   display: none;
+  /* When enabled: width 100%, max-width 520px, height 50px, flex-shrink 0, and
+     display:flex with centred contents. Sits between the header and the feed. */
 }
 #ad-banner span {
   font-size: 0.6rem;
@@ -569,11 +573,11 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   border: none;
   background: none;
   cursor: pointer;
-  padding: 6px 10px;
+  padding: 2px 10px;
   border-radius: 10px;
   transition: background 0.12s;
   font-family: inherit;
@@ -744,8 +748,8 @@ body {
 /* Play button — large pill */
 #btn-play {
   flex: 1;
-  height: 58px;
-  border-radius: 29px;
+  height: 48px;
+  border-radius: 24px;
   border: none;
   background: #2a1a5e;
   color: #6a52a0;
@@ -2292,6 +2296,8 @@ body {
   </div>
   <div id="tut-header-text" style="display:none;padding:10px 16px;font-size:1.05rem;color:#ddd;line-height:1.55;text-align:center;"></div>
 </div>
+
+<div id="ad-banner"><span>Advertisement</span></div>
 
 <div id="msg-bar" class="hidden">
   <button id="replay-btn" type="button" aria-label="Replay the last move" onclick="toggleReplay()">
@@ -5485,8 +5491,13 @@ function renderScorePreview() {
         const badge = document.createElement('div');
         badge.className = 'last-score-badge';
         badge.innerHTML = `<span class="bsp-pts">${lastPlayScore}</span>`;
-        badge.style.left = `${(cellRect.right  - boardRect.left) / scale}px`;
-        badge.style.top  = `${(isH ? cellRect.top - boardRect.top : cellRect.bottom - boardRect.top) / scale}px`;
+        const bw = boardEl.offsetWidth, bh = boardEl.offsetHeight;
+        const r  = clamp(3.4 * bh / 100, 10, 14);   // half badge size, matching the CSS clamp
+        const bx = clamp((cellRect.right - boardRect.left) / scale, r + 1, bw - r - 1);
+        const by = clamp((isH ? cellRect.top - boardRect.top : cellRect.bottom - boardRect.top) / scale,
+                         r + 1, bh - r - 1);
+        badge.style.left = `${bx}px`;
+        badge.style.top  = `${by}px`;
         boardEl.appendChild(badge);
       }
     }
@@ -5565,7 +5576,8 @@ function renderScorePreview() {
   const boardH = boardEl.offsetHeight;
   const BADGE_R = clamp(3.4 * boardH / 100, 10, 14); // half badge size in board px
 
-  const x = (cellRect.right - boardRect.left) / scale;
+  const boardW = boardEl.offsetWidth;
+  let x = (cellRect.right - boardRect.left) / scale;
   let y;
   if (isHorizontal) {
     const yTop    = (cellRect.top    - boardRect.top) / scale;
@@ -5578,6 +5590,11 @@ function renderScorePreview() {
     // prefer below the tile; if near board bottom, flip above
     y = yBottom < boardH - BADGE_R ? yBottom : yTop;
   }
+
+  // The badge is centred on the corner it points at, so a word ending in the last column or
+  // bottom row put half of it outside the board, where it was clipped. Pull it back inside.
+  x = clamp(x, BADGE_R + 1, boardW - BADGE_R - 1);
+  y = clamp(y, BADGE_R + 1, boardH - BADGE_R - 1);
 
   const preview = document.createElement('div');
   preview.className = 'board-score-preview';
@@ -10255,7 +10272,6 @@ document.addEventListener('click', e => {
 });
 // ── End Other Games overlay ───────────────────────────────────────────────
 </script>
-<div id="ad-banner"><span>Advertisement</span></div>
 <!-- ── Other Games overlay ── -->
 <div id="other-games-overlay">
   <div id="og-header">

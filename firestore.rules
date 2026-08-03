@@ -73,6 +73,13 @@ service cloud.firestore {
       allow delete: if signedIn();
     }
 
+    // Solo games against the AI, mirrored so they follow a player between devices. Keyed on
+    // the account uid, which is a value the caller cannot forge — so unlike /games below,
+    // this one gets the ownership check that actually matters.
+    match /aiGames/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
     match /games/{gameId} {
       // Any signed-in player may read a game: joining by link or by code requires reading
       // the document before you are recorded as a player in it.

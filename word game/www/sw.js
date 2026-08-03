@@ -47,13 +47,16 @@ self.addEventListener('notificationclick', e => {
   );
 });
 
-// Network-first: always try the network, fall back to cache
+// Network-first: always try the network, fall back to cache.
+// Only GETs are cacheable — the Cache API rejects any other method, and every Firestore
+// and notification call is a POST, so caching indiscriminately threw on each one.
 self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
   e.respondWith(
     fetch(e.request)
       .then(res => {
         const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
+        caches.open(CACHE).then(c => c.put(e.request, clone)).catch(() => {});
         return res;
       })
       .catch(() => caches.match(e.request))

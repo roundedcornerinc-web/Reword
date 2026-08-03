@@ -1346,7 +1346,7 @@ body {
 #auth-modal.hidden{display:none}
 #auth-modal-inner{background:#1a1040;border:1px solid #4a2fa0;border-radius:20px;padding:28px 24px 22px;width:100%;max-width:340px;text-align:center;font-family:'Segoe UI',system-ui,sans-serif;max-height:92vh;overflow-y:auto;}
 #auth-modal-inner h2{font-size:1.3rem;font-weight:700;margin:0 0 6px;color:#fff;}
-#auth-sub{font-size:0.85rem;color:#a89cc8;margin:0 0 18px;line-height:1.5;}
+#auth-sub{margin:2px 0 18px;}
 .auth-field{width:100%;box-sizing:border-box;background:#110b2e;border:2px solid #4a2fa0;border-radius:10px;color:#fff;font-size:1rem;padding:12px 14px;margin-bottom:10px;outline:none;font-family:inherit;}
 .auth-field:focus{border-color:#7b2ff7}
 .auth-field::placeholder{color:#5b5480}
@@ -1360,19 +1360,37 @@ body {
 #auth-apple{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;color:#000;border:none;border-radius:12px;font-size:0.98rem;font-weight:600;padding:12px;cursor:pointer;font-family:inherit;margin-bottom:14px;}
 #auth-apple svg{width:16px;height:19px;display:block}
 .auth-link{background:none;border:none;color:#c9a6ff;font-size:0.82rem;cursor:pointer;font-family:inherit;text-decoration:underline;padding:5px;}
-#auth-close{background:none;border:none;color:#7b7398;font-size:0.8rem;cursor:pointer;font-family:inherit;padding:6px;display:block;margin:2px auto 0;}
+#auth-note{font-size:0.8rem;color:#9ee7b8;line-height:1.45;margin:4px 0 0;}
 #auth-legal{font-size:0.68rem;color:#6b6394;line-height:1.5;margin-top:12px;}
-/* Account panel — shown when signed in */
-#account-modal{position:fixed;inset:0;z-index:650;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;padding:16px;}
-#account-modal.hidden{display:none}
-#account-modal-inner{background:#1a1040;border:1px solid #4a2fa0;border-radius:20px;padding:26px 24px 20px;width:100%;max-width:340px;text-align:center;font-family:'Segoe UI',system-ui,sans-serif;}
-#account-modal-inner h2{font-size:1.25rem;font-weight:700;margin:0 0 4px;color:#fff;}
-#account-email{font-size:0.82rem;color:#a89cc8;margin:0 0 20px;word-break:break-all;}
+/* Account panel and its satellites — shown when signed in */
+#account-modal,#account-edit-modal,#delete-account-modal,#signout-modal,#account-notice-modal{position:fixed;inset:0;z-index:650;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;padding:16px;}
+#account-modal.hidden,#account-edit-modal.hidden,#delete-account-modal.hidden,#signout-modal.hidden,#account-notice-modal.hidden{display:none}
+#account-modal-inner,#account-edit-inner,#delete-account-inner,#signout-inner,#account-notice-inner{position:relative;background:#1a1040;border:1px solid #4a2fa0;border-radius:20px;padding:28px 24px 22px;width:100%;max-width:340px;text-align:center;font-family:'Segoe UI',system-ui,sans-serif;max-height:92vh;overflow-y:auto;}
+#account-modal-inner h2,#account-edit-inner h2,#delete-account-inner h2,#signout-inner h2,#account-notice-inner h2{font-size:1.2rem;font-weight:700;margin:0 0 6px;color:#fff;}
+.modal-sub{font-size:0.82rem;color:#a89cc8;margin:0 0 18px;line-height:1.5;}
+.modal-hint{font-size:0.74rem;color:#8b83a8;line-height:1.5;margin:10px 0 8px;text-align:left;}
+.modal-hint strong{color:#fff}
+/* Close is a corner X so it is nowhere near the destructive action. */
+.modal-x{position:absolute;top:10px;right:12px;background:none;border:none;color:#8b83a8;font-size:1.5rem;line-height:1;cursor:pointer;padding:4px 8px;font-family:inherit;}
+.modal-x:active{color:#fff}
+#account-modal-inner h2{margin-bottom:22px}
+.account-field{text-align:left;margin:0 0 18px;}
+.account-label{font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#9d94bd;margin-bottom:3px;}
+.account-value{font-size:1.05rem;font-weight:600;color:#fff;word-break:break-word;}
+#account-modal-inner .account-btn.primary{margin-top:10px;border-radius:14px;padding:14px;font-size:1rem;}
 .account-btn{display:block;width:100%;margin-bottom:10px;background:#2a1c64;border:1px solid #4a2fa0;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:600;padding:12px;cursor:pointer;font-family:inherit;}
 .account-btn:active{background:#35237d}
+.account-btn.primary{background:#7234ee;border-color:#7234ee}
 .account-btn.danger{background:none;border-color:#5a2246;color:#ff6b8a;}
-#account-danger-note{font-size:0.74rem;color:#8b83a8;line-height:1.5;margin:2px 0 12px;}
-#account-close{background:none;border:none;color:#7b7398;font-size:0.82rem;cursor:pointer;font-family:inherit;padding:6px;}
+.account-btn:disabled{opacity:0.4;cursor:default}
+/* Deliberate distance between the everyday action and the irreversible one. */
+.account-spacer{height:38px}
+.edit-divider{height:1px;background:#3a2f6b;margin:18px 0 14px;}
+#edit-reset-note{font-size:0.76rem;color:#9d94bd;line-height:1.5;min-height:1em;}
+.danger-link{background:none;border:none;color:#ff6b8a;font-size:0.82rem;cursor:pointer;font-family:inherit;text-decoration:underline;padding:6px;}
+#delete-account-warn{font-size:0.82rem;color:#ffb3c4;line-height:1.55;margin:0 0 4px;}
+#account-delete-input{text-align:center;letter-spacing:0.12em;text-transform:uppercase;}
+#edit-error,#delete-error{font-size:0.8rem;color:#ff6b8a;margin:2px 0 10px;min-height:1.1em;line-height:1.4;}
 /* Claim-slot modal (cross-device game recovery) */
 #claim-modal{position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
 #claim-modal.hidden{display:none}
@@ -1385,13 +1403,9 @@ body {
 /* Notification permission prompt */
 #notif-modal{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
 #notif-modal.hidden{display:none}
-#notif-modal-inner{background:#1a1040;border:1px solid #4a2fa0;border-radius:20px;padding:32px 24px 24px;width:90%;max-width:320px;text-align:center;}
-#notif-modal-inner .notif-icon{font-size:2.8rem;margin-bottom:12px;display:block;}
-#notif-modal-inner h2{font-size:1.15rem;font-weight:800;margin:0 0 8px;color:#fff;}
-#notif-modal-inner p{font-size:0.82rem;color:#bbb;margin:0 0 24px;line-height:1.5;}
-#notif-enable-btn{width:100%;margin-bottom:10px;background:linear-gradient(135deg,#7b2ff7,#f72585);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:700;padding:13px;cursor:pointer;font-family:inherit;}
-#notif-enable-btn:active{opacity:0.85;}
-#notif-skip-btn{background:none;border:none;color:#888;font-size:0.82rem;cursor:pointer;padding:4px;font-family:inherit;text-decoration:underline;}
+#notif-modal-inner{background:#1a1040;border:1px solid #4a2fa0;border-radius:20px;padding:28px 24px 22px;width:90%;max-width:340px;text-align:center;font-family:'Segoe UI',system-ui,sans-serif;}
+#notif-modal-inner h2{font-size:1.2rem;font-weight:700;margin:0 0 6px;color:#fff;}
+#notif-modal-inner p{font-size:0.82rem;color:#a89cc8;margin:0 0 20px;line-height:1.5;}
 /* My Games modal */
 #games-modal{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
 #games-modal.hidden{display:none}
@@ -2033,6 +2047,7 @@ body {
       <button class="home-drop-item" onclick="closeHomeMenu();showGameScreen();showTutorial()">Tutorial</button>
       <button class="home-drop-item" onclick="closeHomeMenu();openFaq()">FAQ</button>
       <button class="home-drop-item" onclick="closeHomeMenu();reportIssue()">Report an Issue</button>
+      <button class="home-drop-item" id="home-signout-row" onclick="closeHomeMenu();confirmSignOut()">Sign Out</button>
     </div>
     <img src="./reword_logo.png" id="home-logo" alt="REWORD">
     <div style="width:41px;flex-shrink:0;"></div>
@@ -6403,7 +6418,48 @@ function saveAiGameState() {
       aiSkill,
       lastUpdated: Date.now(),
     }));
+    queueAiCloudSave();
   } catch {}
+}
+
+// ── Solo game sync ─────────────────────────────────────────────────────────────
+// The AI game lives in localStorage first — it has to work signed out and offline. When
+// there is an account it is mirrored to aiGames/{uid}, a document only that account can
+// read or write, so it follows the player between devices like their online games do.
+//
+// Writes are debounced: saveAiGameState runs on every move, and Firestore does not need to
+// hear about each one.
+let _aiCloudTimer = null;
+function queueAiCloudSave() {
+  if (!isSignedIn()) return;
+  clearTimeout(_aiCloudTimer);
+  _aiCloudTimer = setTimeout(pushAiGameToCloud, 2500);
+}
+
+async function pushAiGameToCloud() {
+  if (!isSignedIn()) return;
+  const raw = localStorage.getItem(AI_SAVE_KEY);
+  const uid = auth.currentUser.uid;
+  try {
+    if (!raw) { await db.collection('aiGames').doc(uid).delete().catch(() => {}); return; }
+    await db.collection('aiGames').doc(uid).set(JSON.parse(raw));
+  } catch (e) { console.warn('[AI sync] save failed:', e.message); }
+}
+
+// Last write wins, decided by the lastUpdated already stamped into every save. A device that
+// has been offline mid-game therefore cannot clobber a newer game played elsewhere.
+async function pullAiGameFromCloud() {
+  if (!isSignedIn()) return false;
+  try {
+    const snap = await db.collection('aiGames').doc(auth.currentUser.uid).get();
+    if (!snap.exists) return false;
+    const remote = snap.data();
+    const localRaw = localStorage.getItem(AI_SAVE_KEY);
+    const local = localRaw ? JSON.parse(localRaw) : null;
+    if (local && (local.lastUpdated || 0) >= (remote.lastUpdated || 0)) return false;
+    localStorage.setItem(AI_SAVE_KEY, JSON.stringify(remote));
+    return true;
+  } catch (e) { console.warn('[AI sync] load failed:', e.message); return false; }
 }
 
 function validateSavedTileCounts(s) {
@@ -6479,6 +6535,7 @@ function loadAiGameState() {
 
 function clearAiGameState() {
   localStorage.removeItem(AI_SAVE_KEY);
+  if (isSignedIn()) db.collection('aiGames').doc(auth.currentUser.uid).delete().catch(() => {});
 }
 
 const AI_HISTORY_KEY = 'reword_ai_history';
@@ -6525,7 +6582,11 @@ auth.onAuthStateChanged(user => {
     // players — see getPlayerId(). An anonymous uid is per-origin and per-install, which is
     // why it is never used as the player identity.
     // Claimed ids must be loaded before anything asks which games are ours.
-    loadClaimedIds().then(() => {
+    loadClaimedIds().then(async () => {
+      watchAccountDoc();
+      if (await pullAiGameFromCloud()) {
+        try { buildHomeGamesList(); } catch(e) {}
+      }
       _authReadyResolve(getPlayerId());
       updateAccountUI();
       // Pull game list from Firestore so it survives refreshes
@@ -6552,6 +6613,18 @@ auth.onAuthStateChanged(user => {
 // Email and password live in Firebase Auth, which is Google's system, not ours. Firestore
 // holds a uid and a display name and nothing else, so there is no personal data here to
 // protect. Keep it that way: don't write user.email into a document.
+// Where Firebase's action pages send the player once they've finished. Without this the
+// reset page is a dead end — the password is saved and there is no way back to the game.
+//
+// Return them to whatever they were actually using: hardcoding the live site sent anyone
+// testing on localhost to production, which is a different build. Firebase requires an
+// http(s) URL on an authorized domain, so the Capacitor app (capacitor://localhost) still
+// has to fall back to the website.
+const AUTH_CONTINUE = {
+  url: /^https?:$/.test(location.protocol) ? location.origin : WEB_BASE,
+  handleCodeInApp: false,
+};
+let pendingEmailChange = null;
 let _authMode = 'create';     // 'create' | 'signin'
 let _authOnSuccess = null;
 
@@ -6566,6 +6639,7 @@ function openAuthModal(mode, onSuccess) {
   document.getElementById('auth-email').value = '';
   document.getElementById('auth-pass').value = '';
   setAuthError('');
+  document.getElementById('auth-note').textContent = '';
   applyAuthMode();
   document.getElementById('auth-modal').classList.remove('hidden');
 }
@@ -6585,9 +6659,6 @@ function finishAuth() {
 function applyAuthMode() {
   const creating = _authMode === 'create';
   document.getElementById('auth-title').textContent = creating ? 'Create an account' : 'Welcome back';
-  document.getElementById('auth-sub').textContent = creating
-    ? 'Accounts keep your online games safe across devices.'
-    : 'Sign in to pick up your games where you left off.';
   document.getElementById('auth-submit').textContent = creating ? 'Create account' : 'Sign in';
   document.getElementById('auth-apple-label').textContent = creating ? 'Sign up with Apple' : 'Sign in with Apple';
   document.getElementById('auth-toggle').textContent = creating
@@ -6605,6 +6676,22 @@ function toggleAuthMode() {
   applyAuthMode();
 }
 
+// Someone who has forgotten their password cannot reach the account panel to reset it, so
+// this is the only route back in — which is why it lives on the sign-in view.
+async function sendSignInReset() {
+  const email = document.getElementById('auth-email').value.trim();
+  const note  = document.getElementById('auth-note');
+  if (!email) return setAuthError('Enter your email first, then tap this again.', 'auth-email');
+  setAuthError('');
+  try {
+    await auth.sendPasswordResetEmail(email, AUTH_CONTINUE);
+    note.textContent = 'Reset link sent to ' + email + '.';
+  } catch (err) {
+    note.textContent = '';
+    setAuthError(authErrorText(err));
+  }
+}
+
 function setAuthError(msg, fieldId) {
   document.getElementById('auth-error').textContent = msg || '';
   ['auth-name','auth-email','auth-pass'].forEach(id =>
@@ -6618,9 +6705,12 @@ function authErrorText(err) {
     case 'auth/email-already-in-use':   return 'That email already has an account. Try signing in.';
     case 'auth/invalid-email':          return 'That doesn\'t look like an email address.';
     case 'auth/weak-password':          return 'Passwords need to be at least 6 characters.';
-    case 'auth/invalid-credential':
-    case 'auth/wrong-password':
-    case 'auth/user-not-found':         return 'That email and password don\'t match.';
+    // With email-enumeration protection on — the default — Firebase deliberately returns one
+    // code for "no such account" and "wrong password", so an attacker cannot discover which
+    // addresses are registered. The message has to cover both honestly.
+    case 'auth/invalid-credential':     return 'We couldn\'t sign you in. Check your email and password, or create an account.';
+    case 'auth/user-not-found':         return 'There\'s no account with that email yet — create one below.';
+    case 'auth/wrong-password':         return 'That password is not right. Try again, or use "Forgot your password?"';
     case 'auth/too-many-requests':      return 'Too many attempts. Wait a minute and try again.';
     case 'auth/network-request-failed':  return 'No connection. Check your network and try again.';
     case 'auth/requires-recent-login':  return 'For safety, sign in again before doing that.';
@@ -6655,7 +6745,7 @@ async function submitAuth() {
     } else {
       await auth.signInWithEmailAndPassword(email, pass);
     }
-    await onAccountReady();
+    await onAccountReady({ writeName: creating });
     finishAuth();
   } catch (err) {
     console.warn('[Auth]', err);
@@ -6702,20 +6792,30 @@ async function signInWithApple() {
 
 // Called once an account exists. Files this device's player id against the account so games
 // created before signing in are still reachable, then refreshes the home screen.
-async function onAccountReady() {
+// writeName: true only when the player has just chosen a name — creating an account or
+// editing it. On a plain sign-in the account's name wins, because the local one is whatever
+// this device happened to have. Writing it unconditionally meant signing in on a second
+// device overwrote the account with that device's default of "You".
+async function onAccountReady({ writeName = false } = {}) {
   const user = auth.currentUser;
   if (!user) return;
   const deviceId = getDevicePlayerId();
   try {
-    // The account document is keyed on the uid from here on. Claiming this device's id
-    // keeps games created before signing in — on this device or an earlier one — findable,
-    // because every "is this mine?" check reads the claimed list too.
     const ref = db.collection('users').doc(user.uid);
-    await ref.set({
+    const existing = await ref.get();
+    const storedName = existing.exists ? existing.data().name : null;
+
+    if (!writeName && storedName) applyAccountName(storedName);
+
+    // Claiming this device's id keeps games created before signing in — on this device or
+    // an earlier one — findable, because every "is this mine?" check reads the claimed list.
+    const payload = {
       uid: user.uid,
-      name: playerName,
       legacyIds: firebase.firestore.FieldValue.arrayUnion(deviceId),
-    }, { merge: true });
+    };
+    if (writeName || !storedName) payload.name = playerName;
+    await ref.set(payload, { merge: true });
+
     const snap = await ref.get();
     _myLegacyIds = (snap.exists && snap.data().legacyIds) || [deviceId];
 
@@ -6726,66 +6826,78 @@ async function onAccountReady() {
     }
   } catch (e) { console.warn('[Auth] link identity failed', e); }
   updateAccountUI();
-  try { savePushTarget(); } catch(e) {}   // token now belongs under the account id
+  try { savePushTarget(); } catch(e) {}
   try { syncGamesFromFirestore(); } catch(e) {}
 }
 
 // Signing in on a device that already has games is the common case, so the claimed list has
 // to be loaded before anything asks which games are ours.
+// Keeps this device in step with the account while it is open. Without a live listener the
+// account is only read at sign-in, so a name changed on another device did not appear until
+// the page was reloaded.
+let _accountUnsub = null;
+function watchAccountDoc() {
+  if (_accountUnsub) { _accountUnsub(); _accountUnsub = null; }
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return;
+  _accountUnsub = db.collection('users').doc(user.uid).onSnapshot(snap => {
+    const d = snap.data();
+    if (!d) return;
+    if (Array.isArray(d.legacyIds)) _myLegacyIds = d.legacyIds;
+    if (d.name && d.name !== playerName) applyAccountName(d.name);
+  }, e => console.warn('[Auth] account listener error:', e.message));
+}
+
+// One place that adopts a name from the account, so every surface showing it stays in step.
+function applyAccountName(name) {
+  playerName = name;
+  try { localStorage.setItem('playerName', playerName); } catch(e) {}
+  const nt = document.getElementById('player-name-text');
+  if (nt) nt.textContent = playerName;
+  const nd = document.getElementById('player-name-display');
+  if (nd) nd.textContent = playerName;
+  const an = document.getElementById('account-name');
+  if (an) an.textContent = playerName;
+}
+
 async function loadClaimedIds() {
   const user = auth.currentUser;
   if (!user || user.isAnonymous) { _myLegacyIds = []; return; }
   try {
     const snap = await db.collection('users').doc(user.uid).get();
-    _myLegacyIds = (snap.exists && snap.data().legacyIds) || [];
+    const data = snap.exists ? snap.data() : {};
+    _myLegacyIds = data.legacyIds || [];
+    // The display name belongs to the account, not the device. Without this, signing in on
+    // a second device shows whatever that device happened to have — usually "You".
+    if (data.name && data.name !== playerName) applyAccountName(data.name);
   } catch(e) { _myLegacyIds = []; }
 }
 
-async function sendPasswordReset() {
-  const email = document.getElementById('auth-email').value.trim();
-  if (!email) return setAuthError('Enter your email first, then tap this again.', 'auth-email');
-  try {
-    await auth.sendPasswordResetEmail(email);
-    setAuthError('');
-    document.getElementById('auth-sub').textContent = 'Check your email for a reset link.';
-  } catch (err) { setAuthError(authErrorText(err)); }
-}
 
-async function signOutAccount() {
-  if (!confirm('Sign out? Your games stay on your account.')) return;
-  try { await auth.signOut(); } catch(e) {}
-  updateAccountUI();
-  showHomeScreen();
-}
 
 // The App Store requires an in-app way to delete an account, not just to sign out.
-async function deleteAccount() {
-  if (!confirm('Delete your account? This cannot be undone. Your games will be lost.')) return;
-  const user = auth.currentUser;
-  if (!user) return;
-  try {
-    await db.collection('users').doc(getPlayerId()).delete().catch(() => {});
-    await user.delete();
-    updateAccountUI();
-    showHomeScreen();
-  } catch (err) {
-    alert(err?.code === 'auth/requires-recent-login'
-      ? 'For your security, sign in again before deleting your account.'
-      : 'Could not delete the account. Please try again.');
-  }
-}
+// Deletion is irreversible, so it takes a deliberate second step rather than a dialog whose
+// OK button sits under your thumb: the destructive button stays disabled until DELETE is
+// typed. The App Store requires an in-app way to delete an account, not just to sign out.
+
+
+
 
 function updateAccountUI() {
+  const signedIn = isSignedIn();
   const row = document.getElementById('home-account-row');
-  if (row) row.textContent = isSignedIn() ? 'Account' : 'Sign in';
+  if (row) row.textContent = signedIn ? 'Account' : 'Sign in';
+  // Nothing to sign out of until there is an account.
+  const out = document.getElementById('home-signout-row');
+  if (out) out.style.display = signedIn ? 'block' : 'none';
 }
 
 // Signed out, this is the way in. Signed in, it opens the account panel.
 function openAccountPanel() {
   if (!isSignedIn()) { openAuthModal('create'); return; }
-  const user = auth.currentUser;
-  // Apple's Hide My Email accounts have no address worth showing, so fall back to the name.
-  document.getElementById('account-email').textContent = user?.email || playerName || '';
+  document.getElementById('account-name').textContent  = playerName || 'Player';
+  // Apple's Hide My Email gives no address worth showing.
+  document.getElementById('account-email').textContent = auth.currentUser?.email || '';
   document.getElementById('account-modal').classList.remove('hidden');
 }
 
@@ -6793,23 +6905,219 @@ function closeAccountPanel() {
   document.getElementById('account-modal').classList.add('hidden');
 }
 
-function changeDisplayNameFromAccount() {
+// ── Change account information ─────────────────────────────────────────────────
+function openAccountEdit() {
   closeAccountPanel();
-  showNameModal('Change display name', 'Your opponent will see this', 'Save',
-    () => { onAccountReady(); });   // push the new name to the account's user document
+  document.getElementById('edit-name').value  = playerName === 'You' ? '' : playerName;
+  document.getElementById('edit-email').value = auth.currentUser?.email || '';
+  document.getElementById('edit-currentpass').value = '';
+  document.getElementById('edit-error').textContent = '';
+  document.getElementById('edit-reset-note').textContent = '';
+  document.getElementById('account-edit-modal').classList.remove('hidden');
 }
 
-async function sendPasswordResetFromAccount() {
-  const email = auth.currentUser?.email;
+// Password changes go through the same emailed link as "forgot password", so a password is
+// never typed into a form that also edits other things — and someone who has wandered away
+// from an unlocked phone can't set a new one.
+async function emailPasswordReset() {
+  const user = auth.currentUser;
+  const note = document.getElementById('edit-reset-note');
+  const btn  = document.getElementById('edit-reset-btn');
   // Someone who signed in with Apple has no password to reset.
-  if (!email) { alert('You signed in with Apple, so there\'s no password to reset.'); return; }
+  if (!user?.email) { note.textContent = 'You signed in with Apple, so there is no password to reset.'; return; }
+  btn.disabled = true;
   try {
-    await auth.sendPasswordResetEmail(email);
-    alert(`Password reset email sent to ${email}.`);
+    await auth.sendPasswordResetEmail(user.email, AUTH_CONTINUE);
+    note.textContent = 'Sent to ' + user.email + '. Check your inbox for the link.';
   } catch (err) {
-    alert(authErrorText(err));
+    note.textContent = authErrorText(err);
+  } finally {
+    btn.disabled = false;
   }
 }
+
+function closeAccountEdit() {
+  document.getElementById('account-edit-modal').classList.add('hidden');
+}
+
+async function saveAccountEdits() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const name    = document.getElementById('edit-name').value.trim();
+  const email   = document.getElementById('edit-email').value.trim();
+  const current = document.getElementById('edit-currentpass').value;
+  const err = document.getElementById('edit-error');
+  const btn = document.getElementById('edit-save');
+  const setErr = m => { err.textContent = m; };
+
+  if (!name) return setErr('Pick a display name — your opponent sees this.');
+  if (!email) return setErr('Enter your email address.');
+  const emailChanged = email !== (user.email || '');
+  // Firebase refuses to change an email on a stale session, so that change is
+  // re-authenticated first. A display-name change touches only our own document.
+  if (emailChanged && !current) return setErr('Enter your current password to change your email.');
+
+  btn.disabled = true; btn.textContent = 'Saving…'; setErr('');
+  try {
+    if (emailChanged) {
+      const cred = firebase.auth.EmailAuthProvider.credential(user.email, current);
+      await user.reauthenticateWithCredential(cred);
+      // The new address has to prove it exists before it becomes the sign-in email —
+      // otherwise a typo locks the account out of its own recovery. Firebase sends the
+      // confirmation; the change lands only when the link in it is clicked.
+      await user.verifyBeforeUpdateEmail(email, AUTH_CONTINUE);
+      pendingEmailChange = email;
+    }
+    if (name !== playerName) {
+      playerName = name.slice(0, 10);
+      try { localStorage.setItem('playerName', playerName); } catch(e) {}
+      await onAccountReady({ writeName: true });
+    }
+    closeAccountEdit();
+    openAccountPanel();
+    if (pendingEmailChange) {
+      showAccountNotice('Confirm your new email',
+        'We sent a link to ' + pendingEmailChange + '. Your sign-in email stays ' +
+        (user.email || 'unchanged') + ' until you open that link.');
+      pendingEmailChange = null;
+    }
+  } catch (e) {
+    console.warn('[Auth] edit failed', e);
+    setErr(e?.code === 'auth/wrong-password' || e?.code === 'auth/invalid-credential'
+      ? 'That current password is not right.'
+      : authErrorText(e));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save changes';
+  }
+}
+
+// ── Delete account ─────────────────────────────────────────────────────────────
+// Its own modal, reached by a link rather than a button, with the destructive control
+// disabled until DELETE is typed. The App Store requires an in-app way to delete an
+// account, not just to sign out.
+function openDeleteAccountModal() {
+  closeAccountPanel();
+  closeAccountEdit();
+  const input = document.getElementById('account-delete-input');
+  input.value = '';
+  // Firebase refuses to delete on a stale session. Asking for the password here means
+  // re-authenticating in place rather than sending someone away to sign out and back in.
+  const pass = document.getElementById('delete-pass');
+  const hasPassword = (auth.currentUser?.providerData || []).some(p => p.providerId === 'password');
+  pass.value = '';
+  pass.classList.toggle('hidden', !hasPassword);
+  document.getElementById('account-delete-go').disabled = true;
+  document.getElementById('delete-error').textContent = '';
+  document.getElementById('delete-account-modal').classList.remove('hidden');
+  setTimeout(() => input.focus(), 60);
+}
+
+function closeDeleteAccountModal() {
+  document.getElementById('delete-account-modal').classList.add('hidden');
+  // Came here from Edit Account, so "Keep my account" goes back there rather than nowhere.
+  if (isSignedIn()) openAccountEdit();
+}
+
+function onDeleteConfirmInput() {
+  const typed = document.getElementById('account-delete-input').value.trim().toUpperCase();
+  document.getElementById('account-delete-go').disabled = (typed !== 'DELETE');
+}
+
+async function deleteAccount() {
+  const typed = document.getElementById('account-delete-input').value.trim().toUpperCase();
+  if (typed !== 'DELETE') return;
+  const user = auth.currentUser;
+  if (!user) return;
+  const btn = document.getElementById('account-delete-go');
+  const err = document.getElementById('delete-error');
+  const passField = document.getElementById('delete-pass');
+  btn.disabled = true; btn.textContent = 'Deleting…'; err.textContent = '';
+  try {
+    // Prove it is really them, on this device, right now.
+    const hasPassword = (user.providerData || []).some(p => p.providerId === 'password');
+    if (hasPassword) {
+      const pass = passField.value;
+      if (!pass) throw { code: 'reword/need-password' };
+      const cred = firebase.auth.EmailAuthProvider.credential(user.email, pass);
+      await user.reauthenticateWithCredential(cred);
+    } else {
+      const provider = new firebase.auth.OAuthProvider('apple.com');
+      await user.reauthenticateWithPopup(provider);
+    }
+
+    // Remove what this player owns before the account itself: once the auth user is gone,
+    // the rules no longer recognise them as the owner of any of it.
+    const uid = user.uid, deviceId = getDevicePlayerId();
+    await Promise.all([
+      db.collection('users').doc(uid).delete().catch(() => {}),
+      db.collection('users').doc(deviceId).delete().catch(() => {}),
+      db.collection('pushTokens').doc(uid).delete().catch(() => {}),
+      db.collection('pushTokens').doc(deviceId).delete().catch(() => {}),
+      db.collection('aiGames').doc(uid).delete().catch(() => {}),
+    ]);
+    await user.delete();
+
+    if (_accountUnsub) { _accountUnsub(); _accountUnsub = null; }
+    _myLegacyIds = [];
+    try { stopHomeListeners(); } catch(e) {}
+    window._homeGames = [];
+    try { localStorage.removeItem('reword_games'); } catch(e) {}
+    try { localStorage.removeItem(AI_SAVE_KEY); } catch(e) {}
+    closeDeleteAccountModal();
+    closeAccountEdit();
+    closeAccountPanel();
+    updateAccountUI();
+    showHomeScreen();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Permanently delete';
+    err.textContent =
+      e?.code === 'reword/need-password'                                   ? 'Enter your password to confirm.'
+      : (e?.code === 'auth/wrong-password' || e?.code === 'auth/invalid-credential') ? 'That password is not right.'
+      : e?.code === 'auth/too-many-requests'                               ? 'Too many attempts. Wait a minute and try again.'
+      : 'Could not delete the account. Please try again.';
+  }
+}
+
+// ── Sign out ───────────────────────────────────────────────────────────────────
+function confirmSignOut() {
+  if (!isSignedIn()) return;
+  document.getElementById('signout-modal').classList.remove('hidden');
+}
+
+function showAccountNotice(title, body) {
+  document.getElementById('account-notice-title').textContent = title;
+  document.getElementById('account-notice-body').textContent = body;
+  document.getElementById('account-notice-modal').classList.remove('hidden');
+}
+
+function closeAccountNotice() {
+  document.getElementById('account-notice-modal').classList.add('hidden');
+}
+
+function closeSignOutModal() {
+  document.getElementById('signout-modal').classList.add('hidden');
+}
+
+async function doSignOut() {
+  closeSignOutModal();
+  if (_accountUnsub) { _accountUnsub(); _accountUnsub = null; }
+  try { await auth.signOut(); } catch(e) {}
+  _myLegacyIds = [];
+
+  // Online games belong to the account, not the device, so they go with it. The local list
+  // is only a cache of what the account owns — leaving it behind showed a signed-out player
+  // games they can no longer open, and would show them to whoever signs in next.
+  try { stopHomeListeners(); } catch(e) {}
+  window._homeGames = [];
+  try { localStorage.removeItem('reword_games'); } catch(e) {}
+  // The solo game is part of the account now as well. Remove the local copy so the next
+  // person to sign in on this browser doesn't inherit it; the cloud copy brings it back.
+  try { localStorage.removeItem(AI_SAVE_KEY); } catch(e) {}
+
+  updateAccountUI();
+  showHomeScreen();
+}
+
 
 // ── Online state (must be defined before startGame) ────
 let isOnlineMode = false;
@@ -9973,24 +10281,78 @@ document.addEventListener('click', e => {
 
 <div id="account-modal" class="hidden">
   <div id="account-modal-inner">
-    <h2>Your account</h2>
-    <p id="account-email"></p>
+    <button class="modal-x" aria-label="Close" onclick="closeAccountPanel()">&times;</button>
+    <h2>Account information</h2>
+    <div class="account-field">
+      <div class="account-label">User name</div>
+      <div class="account-value" id="account-name"></div>
+    </div>
+    <div class="account-field">
+      <div class="account-label">Email</div>
+      <div class="account-value" id="account-email"></div>
+    </div>
+    <button class="account-btn primary" onclick="openAccountEdit()">Edit Account</button>
+  </div>
+</div>
 
-    <button class="account-btn" onclick="changeDisplayNameFromAccount()">Change display name</button>
-    <button class="account-btn" onclick="sendPasswordResetFromAccount()">Send password reset email</button>
-    <button class="account-btn" onclick="signOutAccount()">Sign out</button>
+<div id="account-edit-modal" class="hidden">
+  <div id="account-edit-inner">
+    <button class="modal-x" aria-label="Close" onclick="closeAccountEdit()">&times;</button>
+    <h2>Edit Account</h2>
 
-    <div id="account-danger-note">Deleting removes your account and its games. This can't be undone.</div>
-    <button class="account-btn danger" onclick="deleteAccount()">Delete account</button>
+    <input id="edit-name"  class="auth-field" type="text"  maxlength="10" placeholder="Display name" autocomplete="nickname" />
+    <input id="edit-email" class="auth-field" type="email" placeholder="Email" autocomplete="email" autocapitalize="none" spellcheck="false" />
+    <div class="modal-hint">Changing your email needs your current password.</div>
+    <input id="edit-currentpass" class="auth-field" type="password" placeholder="Current password" autocomplete="current-password" />
 
-    <button id="account-close" onclick="closeAccountPanel()">Close</button>
+    <div id="edit-error"></div>
+    <button id="edit-save" class="account-btn primary" onclick="saveAccountEdits()">Save changes</button>
+
+    <div class="edit-divider"></div>
+    <button id="edit-reset-btn" class="account-btn" onclick="emailPasswordReset()">Email me a password reset link</button>
+    <div id="edit-reset-note"></div>
+
+    <div class="account-spacer"></div>
+    <button class="danger-link" onclick="openDeleteAccountModal()">Delete account</button>
+  </div>
+</div>
+
+<div id="delete-account-modal" class="hidden">
+  <div id="delete-account-inner">
+    <button class="modal-x" aria-label="Close" onclick="closeDeleteAccountModal()">&times;</button>
+    <h2>Delete account</h2>
+    <p id="delete-account-warn">This permanently removes your account, your display name and your sign-in. It can't be undone.</p>
+    <p class="modal-hint">Type <strong>DELETE</strong> to confirm.</p>
+    <input id="account-delete-input" class="auth-field" type="text" placeholder="DELETE" autocomplete="off" autocapitalize="characters" spellcheck="false" oninput="onDeleteConfirmInput()" />
+    <input id="delete-pass" class="auth-field hidden" type="password" placeholder="Your password" autocomplete="current-password" />
+    <div id="delete-error"></div>
+    <button class="account-btn danger" id="account-delete-go" onclick="deleteAccount()" disabled>Permanently delete</button>
+    <button class="account-btn" onclick="closeDeleteAccountModal()">Keep my account</button>
+  </div>
+</div>
+
+<div id="account-notice-modal" class="hidden">
+  <div id="account-notice-inner">
+    <h2 id="account-notice-title"></h2>
+    <p class="modal-sub" id="account-notice-body"></p>
+    <button class="account-btn primary" onclick="closeAccountNotice()">Got it</button>
+  </div>
+</div>
+
+<div id="signout-modal" class="hidden">
+  <div id="signout-inner">
+    <h2>Sign out?</h2>
+    <p class="modal-sub">Your games stay on your account. You can sign back in any time.</p>
+    <button class="account-btn primary" onclick="doSignOut()">Sign out</button>
+    <button class="account-btn" onclick="closeSignOutModal()">Cancel</button>
   </div>
 </div>
 
 <div id="auth-modal" class="hidden">
   <div id="auth-modal-inner">
+    <button class="modal-x" aria-label="Close" onclick="closeAuthModal()">&times;</button>
     <h2 id="auth-title">Create an account</h2>
-    <p id="auth-sub">Accounts keep your online games safe across devices.</p>
+    <p id="auth-sub"><button class="auth-link" id="auth-toggle" onclick="toggleAuthMode()">Already have an account? Sign in</button></p>
 
     <input id="auth-name" class="auth-field" type="text" maxlength="10" placeholder="Display name" autocomplete="nickname" />
     <input id="auth-email" class="auth-field" type="email" placeholder="Email" autocomplete="email" autocapitalize="none" spellcheck="false" />
@@ -10005,10 +10367,9 @@ document.addEventListener('click', e => {
       <span id="auth-apple-label">Sign up with Apple</span>
     </button>
 
-    <button class="auth-link" id="auth-toggle" onclick="toggleAuthMode()">Already have an account? Sign in</button>
-    <button class="auth-link hidden" id="auth-forgot" onclick="sendPasswordReset()">Forgot your password?</button>
-    <div id="auth-legal">We only store your display name. Your email and password are handled by our sign-in provider.</div>
-    <button id="auth-close" onclick="closeAuthModal()">Not now</button>
+    <button class="auth-link hidden" id="auth-forgot" onclick="sendSignInReset()">Forgot your password?</button>
+    <div id="auth-note"></div>
+    <div id="auth-legal">Reword does not keep any of your personal information, just your display name.</div>
   </div>
 </div>
 
@@ -10035,12 +10396,10 @@ document.addEventListener('click', e => {
 
 <div id="notif-modal" class="hidden">
   <div id="notif-modal-inner">
-    <span class="notif-icon">🔔</span>
     <h2>Stay in the loop</h2>
     <p>Get notified the moment your opponent plays — even when Reword is closed.</p>
-    <button id="notif-enable-btn" onclick="enableNotifications()">Enable Notifications</button>
-    <br>
-    <button id="notif-skip-btn" onclick="skipNotifications()">Not now</button>
+    <button class="account-btn primary" onclick="enableNotifications()">Enable Notifications</button>
+    <button class="account-btn" onclick="skipNotifications()">Not now</button>
   </div>
 </div>
 

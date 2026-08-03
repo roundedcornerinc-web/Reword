@@ -79,6 +79,15 @@ body {
   z-index: 100;
 }
 
+/* Short screens — iPhone SE and 8 at 667pt, where the board is the thing being squeezed.
+   The 30px above the scores is mostly status-bar clearance, which the safe-area inset
+   measures properly, so shortening it here costs nothing and gives the board the room. */
+@media (max-height: 700px) {
+  #header {
+    padding: calc(6px + env(safe-area-inset-top, 0px)) 14px 8px;
+  }
+}
+
 #scoreboard {
   display: flex;
   width: 100%;

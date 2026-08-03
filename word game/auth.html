@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Reword — Account</title>
+<link rel="icon" href="./icons/icon-192.png">
+<!--
+  Firebase's action handler, hosted here instead of on firebaseapp.com so a password reset
+  or an email change looks like it belongs to Reword.
+
+  Point Authentication → Templates → "Customize action URL" at
+  https://www.rewordgame.app/auth.html and Firebase appends mode + oobCode to it.
+
+  The one-time code in the URL is what authorises the change; this page never sees a
+  password other than the new one being set, and never holds a session afterwards.
+-->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: linear-gradient(180deg, #100b2c 0%, #2a1c64 45%, #5b31d6 100%);
+    background-attachment: fixed;
+    font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+    color: #fff;
+    min-height: 100vh;
+    padding: 40px 20px calc(40px + env(safe-area-inset-bottom, 0px));
+    display: flex; flex-direction: column; align-items: center;
+  }
+  /* Logo and tagline are one asset, drawn white/cream for a dark background. */
+  #logo { width: 300px; max-width: 78vw; height: auto; display: block; }
+  main { width: 100%; max-width: 380px; text-align: center; margin-top: 58px; }
+  h1 { font-size: 1.6rem; font-weight: 700; line-height: 1.3; margin-bottom: 4px; }
+  #subject { font-size: 1.25rem; font-weight: 400; color: #efe9ff; word-break: break-all; }
+  label {
+    display: block; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; margin: 34px 0 10px;
+  }
+  input {
+    width: 100%; background: #150d38; border: 2px solid #7b4ff0; border-radius: 12px;
+    color: #fff; font-size: 1.05rem; padding: 13px 15px; outline: none; font-family: inherit;
+  }
+  input:focus { border-color: #a77ef8; }
+  button {
+    margin-top: 26px; background: #7234ee; border: none; border-radius: 12px; color: #fff;
+    font-size: 1rem; font-weight: 700; padding: 13px 44px; cursor: pointer; font-family: inherit;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #msg { margin-top: 18px; font-size: 0.9rem; line-height: 1.55; min-height: 1.2em; }
+  #msg.bad  { color: #ff9db3; }
+  #msg.good { color: #b9f5c9; }
+  a.back {
+    display: inline-block; margin-top: 26px; color: #d7c6ff;
+    font-size: 0.92rem; text-decoration: underline;
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<img id="logo" src="./reword_logo_tag.svg" alt="Reword — the board's in play">
+
+<main>
+  <h1 id="title">Checking your link…</h1>
+  <div id="subject"></div>
+
+  <form id="form" class="hidden" onsubmit="return false;">
+    <label for="pw" id="pw-label">New password</label>
+    <input id="pw" type="password" autocomplete="new-password" minlength="6" placeholder="At least 6 characters">
+    <button id="save" type="submit">Save</button>
+  </form>
+
+  <div id="msg"></div>
+  <a class="back hidden" id="back" href="https://www.rewordgame.app">Back to Reword</a>
+</main>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyBtJ4A1gERGUUfQtI6XD75Kwxn4kuOU598",
+  authDomain: "reword-66c5c.firebaseapp.com",
+  projectId: "reword-66c5c",
+  storageBucket: "reword-66c5c.firebasestorage.app",
+  messagingSenderId: "312643880404",
+  appId: "1:312643880404:web:8aa6d562e45d5b985e4241"
+});
+const auth = firebase.auth();
+
+const params  = new URLSearchParams(location.search);
+const mode    = params.get('mode');
+const oobCode = params.get('oobCode');
+const contUrl = params.get('continueUrl') || 'https://www.rewordgame.app';
+
+const $ = id => document.getElementById(id);
+const setTitle   = t => { $('title').textContent = t; };
+const setSubject = t => { $('subject').textContent = t || ''; };
+function say(text, kind) {
+  $('msg').textContent = text;
+  $('msg').className = kind || '';
+}
+function showBack(label) {
+  const a = $('back');
+  a.textContent = label || 'Back to Reword';
+  a.href = contUrl;
+  a.classList.remove('hidden');
+}
+function fail(err) {
+  $('form').classList.add('hidden');
+  setTitle('This link has expired');
+  setSubject('');
+  // Firebase uses one code per link and expires it on use, so a second visit lands here.
+  say(err === 'auth/invalid-action-code'
+      ? 'It may already have been used, or a newer email replaced it. Request a fresh one from the app.'
+      : 'Something went wrong with this link. Please request a new one.', 'bad');
+  showBack('Go to Reword');
+}
+
+async function start() {
+  if (!mode || !oobCode) {
+    setTitle('Nothing to do here');
+    say('Open this page from a link in a Reword email.', 'bad');
+    showBack('Go to Reword');
+    return;
+  }
+
+  if (mode === 'resetPassword') {
+    try {
+      const email = await auth.verifyPasswordResetCode(oobCode);
+      setTitle('Password reset for');
+      setSubject(email);
+      $('form').classList.remove('hidden');
+      setTimeout(() => $('pw').focus(), 80);
+    } catch (e) { fail(e.code); }
+    return;
+  }
+
+  // Confirming a new email address, and undoing a change the owner didn't make.
+  if (mode === 'verifyEmail' || mode === 'verifyAndChangeEmail' || mode === 'recoverEmail') {
+    try {
+      await auth.applyActionCode(oobCode);
+      setTitle(mode === 'recoverEmail' ? 'Your email has been restored' : 'Your email is confirmed');
+      setSubject('');
+      say(mode === 'recoverEmail'
+        ? 'Sign in with your original address. If you did not request the change, reset your password too.'
+        : 'You can sign in with your new address from now on.', 'good');
+      showBack('Back to Reword');
+    } catch (e) { fail(e.code); }
+    return;
+  }
+
+  setTitle('Unsupported link');
+  say('This link is not one Reword knows how to handle.', 'bad');
+  showBack('Go to Reword');
+}
+
+$('form').addEventListener('submit', async () => {
+  const pw = $('pw').value;
+  if (pw.length < 6) { say('Passwords need to be at least 6 characters.', 'bad'); return; }
+  $('save').disabled = true;
+  say('');
+  try {
+    await auth.confirmPasswordReset(oobCode, pw);
+    $('form').classList.add('hidden');
+    setTitle('Password updated');
+    setSubject('');
+    say('You can sign in with your new password.', 'good');
+    showBack('Back to Reword');
+  } catch (e) {
+    $('save').disabled = false;
+    say(e.code === 'auth/weak-password'
+      ? 'That password is too weak — try a longer one.'
+      : 'That link has expired. Request a new reset email from the app.', 'bad');
+  }
+});
+
+start();
+</script>
+</body>
+</html>

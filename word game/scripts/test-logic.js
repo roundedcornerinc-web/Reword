@@ -62,6 +62,11 @@ vm.runInContext([
   grabFunction('earnsAllTilesBonus'),
   grabFunction('buildReplayFrames'),
   grabFunction('buildSwapPairing'),
+  grabFunction('getPlayerId'),
+  grabFunction('getDevicePlayerId'),
+  grabFunction('myPlayerIds'),
+  grabFunction('isMyPlayerId'),
+  'var _myLegacyIds = [];',   // var, not let: must be settable as a context property
   'function isEmpty(){ return board.every(r => r.every(c => !c)); }',
 ].join('\n'), ctx);
 
@@ -373,6 +378,64 @@ replayCase('two steals restore the first word',
 replayCase('two steals restore the second word, and only two tiles came from the rack',
   { ...twoSteals, before: { cells: [[3,5],[3,6],[3,7],[3,8]], word: 'DOME' },
     rackKeys: ['10,6', '10,7'] });
+
+console.log('\nPlayer identity — accounts, devices, and claimed ids\n');
+
+// Signed in, a player is their account so games follow them between devices. Signed out,
+// they are this browser profile. Games created under an earlier device id stay theirs via
+// the claimed list — get this wrong and a player's games vanish when they sign in.
+function identityCase(name, { user, storedId, legacy }, expect) {
+  ctx.auth = { currentUser: user };
+  ctx.localStorage = {
+    _v: storedId,
+    getItem() { return this._v || null; },
+    setItem(k, v) { this._v = v; },
+  };
+  ctx._myLegacyIds = legacy || [];
+
+  const problems = [];
+  if (expect.playerId && ctx.getPlayerId() !== expect.playerId)
+    problems.push(`identity was "${ctx.getPlayerId()}", expected "${expect.playerId}"`);
+  for (const id of expect.mine || [])
+    if (!ctx.isMyPlayerId(id)) problems.push(`"${id}" should have been recognised as mine`);
+  for (const id of expect.notMine || [])
+    if (ctx.isMyPlayerId(id)) problems.push(`"${id}" should NOT have been recognised as mine`);
+
+  if (!problems.length) { passed++; console.log('  pass  ' + name); return; }
+  failures.push(name);
+  console.log('  FAIL  ' + name);
+  problems.forEach(p => console.log('          ' + p));
+}
+
+identityCase('signed in, the account is the identity', {
+  user: { uid: 'ACCOUNT1', isAnonymous: false }, storedId: 'device-a',
+}, { playerId: 'ACCOUNT1' });
+
+// An anonymous uid is minted per origin and per install, so it must never become identity.
+identityCase('anonymous players stay on the device id', {
+  user: { uid: 'ANON-UID', isAnonymous: true }, storedId: 'device-a',
+}, { playerId: 'device-a', notMine: ['ANON-UID'] });
+
+identityCase('signed out entirely, still the device id', {
+  user: null, storedId: 'device-a',
+}, { playerId: 'device-a' });
+
+// The case the migration exists for: sign in on a second device and games made on the first
+// are still yours, because the account claimed that device's id.
+identityCase('games from a claimed device are still mine', {
+  user: { uid: 'ACCOUNT1', isAnonymous: false }, storedId: 'device-b', legacy: ['device-a'],
+}, { playerId: 'ACCOUNT1', mine: ['ACCOUNT1', 'device-a', 'device-b'], notMine: ['device-z', 'ACCOUNT2'] });
+
+// Firestore 'in' queries reject more than 30 values, so the list has to stay bounded.
+identityCase('the id list stays within the query limit', {
+  user: { uid: 'ACCOUNT1', isAnonymous: false }, storedId: 'device-b',
+  legacy: Array.from({ length: 60 }, (_, i) => 'dev' + i),
+}, { playerId: 'ACCOUNT1' });
+(function () {
+  const ids = ctx.myPlayerIds();
+  if (ids.length <= 30) { passed++; console.log('  pass  and is capped at 30 ids'); }
+  else { failures.push('id cap'); console.log('  FAIL  id list was ' + ids.length + ', over the 30 limit'); }
+})();
 
 console.log('\nScoring — replayed tiles keep their square bonuses\n');
 

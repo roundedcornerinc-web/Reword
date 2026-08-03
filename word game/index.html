@@ -1341,6 +1341,38 @@ body {
 #name-modal-input.error{border-color:#f72585}
 #name-modal-confirm-btn{background:#7234ee!important;border:none!important;font-family:'Segoe UI',system-ui,sans-serif!important;}
 #name-modal .btn-recall{background:#3a2e71!important;border:none!important;font-family:'Segoe UI',system-ui,sans-serif!important;}
+/* Account modal — sign in / create account */
+#auth-modal{position:fixed;inset:0;z-index:650;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;padding:16px;}
+#auth-modal.hidden{display:none}
+#auth-modal-inner{background:#1a1040;border:1px solid #4a2fa0;border-radius:20px;padding:28px 24px 22px;width:100%;max-width:340px;text-align:center;font-family:'Segoe UI',system-ui,sans-serif;max-height:92vh;overflow-y:auto;}
+#auth-modal-inner h2{font-size:1.3rem;font-weight:700;margin:0 0 6px;color:#fff;}
+#auth-sub{font-size:0.85rem;color:#a89cc8;margin:0 0 18px;line-height:1.5;}
+.auth-field{width:100%;box-sizing:border-box;background:#110b2e;border:2px solid #4a2fa0;border-radius:10px;color:#fff;font-size:1rem;padding:12px 14px;margin-bottom:10px;outline:none;font-family:inherit;}
+.auth-field:focus{border-color:#7b2ff7}
+.auth-field::placeholder{color:#5b5480}
+.auth-field.error{border-color:#f72585}
+#auth-error{font-size:0.8rem;color:#ff6b8a;margin:2px 0 10px;min-height:1.1em;line-height:1.4;}
+#auth-submit{width:100%;background:#7234ee;border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:700;padding:13px;cursor:pointer;font-family:inherit;margin-bottom:12px;}
+#auth-submit:disabled{opacity:0.55;cursor:default}
+.auth-divider{display:flex;align-items:center;gap:10px;color:#6b6394;font-size:0.72rem;margin:4px 0 12px;}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:#3a2f6b;}
+/* Apple's guidelines require their button be black-on-white or white-on-black, unmodified. */
+#auth-apple{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;color:#000;border:none;border-radius:12px;font-size:0.98rem;font-weight:600;padding:12px;cursor:pointer;font-family:inherit;margin-bottom:14px;}
+#auth-apple svg{width:16px;height:19px;display:block}
+.auth-link{background:none;border:none;color:#c9a6ff;font-size:0.82rem;cursor:pointer;font-family:inherit;text-decoration:underline;padding:5px;}
+#auth-close{background:none;border:none;color:#7b7398;font-size:0.8rem;cursor:pointer;font-family:inherit;padding:6px;display:block;margin:2px auto 0;}
+#auth-legal{font-size:0.68rem;color:#6b6394;line-height:1.5;margin-top:12px;}
+/* Account panel — shown when signed in */
+#account-modal{position:fixed;inset:0;z-index:650;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;padding:16px;}
+#account-modal.hidden{display:none}
+#account-modal-inner{background:#1a1040;border:1px solid #4a2fa0;border-radius:20px;padding:26px 24px 20px;width:100%;max-width:340px;text-align:center;font-family:'Segoe UI',system-ui,sans-serif;}
+#account-modal-inner h2{font-size:1.25rem;font-weight:700;margin:0 0 4px;color:#fff;}
+#account-email{font-size:0.82rem;color:#a89cc8;margin:0 0 20px;word-break:break-all;}
+.account-btn{display:block;width:100%;margin-bottom:10px;background:#2a1c64;border:1px solid #4a2fa0;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:600;padding:12px;cursor:pointer;font-family:inherit;}
+.account-btn:active{background:#35237d}
+.account-btn.danger{background:none;border-color:#5a2246;color:#ff6b8a;}
+#account-danger-note{font-size:0.74rem;color:#8b83a8;line-height:1.5;margin:2px 0 12px;}
+#account-close{background:none;border:none;color:#7b7398;font-size:0.82rem;cursor:pointer;font-family:inherit;padding:6px;}
 /* Claim-slot modal (cross-device game recovery) */
 #claim-modal{position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;}
 #claim-modal.hidden{display:none}
@@ -1997,6 +2029,7 @@ body {
       </svg>
     </button>
     <div id="home-dropdown">
+      <button class="home-drop-item" id="home-account-row" onclick="closeHomeMenu();openAccountPanel()">Sign in</button>
       <button class="home-drop-item" onclick="closeHomeMenu();showGameScreen();showTutorial()">Tutorial</button>
       <button class="home-drop-item" onclick="closeHomeMenu();openFaq()">FAQ</button>
       <button class="home-drop-item" onclick="closeHomeMenu();reportIssue()">Report an Issue</button>
@@ -6018,22 +6051,17 @@ async function acceptRematchChallenge(gameId, myRole) {
 
 // Send a push to a specific role in a game (used by rematch decline, from the home screen)
 async function notifyGameRole(gameId, recipientRole, title, message) {
+  // Same rule as sendPushToOpponent: name the recipient, never read their token.
   try {
     const d = (await db.collection('games').doc(gameId).get()).data();
-    const p = d?.players?.[recipientRole];
-    let apnsToken = p?.apnsToken || null;
-    let pushSub   = p?.pushSub?.endpoint ? p.pushSub : null;
-    if (!apnsToken && !pushSub && p?.id) {
-      const u = (await db.collection('users').doc(p.id).get()).data();
-      apnsToken = u?.apnsToken || null;
-      pushSub   = u?.pushSub?.endpoint ? u.pushSub : null;
-    }
-    if (apnsToken) {
-      const form = new URLSearchParams({ apnsToken, title, message, gameId, recipientRole });
-      await fetch(`${WEB_BASE}/api/notify`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString() });
-    } else if (pushSub) {
-      await fetch(`${WEB_BASE}/api/notify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: pushSub, title, message, gameId, recipientRole }) });
-    }
+    const recipientId = d?.players?.[recipientRole]?.id;
+    if (!recipientId) return;
+    const form = new URLSearchParams({ recipientId, title, message, gameId, recipientRole });
+    await fetch(`${WEB_BASE}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    });
   } catch(e) { console.warn('[Push] notifyGameRole error:', e?.message || e); }
 }
 
@@ -6493,12 +6521,16 @@ const authReady = new Promise(res => { _authReadyResolve = res; });
 auth.onAuthStateChanged(user => {
   if (user) {
     firebaseUid = user.uid;
-    // Do NOT override reword_pid with Firebase UID.
-    // The localStorage reword_pid is the stable player identity that
-    // doesn't change when Firebase creates a new anonymous UID per domain.
-    _authReadyResolve(getPlayerId());
-    // Pull game list from Firestore so it survives refreshes
-    syncGamesFromFirestore();
+    // Identity is auth.uid for account holders and the localStorage id for anonymous
+    // players — see getPlayerId(). An anonymous uid is per-origin and per-install, which is
+    // why it is never used as the player identity.
+    // Claimed ids must be loaded before anything asks which games are ours.
+    loadClaimedIds().then(() => {
+      _authReadyResolve(getPlayerId());
+      updateAccountUI();
+      // Pull game list from Firestore so it survives refreshes
+      syncGamesFromFirestore();
+    });
     recordDeviceIdentity();   // capture this device id for the future account migration
   } else {
     auth.signInAnonymously().catch(err => {
@@ -6507,6 +6539,277 @@ auth.onAuthStateChanged(user => {
     });
   }
 });
+
+// ═══════════════════════════════════════════════════════
+//  ACCOUNTS
+// ═══════════════════════════════════════════════════════
+// Everyone starts as an anonymous Firebase user, and an account is an *upgrade* of that
+// same user rather than a second one: linkWithCredential keeps the uid, so games, friends
+// and push subscriptions carry over with nothing to migrate. Signing in to an account made
+// on another device is the one case that lands on a different uid — there the old device's
+// player id is filed under legacyIds so its games can still be found.
+//
+// Email and password live in Firebase Auth, which is Google's system, not ours. Firestore
+// holds a uid and a display name and nothing else, so there is no personal data here to
+// protect. Keep it that way: don't write user.email into a document.
+let _authMode = 'create';     // 'create' | 'signin'
+let _authOnSuccess = null;
+
+function isSignedIn() {
+  return !!(auth.currentUser && !auth.currentUser.isAnonymous);
+}
+
+function openAuthModal(mode, onSuccess) {
+  _authMode = mode || 'create';
+  _authOnSuccess = onSuccess || null;
+  document.getElementById('auth-name').value = playerName === 'You' ? '' : playerName;
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-pass').value = '';
+  setAuthError('');
+  applyAuthMode();
+  document.getElementById('auth-modal').classList.remove('hidden');
+}
+
+function closeAuthModal() {
+  document.getElementById('auth-modal').classList.add('hidden');
+  _authOnSuccess = null;
+}
+
+// Close, then resume whatever the player was trying to do when they hit the sign-in gate.
+function finishAuth() {
+  const resume = _authOnSuccess;
+  closeAuthModal();
+  if (resume) resume();
+}
+
+function applyAuthMode() {
+  const creating = _authMode === 'create';
+  document.getElementById('auth-title').textContent = creating ? 'Create an account' : 'Welcome back';
+  document.getElementById('auth-sub').textContent = creating
+    ? 'Accounts keep your online games safe across devices.'
+    : 'Sign in to pick up your games where you left off.';
+  document.getElementById('auth-submit').textContent = creating ? 'Create account' : 'Sign in';
+  document.getElementById('auth-apple-label').textContent = creating ? 'Sign up with Apple' : 'Sign in with Apple';
+  document.getElementById('auth-toggle').textContent = creating
+    ? 'Already have an account? Sign in'
+    : 'Need an account? Create one';
+  // A display name is only collected when creating — signing in already has one on file.
+  document.getElementById('auth-name').classList.toggle('hidden', !creating);
+  document.getElementById('auth-forgot').classList.toggle('hidden', creating);
+  document.getElementById('auth-pass').setAttribute('autocomplete', creating ? 'new-password' : 'current-password');
+}
+
+function toggleAuthMode() {
+  _authMode = _authMode === 'create' ? 'signin' : 'create';
+  setAuthError('');
+  applyAuthMode();
+}
+
+function setAuthError(msg, fieldId) {
+  document.getElementById('auth-error').textContent = msg || '';
+  ['auth-name','auth-email','auth-pass'].forEach(id =>
+    document.getElementById(id).classList.toggle('error', id === fieldId));
+}
+
+// Firebase's own messages are written for developers ("auth/invalid-credential"), so they
+// get translated here rather than shown raw.
+function authErrorText(err) {
+  switch (err && err.code) {
+    case 'auth/email-already-in-use':   return 'That email already has an account. Try signing in.';
+    case 'auth/invalid-email':          return 'That doesn\'t look like an email address.';
+    case 'auth/weak-password':          return 'Passwords need to be at least 6 characters.';
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':         return 'That email and password don\'t match.';
+    case 'auth/too-many-requests':      return 'Too many attempts. Wait a minute and try again.';
+    case 'auth/network-request-failed':  return 'No connection. Check your network and try again.';
+    case 'auth/requires-recent-login':  return 'For safety, sign in again before doing that.';
+    default:                            return 'Something went wrong. Please try again.';
+  }
+}
+
+async function submitAuth() {
+  const creating = _authMode === 'create';
+  const name  = document.getElementById('auth-name').value.trim();
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+
+  if (creating && !name)   return setAuthError('Pick a display name — your opponent sees this.', 'auth-name');
+  if (!email)              return setAuthError('Enter your email address.', 'auth-email');
+  if (!pass)               return setAuthError('Enter your password.', 'auth-pass');
+  if (creating && pass.length < 6) return setAuthError('Passwords need to be at least 6 characters.', 'auth-pass');
+
+  const btn = document.getElementById('auth-submit');
+  btn.disabled = true;
+  btn.textContent = creating ? 'Creating…' : 'Signing in…';
+  setAuthError('');
+
+  try {
+    if (creating) {
+      const cred = firebase.auth.EmailAuthProvider.credential(email, pass);
+      // Upgrade the anonymous user in place so nothing has to be migrated.
+      if (auth.currentUser && auth.currentUser.isAnonymous) await auth.currentUser.linkWithCredential(cred);
+      else await auth.createUserWithEmailAndPassword(email, pass);
+      playerName = name.slice(0, 10);
+      try { localStorage.setItem('playerName', playerName); } catch(e) {}
+    } else {
+      await auth.signInWithEmailAndPassword(email, pass);
+    }
+    await onAccountReady();
+    finishAuth();
+  } catch (err) {
+    console.warn('[Auth]', err);
+    setAuthError(authErrorText(err));
+  } finally {
+    btn.disabled = false;
+    applyAuthMode();
+  }
+}
+
+// Sign in with Apple. In the iOS app this must go through the native plugin — Firebase's
+// popup flow can't open inside the WKWebView — and falls back to the web OAuth flow in a
+// browser. Both need the Apple provider enabled in the Firebase console first.
+async function signInWithApple() {
+  setAuthError('');
+  try {
+    const nativeApple = window.Capacitor?.Plugins?.SignInWithApple;
+    if (nativeApple) {
+      const res = await nativeApple.authorize({ scopes: 'email' });
+      const idToken = res?.response?.identityToken;
+      if (!idToken) throw new Error('no identity token');
+      const provider = new firebase.auth.OAuthProvider('apple.com');
+      const cred = provider.credential({ idToken });
+      if (auth.currentUser && auth.currentUser.isAnonymous) await auth.currentUser.linkWithCredential(cred);
+      else await auth.signInWithCredential(cred);
+    } else {
+      const provider = new firebase.auth.OAuthProvider('apple.com');
+      if (auth.currentUser && auth.currentUser.isAnonymous) await auth.currentUser.linkWithPopup(provider);
+      else await auth.signInWithPopup(provider);
+    }
+    if (playerName === 'You') {
+      const typed = document.getElementById('auth-name').value.trim();
+      if (typed) { playerName = typed.slice(0, 10); try { localStorage.setItem('playerName', playerName); } catch(e) {} }
+    }
+    await onAccountReady();
+    finishAuth();
+  } catch (err) {
+    console.warn('[Auth] apple', err);
+    // A cancelled Apple sheet is a normal outcome, not an error worth shouting about.
+    if (String(err?.code || err).match(/1001|cancel/i)) return;
+    setAuthError(authErrorText(err));
+  }
+}
+
+// Called once an account exists. Files this device's player id against the account so games
+// created before signing in are still reachable, then refreshes the home screen.
+async function onAccountReady() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const deviceId = getDevicePlayerId();
+  try {
+    // The account document is keyed on the uid from here on. Claiming this device's id
+    // keeps games created before signing in — on this device or an earlier one — findable,
+    // because every "is this mine?" check reads the claimed list too.
+    const ref = db.collection('users').doc(user.uid);
+    await ref.set({
+      uid: user.uid,
+      name: playerName,
+      legacyIds: firebase.firestore.FieldValue.arrayUnion(deviceId),
+    }, { merge: true });
+    const snap = await ref.get();
+    _myLegacyIds = (snap.exists && snap.data().legacyIds) || [deviceId];
+
+    // Point the old device-keyed document at the account, so anything still resolving a
+    // player by that id can find its way here.
+    if (deviceId !== user.uid) {
+      await db.collection('users').doc(deviceId).set({ uid: user.uid }, { merge: true }).catch(() => {});
+    }
+  } catch (e) { console.warn('[Auth] link identity failed', e); }
+  updateAccountUI();
+  try { savePushTarget(); } catch(e) {}   // token now belongs under the account id
+  try { syncGamesFromFirestore(); } catch(e) {}
+}
+
+// Signing in on a device that already has games is the common case, so the claimed list has
+// to be loaded before anything asks which games are ours.
+async function loadClaimedIds() {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) { _myLegacyIds = []; return; }
+  try {
+    const snap = await db.collection('users').doc(user.uid).get();
+    _myLegacyIds = (snap.exists && snap.data().legacyIds) || [];
+  } catch(e) { _myLegacyIds = []; }
+}
+
+async function sendPasswordReset() {
+  const email = document.getElementById('auth-email').value.trim();
+  if (!email) return setAuthError('Enter your email first, then tap this again.', 'auth-email');
+  try {
+    await auth.sendPasswordResetEmail(email);
+    setAuthError('');
+    document.getElementById('auth-sub').textContent = 'Check your email for a reset link.';
+  } catch (err) { setAuthError(authErrorText(err)); }
+}
+
+async function signOutAccount() {
+  if (!confirm('Sign out? Your games stay on your account.')) return;
+  try { await auth.signOut(); } catch(e) {}
+  updateAccountUI();
+  showHomeScreen();
+}
+
+// The App Store requires an in-app way to delete an account, not just to sign out.
+async function deleteAccount() {
+  if (!confirm('Delete your account? This cannot be undone. Your games will be lost.')) return;
+  const user = auth.currentUser;
+  if (!user) return;
+  try {
+    await db.collection('users').doc(getPlayerId()).delete().catch(() => {});
+    await user.delete();
+    updateAccountUI();
+    showHomeScreen();
+  } catch (err) {
+    alert(err?.code === 'auth/requires-recent-login'
+      ? 'For your security, sign in again before deleting your account.'
+      : 'Could not delete the account. Please try again.');
+  }
+}
+
+function updateAccountUI() {
+  const row = document.getElementById('home-account-row');
+  if (row) row.textContent = isSignedIn() ? 'Account' : 'Sign in';
+}
+
+// Signed out, this is the way in. Signed in, it opens the account panel.
+function openAccountPanel() {
+  if (!isSignedIn()) { openAuthModal('create'); return; }
+  const user = auth.currentUser;
+  // Apple's Hide My Email accounts have no address worth showing, so fall back to the name.
+  document.getElementById('account-email').textContent = user?.email || playerName || '';
+  document.getElementById('account-modal').classList.remove('hidden');
+}
+
+function closeAccountPanel() {
+  document.getElementById('account-modal').classList.add('hidden');
+}
+
+function changeDisplayNameFromAccount() {
+  closeAccountPanel();
+  showNameModal('Change display name', 'Your opponent will see this', 'Save',
+    () => { onAccountReady(); });   // push the new name to the account's user document
+}
+
+async function sendPasswordResetFromAccount() {
+  const email = auth.currentUser?.email;
+  // Someone who signed in with Apple has no password to reset.
+  if (!email) { alert('You signed in with Apple, so there\'s no password to reset.'); return; }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    alert(`Password reset email sent to ${email}.`);
+  } catch (err) {
+    alert(authErrorText(err));
+  }
+}
 
 // ── Online state (must be defined before startGame) ────
 let isOnlineMode = false;
@@ -6519,7 +6822,6 @@ let _nameModalCallback = null;
 // ── Push subscription state ────────────────────────────
 const VAPID_PUBLIC_KEY = 'BCPydWdFOzyiKbc479MEYryoCq2mLrSaMon0qCR4eq3WCM31D8I64AMWvosysGOg81JaqocIxbYUHdKtNgt-gNU';
 let myPushSub = null;       // this device's push subscription (serialised JSON)
-let opponentPushSub = null; // opponent's push subscription (read from Firestore)
 
 // ── Start or join game ─────────────────────────────────
 const _urlGame = new URLSearchParams(window.location.search).get('game');
@@ -6560,12 +6862,12 @@ if (_urlGame && _isiOS && !window.Capacitor?.isNativePlatform()) {
         if (_gsnap.exists) {
           const _gd = _gsnap.data();
           const _myId = getPlayerId();
-          if (_gd.players?.p1?.id === _myId) {
+          if (isMyPlayerId(_gd.players?.p1?.id)) {
             addStoredGame(_urlGame, 'p1');
             loadOnlineGame(_urlGame, 'p1');
             return;
           }
-          if (_gd.players?.p2?.id === _myId) {
+          if (isMyPlayerId(_gd.players?.p2?.id)) {
             addStoredGame(_urlGame, 'p2');
             loadOnlineGame(_urlGame, 'p2');
             return;
@@ -6678,13 +6980,39 @@ async function resyncOnlineGame(gameId) {
 // ═══════════════════════════════════════════════════════
 
 // ── Utilities ──────────────────────────────────────────
+// ── Player identity ────────────────────────────────────────────────────────────
+// Signed in, a player IS their account: auth.uid is the same value on every device and
+// every origin, so games keyed on it follow the player to a new phone or the web.
+//
+// Anonymous players keep the localStorage id. That is deliberate and not laziness: an
+// anonymous Firebase uid is minted per origin, so the web app and the Capacitor app would
+// see different ids for the same person, and a reinstall would mint another. Only a real
+// account gives a stable identity — which is why online games require one.
 function getPlayerId() {
-  // Always use the stable localStorage ID — never the Firebase UID.
-  // Firebase Auth is only used for Firestore security rules, not as player identity.
-  // This ID stays constant for the life of the browser profile on this domain.
+  const u = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+  if (u && !u.isAnonymous) return u.uid;
+  return getDevicePlayerId();
+}
+
+// This browser profile's own id. Still the identity for anonymous play, and the thing an
+// account claims when you sign in so games made before signing in aren't stranded.
+function getDevicePlayerId() {
   let id = localStorage.getItem('reword_pid');
   if (!id) { id = Date.now().toString(36) + Math.random().toString(36).slice(2); localStorage.setItem('reword_pid', id); }
   return id;
+}
+
+// Ids this player answers to: their account, this device, and every device the account has
+// claimed before. Games created under any of them are theirs. Firestore 'in' queries take
+// up to 30 values, which is the practical cap on devices per account.
+let _myLegacyIds = [];
+function myPlayerIds() {
+  const ids = new Set([getPlayerId(), getDevicePlayerId(), ..._myLegacyIds]);
+  return [...ids].filter(Boolean).slice(0, 30);
+}
+
+function isMyPlayerId(id) {
+  return !!id && myPlayerIds().includes(id);
 }
 
 // Groundwork for accounts. Player identity today is per-device, not per-person: one human on
@@ -6888,9 +7216,6 @@ function startOnlineListener(gameId) {
       const el = document.getElementById('ai-name-display');
       if (el) el.textContent = opponentOnlineName;
     }
-    if (opInfo?.pushSub?.endpoint) {
-      opponentPushSub = opInfo.pushSub;
-    }
 
     // While waiting for p2 to join, just update invite modal
     if (data.status === 'waiting') {
@@ -6912,6 +7237,9 @@ function startOnlineListener(gameId) {
 // ── Create a new online game ───────────────────────────
 async function createOnlineGame() {
   await authReady;
+  // Online games need an account so they survive a reinstall and follow the player across
+  // devices. Solo games against the AI stay anonymous.
+  if (!isSignedIn()) { openAuthModal('create', createOnlineGame); return; }
   const gameId = generateGameId();
   const myId   = getPlayerId();
   const link   = `${WEB_BASE}?game=${gameId}`;
@@ -6971,7 +7299,7 @@ async function joinOnlineGame(gameId) {
     const data = snap.data();
 
     // Resume as p1?
-    if (data.players?.p1?.id === myId) {
+    if (isMyPlayerId(data.players?.p1?.id)) {
       isOnlineMode = true; myOnlineRole = 'p1'; onlineGameId = gameId.toUpperCase();
       updateResignButton();
       opponentOnlineName = data.players?.p2?.name || 'Opponent';
@@ -6983,7 +7311,7 @@ async function joinOnlineGame(gameId) {
       return;
     }
     // Resume as p2?
-    if (data.players?.p2?.id === myId) {
+    if (isMyPlayerId(data.players?.p2?.id)) {
       isOnlineMode = true; myOnlineRole = 'p2'; onlineGameId = gameId.toUpperCase();
       updateResignButton();
       opponentOnlineName = data.players?.p1?.name || 'Opponent';
@@ -7204,6 +7532,7 @@ function removeStoredGame(gameId) {
 async function syncGamesFromFirestore() {
   const uid = getPlayerId();
   if (!uid) return;
+  const ids = myPlayerIds();   // account id plus every device id it has claimed
   try {
     // 1. Check the users/{uid} saved list
     const doc = await db.collection('users').doc(uid).get();
@@ -7217,8 +7546,8 @@ async function syncGamesFromFirestore() {
     const activeIds = new Set(); // gameId -> confirmed active by Firestore
     try {
       const [snap1, snap2] = await Promise.all([
-        db.collection('games').where('players.p1.id', '==', uid).get(),
-        db.collection('games').where('players.p2.id', '==', uid).get()
+        db.collection('games').where('players.p1.id', 'in', ids).get(),
+        db.collection('games').where('players.p2.id', 'in', ids).get()
       ]);
       directQueriesOk = true;
       snap1.forEach(d => {
@@ -7398,7 +7727,6 @@ async function loadOnlineGame(gameId, myRole) {
     const data = snap.data();
     const opRole = myRole === 'p1' ? 'p2' : 'p1';
     opponentOnlineName = data.players?.[opRole]?.name || 'Opponent';
-    if (data.players?.[opRole]?.pushSub?.endpoint) opponentPushSub = data.players[opRole].pushSub;
     const el = document.getElementById('ai-name-display');
     if (el) el.textContent = opponentOnlineName;
     if ('Notification' in window && Notification.permission === 'default') {
@@ -7802,37 +8130,29 @@ async function registerNativePush() {
   }
 }
 
-// Cache the OPPONENT's token on the game doc so later turns skip the users-doc lookup.
-// This must write their token, not ours — saveApnsTokenToGame() below always writes
-// myApnsToken, so calling it with the opponent's role stamped this device into their slot
-// and sent every later notification meant for them to us instead.
-async function backfillOpponentApnsToken(gameId, role, token) {
-  if (!token || !gameId) return;
-  try {
-    await db.collection('games').doc(gameId).update({ [`players.${role}.apnsToken`]: token });
-  } catch(e) {}
+// Both kept as thin wrappers so their existing call sites keep working; neither writes to
+// a game or user document any more.
+async function saveApnsTokenToGame() {
+  await savePushTarget();
 }
 
-// Writes THIS device's token. Only ever call with your own role.
-async function saveApnsTokenToGame(gameId, role) {
-  if (!myApnsToken || !gameId) return;
+async function savePushTarget() {
+  // Push tokens live in pushTokens/{playerId}, which security rules make unreadable by any
+  // client — the notification endpoint reads them with admin credentials instead. They used
+  // to be written onto the game document and the user document, both of which every
+  // signed-in player can read.
+  const myId = getPlayerId();
+  if (!myId || (!myApnsToken && !myPushSub)) return;
+  const doc = { updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  if (myApnsToken) { doc.token = myApnsToken; doc.platform = 'ios'; }
+  if (myPushSub)   { doc.subscription = myPushSub; if (!doc.platform) doc.platform = 'web'; }
   try {
-    await db.collection('games').doc(gameId).update({
-      [`players.${role}.apnsToken`]: myApnsToken
-    });
-  } catch(e) {}
+    await db.collection('pushTokens').doc(myId).set(doc, { merge: true });
+  } catch(e) { console.warn('[Push] could not save push target:', e.message); }
 }
 
 async function saveApnsTokenToAllGames() {
-  if (!myApnsToken) return;
-  const stored = getStoredGames();
-  const myId = getPlayerId();
-  // Save to user-level doc so opponents can find it even for old games
-  try {
-    await db.collection('users').doc(myId).set({ apnsToken: myApnsToken, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-  } catch(e) {}
-  await Promise.all(stored.map(({gameId, myRole}) => saveApnsTokenToGame(gameId, myRole)));
-  console.log('[Push] token saved to users/' + myId + ' and', stored.length, 'game(s)');
+  await savePushTarget();
 }
 
 // ── Web Push subscription helpers ─────────────────────
@@ -7879,14 +8199,9 @@ async function subscribeToPush() {
   }
 }
 
-async function savePushSubToGame(gameId, role) {
-  if (!gameId) return;
-  try {
-    const update = {};
-    if (myPushSub) update[`players.${role}.pushSub`] = myPushSub;
-    if (myApnsToken) update[`players.${role}.apnsToken`] = myApnsToken;
-    if (Object.keys(update).length) await db.collection('games').doc(gameId).update(update);
-  } catch(e) {}
+async function savePushSubToGame() {
+  // Name kept for its callers; the subscription no longer goes on the game document.
+  await savePushTarget();
 }
 
 // ── Notification permission prompt ────────────────────
@@ -7928,82 +8243,38 @@ function skipNotifications() {
 
 async function sendPushToOpponent() {
   const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
-  console.log('[Push] sendPushToOpponent called, opRole:', opRole, 'gameId:', onlineGameId);
 
-  // Always fetch fresh opponent data — APNs takes priority over any cached web push sub
-  let opponentApnsToken = null;
-  let isRematch = false;
+  // The opponent's push token is never read here — the client only names who to notify and
+  // the endpoint looks the token up with admin credentials. That is what lets tokens live
+  // somewhere no client can read. The endpoint also falls back to the legacy copy on the
+  // user document, so opponents still on older builds are reachable.
+  let opId = null, isRematch = false;
   try {
-    const snap = await db.collection('games').doc(onlineGameId).get();
-    const snapData = snap.data();
+    const snapData = (await db.collection('games').doc(onlineGameId).get()).data();
     isRematch = !!snapData?.rematchChallenge;
-    const opData = snapData?.players?.[opRole];
-    const opId   = opData?.id;
-    if (opData?.apnsToken) {
-      opponentApnsToken = opData.apnsToken;
-      console.log('[Push] found apnsToken in game doc');
-    } else if (opData?.pushSub?.endpoint) {
-      opponentPushSub = opData.pushSub;
-      console.log('[Push] found web push sub in game doc');
-    } else if (opId) {
-      // Fallback: check user-level doc (set when opponent registers push)
-      const userSnap = await db.collection('users').doc(opId).get();
-      const uData = userSnap.data();
-      if (uData?.apnsToken) {
-        opponentApnsToken = uData.apnsToken;
-        console.log('[Push] found apnsToken in users doc, back-filling game');
-        backfillOpponentApnsToken(onlineGameId, opRole, uData.apnsToken);
-      } else if (uData?.pushSub?.endpoint) {
-        opponentPushSub = uData.pushSub;
-        console.log('[Push] found web push sub in users doc');
-      } else {
-        console.warn('[Push] no push token found for opponent', opId);
-        return;
-      }
-    } else {
-      console.warn('[Push] no opponent id in game doc for role', opRole);
-      return;
-    }
+    opId = snapData?.players?.[opRole]?.id || null;
   } catch(e) {
     console.warn('[Push] Firestore fetch error:', e.message);
     return;
   }
+  if (!opId) { console.warn('[Push] no opponent id in game doc for role', opRole); return; }
 
-  const payload = {
+  // URL-encoded POST avoids CORS preflight (WKWebView drops JSON POST after OPTIONS)
+  const form = new URLSearchParams({
+    recipientId:   opId,
     title:         isRematch ? 'Rematch challenge!' : 'Your turn in Reword!',
-    message:       isRematch ? `${playerName} has challenged you to a rematch!` : `${playerName} has played. Your move!`,
+    message:       isRematch ? `${playerName} has challenged you to a rematch!`
+                             : `${playerName} has played. Your move!`,
     gameId:        onlineGameId,
-    recipientRole: opRole
-  };
-
+    recipientRole: opRole,
+  });
   try {
-    if (opponentApnsToken) {
-      // URL-encoded POST avoids CORS preflight (WKWebView drops JSON POST after OPTIONS)
-      const form = new URLSearchParams({
-        apnsToken:     opponentApnsToken,
-        title:         payload.title,
-        message:       payload.message,
-        gameId:        payload.gameId,
-        recipientRole: payload.recipientRole
-      });
-      console.log('[Push] sending to', WEB_BASE + '/api/notify', 'token:', opponentApnsToken.slice(0,10) + '…');
-      const apnsRes = await fetch(`${WEB_BASE}/api/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body:   form.toString()
-      });
-      const apnsBody = await apnsRes.text();
-      console.log('[Push] APNs notify response:', apnsRes.status, apnsBody);
-    } else if (opponentPushSub) {
-      // Web push: runs in a browser (not WKWebView), regular JSON fetch is fine
-      const res = await fetch(`${WEB_BASE}/api/notify`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ ...payload, subscription: opponentPushSub })
-      });
-      console.log('[Push] web push notify response:', res.status);
-      if (res.status === 410) opponentPushSub = null;
-    }
+    const res = await fetch(`${WEB_BASE}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body:   form.toString(),
+    });
+    console.log('[Push] notify response:', res.status, await res.text());
   } catch(e) {
     console.warn('[Push] fetch error:', e?.message || e);
   }
@@ -8968,6 +9239,7 @@ async function loadHomeGames() {
   window._homeGames = [];
   const uid = getPlayerId();
   if (!uid) return;
+  const ids = myPlayerIds();   // account id plus every device id it has claimed
 
   let initialised = { p1: false, p2: false };
 
@@ -8996,10 +9268,10 @@ async function loadHomeGames() {
 
   try {
     const unsub1 = db.collection('games')
-      .where('players.p1.id', '==', uid)
+      .where('players.p1.id', 'in', ids)
       .onSnapshot(snap => onQuerySnap('p1', snap), e => console.warn('[HomeGames] p1 listener error:', e));
     const unsub2 = db.collection('games')
-      .where('players.p2.id', '==', uid)
+      .where('players.p2.id', 'in', ids)
       .onSnapshot(snap => onQuerySnap('p2', snap), e => console.warn('[HomeGames] p2 listener error:', e));
     _homeUnsubscribes.push(unsub1, unsub2);
   } catch(e) {
@@ -9696,6 +9968,47 @@ document.addEventListener('click', e => {
       style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #444;background:#12121e;color:#fff;font-size:1.1rem;text-align:center;letter-spacing:2px;margin-bottom:14px" />
     <button class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="confirmJoinByCode()">Join Game</button>
     <button class="btn btn-recall" style="width:100%" onclick="hideJoinByCodeUI()">Cancel</button>
+  </div>
+</div>
+
+<div id="account-modal" class="hidden">
+  <div id="account-modal-inner">
+    <h2>Your account</h2>
+    <p id="account-email"></p>
+
+    <button class="account-btn" onclick="changeDisplayNameFromAccount()">Change display name</button>
+    <button class="account-btn" onclick="sendPasswordResetFromAccount()">Send password reset email</button>
+    <button class="account-btn" onclick="signOutAccount()">Sign out</button>
+
+    <div id="account-danger-note">Deleting removes your account and its games. This can't be undone.</div>
+    <button class="account-btn danger" onclick="deleteAccount()">Delete account</button>
+
+    <button id="account-close" onclick="closeAccountPanel()">Close</button>
+  </div>
+</div>
+
+<div id="auth-modal" class="hidden">
+  <div id="auth-modal-inner">
+    <h2 id="auth-title">Create an account</h2>
+    <p id="auth-sub">Accounts keep your online games safe across devices.</p>
+
+    <input id="auth-name" class="auth-field" type="text" maxlength="10" placeholder="Display name" autocomplete="nickname" />
+    <input id="auth-email" class="auth-field" type="email" placeholder="Email" autocomplete="email" autocapitalize="none" spellcheck="false" />
+    <input id="auth-pass" class="auth-field" type="password" placeholder="Password" autocomplete="current-password" />
+
+    <div id="auth-error"></div>
+    <button id="auth-submit" onclick="submitAuth()">Create account</button>
+
+    <div class="auth-divider">or</div>
+    <button id="auth-apple" onclick="signInWithApple()">
+      <svg viewBox="0 0 14 17" fill="currentColor" aria-hidden="true"><path d="M11.7 9c0-1.7 1.4-2.6 1.5-2.6-.8-1.2-2.1-1.4-2.5-1.4-1.1-.1-2.1.6-2.6.6-.5 0-1.4-.6-2.3-.6-1.2 0-2.3.7-2.9 1.8-1.2 2.1-.3 5.3.9 7 .6.8 1.3 1.8 2.2 1.7.9 0 1.2-.6 2.3-.6s1.4.6 2.3.5c.9 0 1.5-.8 2.1-1.7.7-1 .9-1.9.9-2-.1 0-1.8-.7-1.9-2.7zM9.9 3.3c.5-.6.8-1.4.7-2.3-.7 0-1.6.5-2.1 1.1-.5.5-.9 1.4-.7 2.2.8.1 1.6-.4 2.1-1z"/></svg>
+      <span id="auth-apple-label">Sign up with Apple</span>
+    </button>
+
+    <button class="auth-link" id="auth-toggle" onclick="toggleAuthMode()">Already have an account? Sign in</button>
+    <button class="auth-link hidden" id="auth-forgot" onclick="sendPasswordReset()">Forgot your password?</button>
+    <div id="auth-legal">We only store your display name. Your email and password are handled by our sign-in provider.</div>
+    <button id="auth-close" onclick="closeAuthModal()">Not now</button>
   </div>
 </div>
 

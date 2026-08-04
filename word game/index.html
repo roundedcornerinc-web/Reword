@@ -5476,6 +5476,15 @@ function updateDifficultyBadge() {
 }
 
 function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+// The badge belongs at the end of the word, not at the last tile you happened to place.
+// Playing THIE onto an existing F makes the E the rightmost *placed* tile, which put the
+// badge between the E and the F — inside the word rather than after it.
+function extendToWordEnd(b, r, c, horizontal) {
+  if (horizontal) { while (c + 1 < BS && b[r][c + 1]) c++; }
+  else            { while (r + 1 < BS && b[r + 1] && b[r + 1][c]) r++; }
+  return [r, c];
+}
+
 function renderScorePreview() {
   const boardEl = document.getElementById('board');
   document.querySelectorAll('.board-score-preview').forEach(e => e.remove());
@@ -5491,7 +5500,8 @@ function renderScorePreview() {
       const anchorKey = isH
         ? lastMoveKeys.reduce((b, k) => +k.split(',')[1] > +b.split(',')[1] ? k : b)
         : lastMoveKeys.reduce((b, k) => +k.split(',')[0] > +b.split(',')[0] ? k : b);
-      const [ar, ac] = anchorKey.split(',').map(Number);
+      let [ar, ac] = anchorKey.split(',').map(Number);
+      [ar, ac] = extendToWordEnd(board, ar, ac, isH);
       const anchorCell = boardEl.querySelector(`[data-r="${ar}"][data-c="${ac}"]`);
       if (anchorCell) {
         const boardRect = boardEl.getBoundingClientRect();
@@ -5574,7 +5584,8 @@ function renderScorePreview() {
     ? primaryKeys.reduce((b, k) => +k.split(',')[1] > +b.split(',')[1] ? k : b)
     : primaryKeys.reduce((b, k) => +k.split(',')[0] > +b.split(',')[0] ? k : b);
 
-  const [ar, ac] = anchorKey.split(',').map(Number);
+  let [ar, ac] = anchorKey.split(',').map(Number);
+  [ar, ac] = extendToWordEnd(tb, ar, ac, isHorizontal);
   const anchorCell = boardEl.querySelector(`[data-r="${ar}"][data-c="${ac}"]`);
   if (!anchorCell) return;
 
@@ -9615,6 +9626,14 @@ async function loadHomeGames() {
 
 function showGameScreen() {
   stopHomeListeners();
+  // The feed and the replay it offers belong to one game. Opening a different game used to
+  // arrive showing the last thing that happened in the previous one — and a replay button
+  // that would have replayed that game's move.
+  showMsg('', 'info');
+  lastMoveKeys = [];
+  lastSwapKeys = [];
+  lastSwapPairMap = {};
+  lastPlayScore = null;
   document.getElementById('home-screen').classList.remove('active');
   document.getElementById('game-screen').classList.add('active');
 }

@@ -2575,6 +2575,9 @@ function applyBoardTransform(Tx, Ty, S) {
   if (!boardEl) return;
   boardTx = Tx; boardTy = Ty; boardScale = S;
   boardEl.style.transform = `translate(${Tx}px,${Ty}px) scale(${S})`;
+  // Tutorial overlays are positioned from live cell rects, so any transform change
+  // (zoom, pan, the 0.32s transition in between) has to re-run their layout.
+  if (window._tutOnTransform) window._tutOnTransform();
 }
 
 function zoomToCell(r, c) {
@@ -2596,6 +2599,7 @@ function zoomBoardOut() {
   if (boardEl) boardEl.style.transform = '';
   boardTx = 0; boardTy = 0; boardScale = 1;
   boardZoomed = false;
+  if (window._tutOnTransform) window._tutOnTransform();
 }
 let boardSwapPositions = new Set(); // permanent: all positions occupied by swap-involved tiles
 let lastMoveAnimated = false; // flip to true after first render so pop doesn't replay
@@ -3843,6 +3847,7 @@ function onPendingTileDrop(r, c, fromKey) {
 //  TOUCH DRAG
 // ═══════════════════════════════════════════════════════
 let touchDragIdx  = null; // rack tile index for touch drag
+let touchStartPt  = null; // where the finger went down, so a tap can be told from a drag
 let touchGhost    = null;
 let _dropTargetTimer = null; // debounce: only show drop-target after finger pauses
 
@@ -3862,6 +3867,7 @@ function onTouchStart(e, idx) {
 
   e.preventDefault();
   document.querySelectorAll('.cell.drop-target').forEach(el => el.classList.remove('drop-target'));
+  touchStartPt = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   touchDragIdx = idx;
   playPickup();
   const letter = playerRack[idx];
@@ -3976,14 +3982,26 @@ function onTouchEnd(e) {
     return;
   }
 
-  // Rack tile released near rack row — reorder
+  // Rack tile released near rack row — a tap selects it, a drag reorders.
   if (touchDragIdx !== null && rackEl) {
     const rr = rackEl.getBoundingClientRect();
     if (t.clientY >= rr.top - 30 && t.clientY <= rr.bottom + 30) {
       const savedInsert = rackInsertIdx;
       const from = touchDragIdx;
+      const moved = touchStartPt
+        ? Math.hypot(t.clientX - touchStartPt.x, t.clientY - touchStartPt.y)
+        : Infinity;
       clearRackSlide(); dragRackIdx = null;
       touchDragIdx = null;
+      touchStartPt = null;
+      // 14px, not a hair-trigger: a deliberate reorder has to cross most of a tile (~46px),
+      // so there is plenty of room between "tap" and "drag" for a shaky finger.
+      if (moved < 14) {
+        // The dragged tile was dimmed on touchstart; nothing re-renders on a plain select.
+        rackEl.querySelectorAll('.rack-tile').forEach(tl => { tl.style.opacity = ''; });
+        onRackTileClick(from);
+        return;
+      }
       if (savedInsert !== null && savedInsert !== from) reorderRackTile(from, savedInsert);
       return;
     }
@@ -4012,6 +4030,7 @@ function onTouchEnd(e) {
     }
   }
   touchDragIdx    = null;
+  touchStartPt    = null;
   touchPendingKey = null;
   _suppressClick = true;
   setTimeout(() => { _suppressClick = false; }, 50);
@@ -8839,12 +8858,16 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     }
   }
 
-  // Start a pan gesture. If the touch lands on a committed tile without moving,
-  // onPanEnd will fire onCellClick instead (tap-vs-drag detection).
+  // Start a pan gesture. If the touch lands on a square without moving, onPanEnd fires
+  // onCellClick instead (tap-vs-drag detection).
+  //
+  // Empty squares count too. They used to be excluded, which meant tap-to-place worked for
+  // the first tile and then stopped: placing a tile zooms the board, and from then on a tap
+  // on an empty square was swallowed as a pan that went nowhere.
   panActive = true;
   panMoved  = false;
   panWasBoardTap = null;
-  if (r >= 0 && r < 15 && c >= 0 && c < 15 && board[r] && board[r][c] && !pendingPlacements[`${r},${c}`]) {
+  if (r >= 0 && r < 15 && c >= 0 && c < 15 && !pendingPlacements[`${r},${c}`]) {
     panWasBoardTap = { r, c };
   }
   panStartX  = t.clientX;
@@ -8866,6 +8889,78 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   var TOTAL_STEPS = 8;
   var _tutTimers = [];
 
+  // ── Tutorial zoom ────────────────────────────────────────────────────────
+  // The board is unreadable on a phone at 1x, so each step frames the cells it
+  // actually talks about. Every overlay this file draws is positioned from live
+  // getBoundingClientRect() values, which already include the board's transform —
+  // the only thing that ever broke placement was drawing them once and letting
+  // them go stale. _tutOnTransform re-runs the current step's layout for the
+  // length of the transform transition (and through a pan), so they can't.
+  var _relayoutTimer = null, _relayoutUntil = 0;
+  function tutRelayout() {
+    if (window._tutPostRender) { try { window._tutPostRender(); } catch (e) {} }
+  }
+  function tutRelayoutFor(ms) {
+    _relayoutUntil = Math.max(_relayoutUntil, Date.now() + (ms || 420));
+    tutRelayout();   // land on the new position immediately…
+    if (_relayoutTimer) return;
+    // …then follow the transform transition to its end. A timer rather than rAF:
+    // a pan drives this from touchmove, and rAF stalls whenever the page is hidden.
+    _relayoutTimer = setInterval(function() {
+      tutRelayout();
+      if (Date.now() >= _relayoutUntil) { clearInterval(_relayoutTimer); _relayoutTimer = null; }
+    }, 30);
+  }
+  window._tutOnTransform = function() {
+    if (window.tutorialMode) tutRelayoutFor(420);
+  };
+
+  // Frame rows r0..r1 / cols c0..c1 with a one-cell margin, centred in the part of
+  // the board that is actually on screen. #board-wrapper clips the board — on short
+  // screens it is meaningfully shorter than the board itself — so the fit and the
+  // clamping are both computed against the wrapper's box, not the board's.
+  function tutZoom(r0, c0, r1, c1) {
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem('reword_settings') || '{}'); } catch (e) {}
+    var boardEl = document.getElementById('board');
+    var wrapEl  = document.getElementById('board-wrapper');
+    if (!boardEl || !wrapEl) return;
+    if (s.zoom === false) { zoomBoardOut(); return; }
+    var W = boardEl.offsetWidth, H = boardEl.offsetHeight;
+    if (!W || !H) return;
+
+    // Untransformed board origin, measured directly so an in-flight transition
+    // can't feed us a stale position.
+    var prevTransition = boardEl.style.transition, prevTransform = boardEl.style.transform;
+    boardEl.style.transition = 'none';
+    boardEl.style.transform  = '';
+    var base = boardEl.getBoundingClientRect();
+    var wrap = wrapEl.getBoundingClientRect();
+    boardEl.style.transform  = prevTransform;
+    boardEl.offsetHeight; // flush, so restoring the transition can't animate this reset
+    boardEl.style.transition = prevTransition;
+
+    var cellW = W / 15, cellH = H / 15;
+    var regW = ((c1 - c0 + 1) + 2) * cellW;
+    var regH = ((r1 - r0 + 1) + 2) * cellH;
+    var S = Math.min(wrap.width / regW, wrap.height / regH);
+    S = Math.max(1, Math.min(S, 1.8));
+    if (S < 1.05) { zoomBoardOut(); return; }
+
+    var x0 = ((c0 + c1 + 1) / 2) * cellW;
+    var y0 = ((r0 + r1 + 1) / 2) * cellH;
+    // Centre the region in the wrapper, then clamp so no gap shows at any edge.
+    var Tx = (wrap.left + wrap.width  / 2) - base.left - x0 * S;
+    var Ty = (wrap.top  + wrap.height / 2) - base.top  - y0 * S;
+    // lo > hi means the scaled board is smaller than the wrapper on that axis —
+    // nothing to clamp against, so centre it.
+    var fit = function(lo, hi, v) { return lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)); };
+    Tx = fit(wrap.right  - base.left - W * S, wrap.left - base.left, Tx);
+    Ty = fit(wrap.bottom - base.top  - H * S, wrap.top  - base.top,  Ty);
+    applyBoardTransform(Tx, Ty, S);
+    boardZoomed = true;
+  }
+
   function clearAnims() {
     _tutTimers.forEach(clearTimeout); _tutTimers = [];
     document.querySelectorAll('.tut-cell-outline,.tut-step5-bubble,.tut-step6-bubble').forEach(function(e) { if (e.parentNode) e.parentNode.removeChild(e); });
@@ -8876,6 +8971,10 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       var e = document.getElementById(id); if (e && e.parentNode) e.parentNode.removeChild(e);
     });
     window._tutPostRender = null;
+    _relayoutUntil = 0;
+    if (_relayoutTimer) { clearInterval(_relayoutTimer); _relayoutTimer = null; }
+    var bub0 = document.getElementById('tut-bubble');
+    if (bub0) bub0._tutSig = null;
   }
   function after(ms, fn) { _tutTimers.push(setTimeout(fn, ms)); }
 
@@ -8917,9 +9016,15 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     var gsl = gsLeft();
     var bub = document.getElementById('tut-bubble');
     bub.style.display = 'block';
-    bub.innerHTML = (above ? '' : '<div id="tut-bubble-arrow" class="up"></div>') +
-      '<div id="tut-bubble-inner">' + text + '</div>' +
-      (above ? '<div id="tut-bubble-arrow" class="down"></div>' : '');
+    // Only rebuild when the content actually changes: this runs every frame while the
+    // board zoom animates, and re-writing innerHTML would restart the arrow each time.
+    var sig = (above ? 'a|' : 'b|') + text;
+    if (bub._tutSig !== sig) {
+      bub._tutSig = sig;
+      bub.innerHTML = (above ? '' : '<div id="tut-bubble-arrow" class="up"></div>') +
+        '<div id="tut-bubble-inner">' + text + '</div>' +
+        (above ? '<div id="tut-bubble-arrow" class="down"></div>' : '');
+    }
     var bw = bw || 190;
     var left = r.left + r.width / 2 - bw / 2 - gsl;
     var gsWidth = document.getElementById('game-screen').offsetWidth || window.innerWidth;
@@ -8927,14 +9032,31 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     bub.style.left = left + 'px';
     bub.style.width = bw + 'px';
     if (above) {
-      bub.style.top = (r.top - 10) + 'px';
-      setTimeout(function() {
-        var bh = bub.offsetHeight;
-        bub.style.top = (r.top - bh - 4) + 'px';
-      }, 0);
+      bub.style.top = (r.top - bub.offsetHeight - 4) + 'px';
     } else {
       bub.style.top = (r.bottom + 4) + 'px';
     }
+  }
+
+  // Blue pulsing ring on a board cell. Lives on <body> as position:fixed, so it reads
+  // the cell's on-screen rect directly and stays correct at any board zoom.
+  function tutRing2At(el) {
+    if (!el) return;
+    var ring2 = document.getElementById('tut-ring2');
+    if (!ring2) {
+      ring2 = document.createElement('div');
+      ring2.id = 'tut-ring2';
+      ring2.style.cssText = 'position:fixed;pointer-events:none;z-index:180;border-radius:6px;' +
+        'box-shadow:0 0 0 3px #4cc9f0,0 0 18px rgba(76,201,240,0.5);' +
+        'animation:tut-ring-pulse-blue 0.9s ease infinite alternate;';
+      document.body.appendChild(ring2);
+    }
+    var er = el.getBoundingClientRect();
+    ring2.style.left   = (er.left   - 3) + 'px';
+    ring2.style.top    = (er.top    - 3) + 'px';
+    ring2.style.width  = (er.width  + 6) + 'px';
+    ring2.style.height = (er.height + 6) + 'px';
+    ring2.style.display = 'block';
   }
 
   function tutBar(text, nextLabel) {
@@ -9019,6 +9141,13 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     document.body.appendChild(el);
   }
 
+  function tutStep1Overlay() {
+    var bCell = boardCell(7, 9);
+    if (!bCell) return;
+    tutBubble(bCell, 'Drag S here', true);
+    tutRing2At(bCell);
+  }
+
   function tutStep1() {
     clearAnims();
     var existing = document.getElementById('tut-fly');
@@ -9036,29 +9165,14 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     currentPlayer = 'player';
     renderBoard();
     renderRack();
+    tutZoom(6, 5, 8, 10);
     after(300, function() {
       var bCell = boardCell(7, 9);
       document.getElementById('tut-ring').style.display = 'none';
       tutHeader('Your opponent played CARE. If you swap your S for the E, you will be able to play a word with all of your letters for a 35 point bonus. Drag the S from your tile rack over the E to make the swap.');
-      tutBubble(bCell, 'Drag S here', true);
       document.getElementById('tut-bar').style.display = 'none';
-      // Also add a blue highlight ring on the target E
-      var ring2 = document.getElementById('tut-ring2');
-      if (!ring2) {
-        ring2 = document.createElement('div');
-        ring2.id = 'tut-ring2';
-        ring2.style.cssText = 'position:fixed;pointer-events:none;z-index:180;border-radius:6px;' +
-          'transition:all 0.38s;' +
-          'box-shadow:0 0 0 3px #4cc9f0,0 0 18px rgba(76,201,240,0.5);' +
-          'animation:tut-ring-pulse-blue 0.9s ease infinite alternate;';
-        document.body.appendChild(ring2);
-      }
-      var er = bCell.getBoundingClientRect();
-      ring2.style.left = (er.left - 3) + 'px';
-      ring2.style.top  = (er.top  - 3) + 'px';
-      ring2.style.width  = (er.width  + 6) + 'px';
-      ring2.style.height = (er.height + 6) + 'px';
-      ring2.style.display = 'block';
+      tutStep1Overlay();
+      window._tutPostRender = tutStep1Overlay;
       // Loop: animate S flying from rack to board every 2.2s
       function flyLoop() {
         var rT = rackTile(0), bC = boardCell(7, 9);
@@ -9092,6 +9206,8 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     tutHeader('The E is now in your tile rack and is purple along with the S on the board to indicate they\'ve been swapped. Any swapped tiles must be played this turn. Play RETAILED to use all your tiles and get a bonus.');
     renderBoard();
     renderRack();
+    // Row 3 is included for headroom: the "Spell RETAILED here" label hangs above row 4.
+    tutZoom(3, 6, 11, 9);
     // Use a simple delay — onRelease listeners miss touchend since it already fired
     after(120, function() {
       tutStep3DrawOverlay();
@@ -9191,6 +9307,12 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     board[4][8]='E'; board[4][9]='I'; board[4][10]='N';
   }
 
+  function tutStep4Overlay() {
+    var cell = boardCell(7, 9);
+    if (!cell) return;
+    tutBubble(cell, 'Tap the S to move it into your rack', true);
+  }
+
   // Step 3: Trim — board shows full game state, player taps S to remove from CARS
   function tutStep4() {
     clearAnims();
@@ -9206,16 +9328,17 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     window._tutDraggableIdx = null;
     renderBoard();
     renderRack();
+    tutZoom(4, 6, 8, 10);
     after(120, function() {
       // Brief flash to signal AI turn
       showMsg('AI played REIN', 'info');
       after(1200, function() {
         showMsg('', 'info');
-        var cell = boardCell(7, 9);
         document.getElementById('tut-ring').style.display = 'none';
         tutHeader('Now that you know how to swap letters, let\'s steal one. The first or last letter of a word three letters or longer can be stolen by clicking on it, provided it does not join two words and the remaining letters still form a valid word. Steal the S from CARS.');
-        tutBubble(cell, 'Tap the S to move it into your rack', true);
         document.getElementById('tut-bar').style.display = 'none';
+        tutStep4Overlay();
+        window._tutPostRender = tutStep4Overlay;
       });
     });
   }
@@ -9248,6 +9371,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     renderRack();
     tutHeader('Like swapped tiles, stolen tiles turn purple and must be played. When you steal a tile, the square they came from is blocked for that turn. The Recall button will undo all swaps and steals and return original letters to your rack.' +
       '<br><span onclick="window._tutStep6b()" style="color:#f72585;font-weight:700;font-size:0.85rem;letter-spacing:0.08em;cursor:pointer;user-select:none;">NEXT →</span>');
+    tutZoom(4, 6, 11, 9);
     after(80, function() { tutStep6ShowX(); window._tutPostRender = tutStep6ShowX; });
   }
 
@@ -9278,47 +9402,29 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
 
   function tutStep6DrawBubble() {
     tutStep6ShowX();
-    document.querySelectorAll('.tut-step6-bubble').forEach(function(e) { if (e.parentNode) e.parentNode.removeChild(e); });
-    var boardEl2 = document.getElementById('board');
-    boardEl2.style.position = 'relative';
-    // Bubble BELOW R in CAR at (7,8)
+    // Bubble BELOW R in CAR at (7,8). Fixed on <body>, not parented to the board:
+    // inside the board it would be magnified by the zoom and swamp the position.
     var rCell = boardCell(7, 8);
     if (!rCell) return;
-    var boardRect = boardEl2.getBoundingClientRect();
-    var Sc = (boardEl2.offsetWidth > 0) ? boardRect.width / boardEl2.offsetWidth : 1;
     var rr = rCell.getBoundingClientRect();
-    var localCenterX = (rr.left + rr.width / 2 - boardRect.left) / Sc;
-    var localBottom  = (rr.bottom - boardRect.top) / Sc;
 
-    // Bubble below R, centered on it
-    var bub = document.createElement('div');
-    bub.className = 'tut-step6-bubble';
-    bub.style.cssText =
-      'position:absolute;z-index:14;pointer-events:auto;' +
-      'left:' + localCenterX + 'px;top:' + (localBottom + 10) + 'px;' +
-      'transform:translateX(-50%);' +
-      'max-width:160px;background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:10px;' +
-      'padding:10px 14px;color:#fff;font-size:0.78rem;line-height:1.5;' +
-      'text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.65);';
-    bub.innerHTML = 'Swap your <strong>D</strong> for the <strong>R</strong> in CAR';
-    boardEl2.appendChild(bub);
-
-
-    // Blue ring on the R cell
-    var ring2 = document.getElementById('tut-ring2');
-    if (!ring2) {
-      ring2 = document.createElement('div');
-      ring2.id = 'tut-ring2';
-      ring2.style.cssText = 'position:fixed;pointer-events:none;z-index:180;border-radius:6px;' +
-        'box-shadow:0 0 0 3px #4cc9f0,0 0 18px rgba(76,201,240,0.5);' +
-        'animation:tut-ring-pulse-blue 0.9s ease infinite alternate;';
-      document.body.appendChild(ring2);
+    var bub = document.getElementById('tut6-bubble');
+    if (!bub) {
+      bub = document.createElement('div');
+      bub.id = 'tut6-bubble';
+      bub.className = 'tut-step6-bubble';
+      bub.style.cssText =
+        'position:fixed;z-index:1401;pointer-events:auto;transform:translateX(-50%);' +
+        'width:160px;background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:10px;' +
+        'padding:10px 14px;color:#fff;font-size:0.78rem;line-height:1.5;' +
+        'text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.65);';
+      bub.innerHTML = 'Swap your <strong>D</strong> for the <strong>R</strong> in CAR';
+      document.body.appendChild(bub);
     }
-    ring2.style.left   = (rr.left   - 3) + 'px';
-    ring2.style.top    = (rr.top    - 3) + 'px';
-    ring2.style.width  = (rr.width  + 6) + 'px';
-    ring2.style.height = (rr.height + 6) + 'px';
-    ring2.style.display = 'block';
+    bub.style.left = (rr.left + rr.width / 2) + 'px';
+    bub.style.top  = (rr.bottom + 10) + 'px';
+
+    tutRing2At(rCell);
   }
 
   // Step 6: Show SPRING at triple word bonus
@@ -9342,6 +9448,8 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     document.getElementById('tut-bar').style.display = 'none';
     renderBoard();
     renderRack();
+    // Wider than the SPRING column itself: the instruction bubble hangs off its left side.
+    tutZoom(0, 4, 5, 11);
     after(80, function() {
       tutDrawSpringOverlay();
       window._tutPostRender = tutDrawSpringOverlay;
@@ -9357,42 +9465,51 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
   }
 
   function tutDrawSpringOverlay() {
-    document.querySelectorAll('.tut-cell-outline').forEach(function(e) { if (e.parentNode) e.parentNode.removeChild(e); });
-    var boardEl2 = document.getElementById('board');
-    boardEl2.style.position = 'relative';
     var startCell = boardCell(0, 10);
     var endCell   = boardCell(5, 10);
     if (!startCell || !endCell) return;
-    var boardRect = boardEl2.getBoundingClientRect();
-    var Sc = (boardEl2.offsetWidth > 0) ? boardRect.width / boardEl2.offsetWidth : 1;
     var sr = startCell.getBoundingClientRect();
     var er = endCell.getBoundingClientRect();
     var pad = 3;
-    var localLeft   = (sr.left   - boardRect.left) / Sc;
-    var localTop    = (sr.top    - boardRect.top)  / Sc;
-    var localWidth  = sr.width   / Sc;
-    var localHeight = (er.bottom - sr.top) / Sc;
-    var cellH       = sr.height / Sc;
-    var colLeft     = localLeft - pad;
 
-    // Bounding box outline (vertical column)
-    var box = document.createElement('div');
-    box.className = 'tut-cell-outline';
-    box.style.cssText = 'position:absolute;' +
-      'left:' + (localLeft - pad) + 'px;top:' + (localTop - pad) + 'px;' +
-      'width:' + (localWidth + pad*2) + 'px;height:' + (localHeight + pad*2) + 'px;';
-    boardEl2.appendChild(box);
+    // Bounding box outline (vertical column) — fixed on <body> like the rest of the
+    // overlays, so the board zoom scales the cells it points at but not the callout.
+    var box = document.getElementById('tut7-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'tut7-box';
+      box.className = 'tut-cell-outline';
+      box.style.cssText = 'position:fixed;pointer-events:none;z-index:1400;';
+      document.body.appendChild(box);
+    }
+    box.style.left   = (sr.left - pad) + 'px';
+    box.style.top    = (sr.top  - pad) + 'px';
+    box.style.width  = (sr.width + pad * 2) + 'px';
+    box.style.height = (er.bottom - sr.top + pad * 2) + 'px';
 
     var complete = tutSpringComplete();
 
-    if (complete) {
-      // Play button top-aligned with TW square, to the left of column
-      var playBtn = document.createElement('button');
+    var lbl = document.getElementById('tut7-lbl');
+    if (!lbl) {
+      lbl = document.createElement('div');
+      lbl.id = 'tut7-lbl';
+      lbl.className = 'tut-cell-outline';
+      lbl.style.cssText =
+        'position:fixed;pointer-events:auto;z-index:1401;border:none;animation:none;' +
+        'width:175px;background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:10px;' +
+        'padding:10px 14px;color:#fff;font-size:0.78rem;line-height:1.5;' +
+        'text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.65);';
+      lbl.innerHTML = 'Now you have the letters to spell <strong>SPRING</strong> here — and hit the triple word bonus!';
+      document.body.appendChild(lbl);
+    }
+
+    var playBtn = document.getElementById('tut7-play');
+    if (!playBtn) {
+      playBtn = document.createElement('button');
+      playBtn.id = 'tut7-play';
       playBtn.className = 'tut-cell-outline';
       playBtn.style.cssText =
-        'position:absolute;border:none;animation:none;z-index:14;' +
-        'left:' + (colLeft - 10) + 'px;top:' + localTop + 'px;' +
-        'transform:translateX(-100%);' +
+        'position:fixed;border:none;animation:none;z-index:1402;' +
         // Matches the game-over modal's button: solid purple, fully rounded ends.
         'background:#7234ee;' +
         'color:#fff;font-weight:700;font-size:0.85rem;font-family:inherit;' +
@@ -9400,23 +9517,20 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
         'box-shadow:0 2px 12px rgba(0,0,0,0.5);pointer-events:auto;';
       playBtn.textContent = 'Play →';
       playBtn.onclick = function() { tutorialAdvance(); };
-      boardEl2.appendChild(playBtn);
-    } else {
-      // Bubble top-aligned with TW square, to the left of column
-      var lbl = document.createElement('div');
-      lbl.className = 'tut-cell-outline';
-      var lbl = document.createElement('div');
-      lbl.className = 'tut-cell-outline';
-      lbl.style.cssText =
-        'position:absolute;pointer-events:auto;z-index:14;border:none;animation:none;' +
-        'left:' + (colLeft - 10) + 'px;top:' + localTop + 'px;' +
-        'transform:translateX(-100%);' +
-        'max-width:175px;background:#2d1b69;border:1.5px solid #7b2ff7;border-radius:10px;' +
-        'padding:10px 14px;color:#fff;font-size:0.78rem;line-height:1.5;' +
-        'text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.65);';
-      lbl.innerHTML = 'Now you have the letters to spell <strong>SPRING</strong> here — and hit the triple word bonus!';
-      boardEl2.appendChild(lbl);
+      document.body.appendChild(playBtn);
     }
+
+    lbl.style.display     = complete ? 'none' : '';
+    playBtn.style.display = complete ? '' : 'none';
+
+    // Sit to the left of the column, top-aligned with the TW square — unless the zoom
+    // has pushed the column too far left to fit, in which case flip to the right.
+    var el = complete ? playBtn : lbl;
+    var w  = el.offsetWidth;
+    var left = sr.left - pad - 10 - w;
+    if (left < 8) left = Math.min(er.right + 10, window.innerWidth - w - 8);
+    el.style.left = left + 'px';
+    el.style.top  = sr.top + 'px';
   }
 
   // Shown when the player hits Play on RETAILED — the moment the payoff of swapping lands,
@@ -9479,6 +9593,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     // showing the last thing that happened in the game you came from — and, since the
     // replay button is only re-evaluated when the feed or the UI updates, its button too.
     showMsg('', 'info');
+    zoomBoardOut();
     document.getElementById('controls').style.display = 'none';
     document.getElementById('tut-exit-btn').classList.add('visible');
     document.getElementById('scoreboard').style.display = 'none';
@@ -9491,6 +9606,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     clearAnims();
     window.tutorialMode = false;
     window._tutDraggableIdx = null;
+    zoomBoardOut();   // don't carry the tutorial's framing into a real game
     showMsg('', 'info');   // don't carry the tutorial's narration out into a real game
     document.getElementById('tut-exit-btn').classList.remove('visible');
     ['tut-ring2','tut-fly'].forEach(function(id) {

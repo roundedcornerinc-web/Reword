@@ -276,9 +276,23 @@ body {
 #replay-btn.playing svg { opacity: 0.55; }
 /* Success and narration share one colour; red stays reserved for rejections. */
 #msg-bar.good #msg-text { color: var(--msg-info); }
-#msg-bar.bad  #msg-text { color: var(--msg-bad); }
+/* White, not red: red-on-purple was the least readable pairing in the whole UI, and
+   testers were missing rejections entirely. The flash below carries the "no" instead. */
+#msg-bar.bad  #msg-text { color: #fff; }
 #msg-bar.info #msg-text { color: var(--msg-info); }
 #msg-bar.hidden #msg-text { color: transparent; }
+
+/* Rejected play: the bar goes red, then eases back to its normal purple. Motion is what
+   gets noticed — a colour change alone reads as decoration. */
+@keyframes msg-bad-flash {
+  0%, 18% { background: #c1121f; }
+  100%    { background: #3c2d75; }
+}
+#msg-bar.flash-bad { animation: msg-bad-flash 1.6s cubic-bezier(.25,.1,.25,1) 1; }
+@media (prefers-reduced-motion: reduce) {
+  /* Still flag it, just without the long fade. */
+  #msg-bar.flash-bad { animation-duration: 0.4s; }
+}
 
 /* ── BOARD WRAPPER ── */
 #board-wrapper {
@@ -5988,7 +6002,14 @@ function updateUI() {
 function showMsg(text, type = 'info') {
   const bar = document.getElementById('msg-bar');
   document.getElementById('msg-text').textContent = text;
-  bar.className = type;
+  bar.className = type;   // note: this wipes flash-bad, so re-add it below
+  if (type === 'bad' && text) {
+    // Reflow between remove and add, or a second rejection in a row re-uses the
+    // already-running animation and nothing visibly happens.
+    bar.classList.remove('flash-bad');
+    void bar.offsetWidth;
+    bar.classList.add('flash-bad');
+  }
   updateReplayButton();
 }
 
@@ -6548,6 +6569,14 @@ function validateSavedTileCounts(s) {
 }
 
 function loadAiGameState() {
+  // Leave online mode BEFORE any early return. This used to sit below them, so opening an
+  // AI game with no save (or a rejected one) kept isOnlineMode true — and updateUI paints
+  // the opponent panel from opponentOnlineName whenever that flag is set, so the last
+  // online opponent's name stayed in the AI slot until you went home and back.
+  isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+  opponentOnlineName = 'Opponent';
+  const _aiNameEl = document.getElementById('ai-name-display');
+  if (_aiNameEl) _aiNameEl.textContent = 'AI';
   try {
     const raw = localStorage.getItem(AI_SAVE_KEY);
     if (!raw) return false;
@@ -6580,7 +6609,6 @@ function loadAiGameState() {
     lastSwapKeys = s.lastSwapKeys || [];
     lastSwapPairMap = s.lastSwapPairMap || {};
     if (s.aiSkill) aiSkill = s.aiSkill;
-    isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
     resetPending();
     updateUI();
     checkGameOver();
@@ -7302,15 +7330,27 @@ window.addEventListener('universalLink', (e) => handleIncomingInvite(e.detail?.g
 window.addEventListener('deferredInvite', (e) => handleIncomingInvite(e.detail?.gameId));
 
 // Re-attach Firestore listener if app comes back to foreground after being killed
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) {
-    if (isOnlineMode && onlineGameId) resyncOnlineGame(onlineGameId);
-    // Refresh home screen game list when app comes back to foreground
-    if (document.getElementById('home-screen')?.classList.contains('active')) {
-      loadHomeGames();
-    }
+let _lastForegroundSync = 0;
+function onAppForeground() {
+  if (document.hidden) return;
+  // The three events below overlap; without this a single resume fires the resync
+  // several times and each one restarts the Firestore listener.
+  const now = Date.now();
+  if (now - _lastForegroundSync < 400) return;
+  _lastForegroundSync = now;
+  if (isOnlineMode && onlineGameId) resyncOnlineGame(onlineGameId);
+  // Refresh home screen game list when app comes back to foreground
+  if (document.getElementById('home-screen')?.classList.contains('active')) {
+    loadHomeGames();
   }
-});
+}
+// visibilitychange alone is not enough: WKWebView does not fire it dependably when the
+// app returns from the background, which left the board on the pre-suspend turn. focus
+// and pageshow cover the cases it misses. (@capacitor/app's appStateChange would be the
+// precise signal, but that plugin is not a dependency of this project.)
+document.addEventListener('visibilitychange', onAppForeground);
+window.addEventListener('focus', onAppForeground);
+window.addEventListener('pageshow', onAppForeground);
 
 // Catch up after the app was in the background. `onlineUnsubscribe` still holding a function
 // is NOT evidence the stream is alive — iOS suspends the WebView and the Firestore connection
@@ -8074,12 +8114,24 @@ async function loadOnlineGame(gameId, myRole) {
   opponentOnlineName = (window._homeGames || []).find(g => g.id === gameId)?.opponentName || opponentOnlineName;
   const _nameEl = document.getElementById('ai-name-display');
   if (_nameEl) _nameEl.textContent = opponentOnlineName;
+  // Timestamps are per-game, so carrying one across games lets resyncOnlineGame decide a
+  // freshly opened game is "already up to date" against a different game's clock.
+  if (onlineGameId !== gameId) _lastAppliedUpdate = 0;
   isOnlineMode = true; myOnlineRole = myRole; onlineGameId = gameId;
   updateUI();
   updateDifficultyBadge();
   updateResignButton();
   try {
-    const snap = await db.collection('games').doc(gameId).get();
+    // Server-first. A plain get() is cache-first, and the cache is exactly what is stale
+    // when this runs on resume from a push tap — the board would paint the pre-suspend
+    // turn even though the notification said it was your move. Same lesson as
+    // resyncOnlineGame. Falls back to the cache when genuinely offline.
+    let snap;
+    try {
+      snap = await db.collection('games').doc(gameId).get({ source: 'server' });
+    } catch (e) {
+      snap = await db.collection('games').doc(gameId).get();
+    }
     if (!snap.exists) {
       // Don't immediately wipe the stored game — the document may be
       // temporarily unavailable. Only remove it if the game is explicitly
@@ -8484,9 +8536,12 @@ async function registerNativePush() {
         const d = (await db.collection('games').doc(gameId).get()).data();
         if (d && d.rematchChallenge && !d.gameOver) { showHomeScreen(); return; }
       } catch(e) {}
+      // showGameScreen() first: every other entry point pairs it with the load, and it is
+      // what clears the previous game's feed, replay button and last-move highlights. A
+      // notification tap landing on a board that is already open used to skip it entirely.
       const stored = getStoredGames().find(g => g.gameId === gameId);
-      if (stored) loadOnlineGame(stored.gameId, stored.myRole);
-      else if (myRole) loadOnlineGame(gameId, myRole);
+      if (stored) { showGameScreen(); loadOnlineGame(stored.gameId, stored.myRole); }
+      else if (myRole) { showGameScreen(); loadOnlineGame(gameId, myRole); }
     });
     await Push.register();
   } catch(e) {

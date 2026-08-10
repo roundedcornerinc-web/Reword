@@ -3045,6 +3045,14 @@ function validatePlay(placements, swapKeys = new Set()) {
 function submitPlay() {
   if (currentPlayer !== 'player' || gameOver) return;
 
+  // Online mode with no game to write to is incoherent, and the failure it produces is
+  // silent: the turn scores, the online branch waits for a remote opponent that does not
+  // exist, and the AI never moves. Fall back to a local game rather than stall.
+  if (isOnlineMode && !onlineGameId) {
+    console.warn('[submitPlay] isOnlineMode with no onlineGameId — treating as a local game');
+    isOnlineMode = false; myOnlineRole = null;
+  }
+
   const allPlacements = {...pendingPlacements};
   const swapKeys = new Set(swapPendingPositions);
 
@@ -6412,6 +6420,12 @@ applyPlayerName();
 // ═══════════════════════════════════════════════════════
 function startGame() {
   document.getElementById('overlay').classList.remove('show');
+  // A fresh local board is by definition not an online game. This used to be left to each
+  // caller, and startAiRematch() did not do it — a stale isOnlineMode makes submitPlay take
+  // the online branch, so the play scores and then the AI simply never moves, with no error
+  // and nothing on screen to explain it. Callers that are genuinely going online
+  // (the invite-join flow) set the flag after this runs, so clearing here is safe.
+  isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
   board = Array.from({length:BS}, ()=>Array(BS).fill(null));
   boardSwapPositions = new Set();
   bag = buildBag();

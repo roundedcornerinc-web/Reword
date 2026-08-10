@@ -3168,7 +3168,7 @@ function submitPlay() {
   checkGameOver();
   if (isOnlineMode) { saveOnlineState(); return; }
   saveAiGameState();
-  if (!gameOver) setTimeout(doAiTurn, 1200);
+  if (!gameOver) scheduleAiTurn(1200);
 }
 
 function passTurn() {
@@ -3183,7 +3183,7 @@ function passTurn() {
     checkGameOver();
     if (isOnlineMode) { saveOnlineState(); return; }
     saveAiGameState();
-    if (!gameOver) setTimeout(doAiTurn, 800);
+    if (!gameOver) scheduleAiTurn(800);
   });
 }
 
@@ -3505,7 +3505,7 @@ function confirmExchange() {
   checkGameOver();
   if (isOnlineMode) { saveOnlineState(); return; }
   saveAiGameState();
-  if (!gameOver) setTimeout(doAiTurn, 800);
+  if (!gameOver) scheduleAiTurn(800);
 }
 
 function recallPendingTile(key) {
@@ -3533,6 +3533,15 @@ function recallPendingTile(key) {
   if (p.isSwap && swappedRackIndices.size === 0) {
     showMsg('', 'info');
   }
+}
+
+// The only positions that actually end a game — the inverse of checkGameOver's tests below.
+// Used to sanity-check a restored gameOver flag: a game cannot be over without one of these.
+function isTerminalPosition() {
+  return passCount >= 4
+      || (bag.length === 0 && (playerRack.length === 0 || aiRack.length === 0))
+      || aiNoMoveCount >= 2
+      || playerNoMoveCount >= 2;
 }
 
 function checkGameOver() {
@@ -4228,6 +4237,48 @@ function doPlayerAiTurn() {
   }, aiVsAiDelay());
 }
 
+// A stranded AI turn is unrecoverable on its own: currentPlayer stays 'ai', and that gets
+// saved, so every relaunch reschedules the same failing turn and the game is dead for good.
+// (An app update keeps its data, so reinstalling does not clear it.) Hand the turn back
+// instead. passCount is deliberately NOT incremented — this is not the AI choosing to pass,
+// and inflating it would end the game early.
+let _aiTurnSeq = 0;
+let _aiWatchdog = null;
+let _aiHandoverRetry = null;
+
+// Hand the turn to the AI. The retry is the point of this: if doAiTurn never runs at all,
+// the player keeps their turn and can just play again — the game stays fully usable and the
+// AI silently never moves, which is exactly how it gets reported. doAiTurn bumps _aiTurnSeq
+// the moment it starts, so a turn that did happen cancels the retry.
+function scheduleAiTurn(delay) {
+  clearTimeout(_aiHandoverRetry);
+  const seq = _aiTurnSeq;
+  setTimeout(doAiTurn, delay);
+  _aiHandoverRetry = setTimeout(() => {
+    // No currentPlayer check: the handover fails the same way whether the turn still reads
+    // as the player's (submitPlay) or as the AI's (resuming a save mid-AI-turn). A later
+    // play calls scheduleAiTurn again, which clears this retry, so it cannot double-fire.
+    if (_aiTurnSeq === seq && !isOnlineMode && !aiVsAiMode && !gameOver) {
+      console.warn('[AI turn] handover never happened — retrying');
+      doAiTurn();
+    }
+  }, delay + 6000);
+}
+
+function recoverStuckAiTurn(reason, err) {
+  console.warn('[AI turn] recovered after ' + reason, err || '');
+  clearTimeout(_aiWatchdog); _aiWatchdog = null;
+  document.getElementById('ai-indicator')?.classList.remove('show');
+  if (gameOver || aiVsAiMode) return;
+  boardSwapPositions = new Set();
+  currentPlayer = 'player';
+  updateTurnBadge();
+  checkGameOver();
+  updateUI();
+  saveAiGameState();
+  showMsg('The AI could not finish its turn, so it skipped. Your move.', 'bad');
+}
+
 function doAiTurn() {
   if (gameOver) return;
   // If AI rack is already empty and bag is empty, end immediately
@@ -4237,7 +4288,16 @@ function doAiTurn() {
   updateTurnBadge();
   document.getElementById('ai-indicator').classList.add('show');
 
+  // Watchdog for the turn never completing at all — a throw is caught below, but the timer
+  // itself can also simply never fire (iOS suspends timers when the WebView is backgrounded).
+  const turn = ++_aiTurnSeq;
+  clearTimeout(_aiWatchdog);
+  _aiWatchdog = aiVsAiMode ? null : setTimeout(() => {
+    if (turn === _aiTurnSeq && currentPlayer === 'ai' && !gameOver) recoverStuckAiTurn('timeout');
+  }, 12000);
+
   setTimeout(() => {
+   try {
     const normalMove = findAIMove();
     const swapMove   = findAISwapMove();
     const stealMove  = findAIStealMove();
@@ -4382,6 +4442,12 @@ function doAiTurn() {
       updateUI();
       saveAiGameState();
     }
+    clearTimeout(_aiWatchdog); _aiWatchdog = null;   // turn completed, stand the watchdog down
+   } catch (err) {
+    // The body above is left at its original indentation so this guard stays a small,
+    // reviewable diff rather than a 145-line reformat.
+    recoverStuckAiTurn('an error', err);
+   }
   }, 800);
 }
 
@@ -6644,10 +6710,22 @@ function loadAiGameState() {
     lastSwapKeys = s.lastSwapKeys || [];
     lastSwapPairMap = s.lastSwapPairMap || {};
     if (s.aiSkill) aiSkill = s.aiSkill;
+
+    // A restored gameOver that no terminal position supports freezes the game solid:
+    // gameOver gates the AI turn, tile placement and board taps alike, so the AI never
+    // moves, nothing can be placed, and there is no winner modal to explain any of it.
+    // The flag is saved state and survives app updates, so it cannot clear itself.
+    // Trust the position over the flag — checkGameOver below re-ends the game if it
+    // really is over.
+    if (gameOver && !isTerminalPosition()) {
+      console.warn('[loadAiGameState] saved gameOver with no terminal position — resuming play');
+      gameOver = false;
+    }
+
     resetPending();
     updateUI();
     checkGameOver();
-    if (!gameOver && currentPlayer === 'ai') setTimeout(doAiTurn, 800);
+    if (!gameOver && currentPlayer === 'ai') scheduleAiTurn(800);
     return true;
   } catch { return false; }
 }

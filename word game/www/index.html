@@ -3744,8 +3744,16 @@ function onCellDrop(r, c, rackIdx) {
   }
   if (gameOver) return;
   const key = `${r},${c}`;
+  // Was a bare `return`. A refused drop that says nothing is indistinguishable from a
+  // dead board, which is how "I couldn't move tiles" gets reported with no other detail.
+  // Reaching this means the rack index is stale (its tile is already on the board), so a
+  // re-render puts the rack back in step.
   const alreadyUsed = Object.values(pendingPlacements).some(p => !p.isSwap && p.rackIdx === rackIdx);
-  if (alreadyUsed) return;
+  if (alreadyUsed) {
+    showMsg('That tile is already on the board.', 'bad');
+    renderRack();
+    return;
+  }
 
   // UNDO SWAP: stolen rack tile dropped back on its own swap source square → undo the swap
   if (swappedRackIndices.has(rackIdx) && pendingPlacements[key]?.isSwap && pendingPlacements[key]?.rackIdx === rackIdx) {
@@ -5518,6 +5526,30 @@ function extendToWordEnd(b, r, c, horizontal) {
   return [r, c];
 }
 
+// Where the score badge sits relative to the final tile of the word. The badge is centred
+// on a corner, so the natural choice — the corner past the word's end — hangs half of it
+// outside the board when the word finishes in the last column. Clamping it back inside
+// (what this used to do) parked it squarely on the letter. Flip to the tile's near corner
+// instead, so the badge always sits on a corner and never covers a tile face.
+function badgeCorner(cellRect, boardRect, boardEl, isH, scale) {
+  // boardRect is the border box, but an absolutely positioned child is placed from the
+  // padding box — so every coordinate here has to lose the board's 3px border, or the
+  // badge lands 3px down and right of the corner it is supposed to be centred on.
+  const bl = boardEl.clientLeft, bt = boardEl.clientTop;
+  const bw = boardEl.clientWidth, bh = boardEl.clientHeight;
+  const R  = clamp(3.4 * boardEl.offsetHeight / 100, 10, 14);  // half badge size, matching the CSS clamp
+  const left   = (cellRect.left   - boardRect.left) / scale - bl;
+  const right  = (cellRect.right  - boardRect.left) / scale - bl;
+  const top    = (cellRect.top    - boardRect.top)  / scale - bt;
+  const bottom = (cellRect.bottom - boardRect.top)  / scale - bt;
+
+  const x = (right + R > bw) ? left : right;   // last column → left corner of the tile
+  let   y = isH ? top : bottom;
+  if (y - R < 0)  y = bottom;                  // top row → drop to the bottom corner
+  if (y + R > bh) y = top;                     // bottom row → raise to the top corner
+  return [clamp(x, R + 1, bw - R - 1), clamp(y, R + 1, bh - R - 1)];
+}
+
 function renderScorePreview() {
   const boardEl = document.getElementById('board');
   document.querySelectorAll('.board-score-preview').forEach(e => e.remove());
@@ -5543,11 +5575,7 @@ function renderScorePreview() {
         const badge = document.createElement('div');
         badge.className = 'last-score-badge';
         badge.innerHTML = `<span class="bsp-pts">${lastPlayScore}</span>`;
-        const bw = boardEl.offsetWidth, bh = boardEl.offsetHeight;
-        const r  = clamp(3.4 * bh / 100, 10, 14);   // half badge size, matching the CSS clamp
-        const bx = clamp((cellRect.right - boardRect.left) / scale, r + 1, bw - r - 1);
-        const by = clamp((isH ? cellRect.top - boardRect.top : cellRect.bottom - boardRect.top) / scale,
-                         r + 1, bh - r - 1);
+        const [bx, by] = badgeCorner(cellRect, boardRect, boardEl, isH, scale);
         badge.style.left = `${bx}px`;
         badge.style.top  = `${by}px`;
         boardEl.appendChild(badge);
@@ -5626,28 +5654,7 @@ function renderScorePreview() {
   const cellRect  = anchorCell.getBoundingClientRect();
   const scale = boardRect.width / boardEl.offsetWidth || 1;
 
-  const boardH = boardEl.offsetHeight;
-  const BADGE_R = clamp(3.4 * boardH / 100, 10, 14); // half badge size in board px
-
-  const boardW = boardEl.offsetWidth;
-  let x = (cellRect.right - boardRect.left) / scale;
-  let y;
-  if (isHorizontal) {
-    const yTop    = (cellRect.top    - boardRect.top) / scale;
-    const yBottom = (cellRect.bottom - boardRect.top) / scale;
-    // prefer above the tile; if too close to top, go below
-    y = yTop > BADGE_R ? yTop : yBottom;
-  } else {
-    const yBottom = (cellRect.bottom - boardRect.top) / scale;
-    const yTop    = (cellRect.top    - boardRect.top) / scale;
-    // prefer below the tile; if near board bottom, flip above
-    y = yBottom < boardH - BADGE_R ? yBottom : yTop;
-  }
-
-  // The badge is centred on the corner it points at, so a word ending in the last column or
-  // bottom row put half of it outside the board, where it was clipped. Pull it back inside.
-  x = clamp(x, BADGE_R + 1, boardW - BADGE_R - 1);
-  y = clamp(y, BADGE_R + 1, boardH - BADGE_R - 1);
+  const [x, y] = badgeCorner(cellRect, boardRect, boardEl, isHorizontal, scale);
 
   const preview = document.createElement('div');
   preview.className = 'board-score-preview';
@@ -5668,8 +5675,14 @@ function showBlankPicker(callback) {
     btn.textContent = ch;
     btn.addEventListener('click', () => {
       document.getElementById('blank-picker').classList.remove('show');
-      blankPickerCallback(ch);
+      // Clear the latch BEFORE running the callback. It used to be cleared after, so any
+      // throw inside the callback — it runs updateUI(), so most of the render path is in
+      // scope — left blankPickerCallback set with the picker already hidden. From that
+      // point every drag release skips snapToNearestBoardCell and tiles silently refuse
+      // to go on the board, with nothing on screen to explain it.
+      const cb = blankPickerCallback;
       blankPickerCallback = null;
+      if (cb) cb(ch);
     });
     lettersDiv.appendChild(btn);
   }
@@ -5685,9 +5698,16 @@ function showBlankPicker(callback) {
 // also re-arms the drag handler, which skips snap-to-cell while a picker is open.
 function cancelBlankPicker() {
   const picker = document.getElementById('blank-picker');
-  if (!picker?.classList.contains('show')) return;
-  picker.classList.remove('show');
+  // Clear the latch unconditionally. The early return used to sit above this, so if the
+  // picker was already hidden while the latch was still set, Escape and Cancel could not
+  // clear it either — the board stayed unplaceable with no way back short of a reload.
+  const wasLatched = blankPickerCallback !== null;
   blankPickerCallback = null;
+  if (!picker?.classList.contains('show')) {
+    if (wasLatched) updateUI();
+    return;
+  }
+  picker.classList.remove('show');
   updateUI();
 }
 
@@ -6577,6 +6597,7 @@ function loadAiGameState() {
   opponentOnlineName = 'Opponent';
   const _aiNameEl = document.getElementById('ai-name-display');
   if (_aiNameEl) _aiNameEl.textContent = 'AI';
+  resetPerGameFeed();   // the saved state below repopulates these for THIS game
   try {
     const raw = localStorage.getItem(AI_SAVE_KEY);
     if (!raw) return false;
@@ -8110,7 +8131,7 @@ async function loadOnlineGame(gameId, myRole) {
   playerScore = 0; aiScore = 0; passCount = 0;
   aiNoMoveCount = 0; playerNoMoveCount = 0;
   lastPlayScore = null; currentPlayer = 'player'; gameOver = false;
-  resetPending(); showMsg('', 'info');
+  resetPending(); resetPerGameFeed();   // applyOnlineState repopulates these from the doc
   opponentOnlineName = (window._homeGames || []).find(g => g.id === gameId)?.opponentName || opponentOnlineName;
   const _nameEl = document.getElementById('ai-name-display');
   if (_nameEl) _nameEl.textContent = opponentOnlineName;
@@ -9795,16 +9816,22 @@ async function loadHomeGames() {
   }
 }
 
-function showGameScreen() {
-  stopHomeListeners();
-  // The feed and the replay it offers belong to one game. Opening a different game used to
-  // arrive showing the last thing that happened in the previous one — and a replay button
-  // that would have replayed that game's move.
+// The feed line, the replay button's move and the score badge all belong to exactly one
+// game. Callers that switch games while already on the board — Other Games, a notification
+// tap — never pass through showGameScreen(), so this lives in the loaders as well. Putting
+// it only on the screen switch is what let "Waiting for Cornhead to play…" follow the
+// player into a game against the AI.
+function resetPerGameFeed() {
   showMsg('', 'info');
   lastMoveKeys = [];
   lastSwapKeys = [];
   lastSwapPairMap = {};
   lastPlayScore = null;
+}
+
+function showGameScreen() {
+  stopHomeListeners();
+  resetPerGameFeed();
   document.getElementById('home-screen').classList.remove('active');
   document.getElementById('game-screen').classList.add('active');
 }

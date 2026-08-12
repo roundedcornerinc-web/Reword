@@ -10249,6 +10249,10 @@ function buildHomeGamesList() {
   const resultsCards = [];
   const myMoveCards = [];
   const theirMoveCards = [];
+  // Completed Games is capped at the most recent few. It draws from three sources that each
+  // append in their own order, so the cards carry a timestamp and get sorted before slicing —
+  // taking the first five off the end of the array would just favour whichever source ran first.
+  const COMPLETED_SHOWN = 5;
   const completedCards = [];
   const viewedResults = getViewedResults();
 
@@ -10274,7 +10278,9 @@ function buildHomeGamesList() {
           if (s.playerScore > s.aiScore) label = 'You won!';
           else if (s.playerScore < s.aiScore) label = 'You lost';
           else label = 'Tie game';
-          completedCards.push(resultCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', label, view));
+          const finishedAiCard = resultCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', label, view);
+          finishedAiCard._completedAt = s.lastUpdated || 0;
+          completedCards.push(finishedAiCard);
         }
       }
     }
@@ -10294,6 +10300,7 @@ function buildHomeGamesList() {
         '<div class="hgc-result-label">' + label + '</div>' +
         '<div class="hgc-score-line">' + scoreLine(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')') + '</div>' +
       '</div>';
+    card._completedAt = s.lastUpdated || 0;
     completedCards.push(card);
   });
 
@@ -10352,7 +10359,9 @@ function buildHomeGamesList() {
           loadOnlineGame(gid, role);
           showGameScreen();
         }; })(g.id, g.myRole);
-        completedCards.push(resultCard(g.playerScore||0, g.aiScore||0, opp, label, viewCompleted));
+        const completedOnlineCard = resultCard(g.playerScore||0, g.aiScore||0, opp, label, viewCompleted);
+        completedOnlineCard._completedAt = g.updatedAt || 0;
+        completedCards.push(completedOnlineCard);
       }
     } else {
       const myTurn = g.currentPlayer === 'player';
@@ -10365,11 +10374,13 @@ function buildHomeGamesList() {
     }
   });
 
+  completedCards.sort(function(a, b) { return (b._completedAt || 0) - (a._completedAt || 0); });
+
   const sections = [
     makeSection('Results', resultsCards, true),
     makeSection('Your Move', myMoveCards, false),
     makeSection('Their Move', theirMoveCards, true),
-    makeSection('Completed Games', completedCards, true),
+    makeSection('Completed Games', completedCards.slice(0, COMPLETED_SHOWN), true),
   ].filter(Boolean);
 
   if (sections.length === 0) {

@@ -1572,16 +1572,21 @@ body {
   background: inherit;
 }
 .hgc-swipe-wrapper:last-child { border-bottom: none; }
-.hgc-delete-zone {
+/* Revealed by swiping a card left. One per card; the card itself slides over it. */
+.hgc-swipe-action {
   position: absolute;
   right: 0; top: 0; bottom: 0;
-  width: 72px;
-  background: #e63946;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
 }
-.hgc-delete-zone svg { pointer-events: none; }
+.hgc-swipe-action svg { pointer-events: none; }
+.hgc-delete-zone  { width: 72px; background: #e63946; }
+.hgc-rematch-zone {
+  width: 96px; background: #7234ee;
+  color: #fff; font-family: inherit;
+  font-weight: 800; font-size: 0.72rem; letter-spacing: 0.06em;
+}
 .home-game-card {
   padding: 12px 14px;
   display: flex; align-items: flex-end;
@@ -8418,23 +8423,28 @@ async function homeResignGame(g) {
 }
 
 // ── Swipe-to-delete wrapper for home game cards ─────────
-function makeSwipeable(card, g) {
+const _TRASH_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>';
+
+// Swipe a card left to reveal one action underneath it. `action` is
+// { className, html, width, onAction } — delete for games in progress, rematch for
+// finished ones.
+function makeSwipeable(card, action) {
   const wrapper = document.createElement('div');
   wrapper.className = 'hgc-swipe-wrapper';
 
-  const deleteZone = document.createElement('div');
-  deleteZone.className = 'hgc-delete-zone';
-  deleteZone.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>';
-  deleteZone.addEventListener('click', e => {
+  const actionZone = document.createElement('div');
+  actionZone.className = 'hgc-swipe-action ' + (action.className || '');
+  actionZone.innerHTML = action.html;
+  actionZone.addEventListener('click', e => {
     e.stopPropagation();
     snapCard(0);
-    homeDeleteGame(g);
+    action.onAction();
   });
 
-  wrapper.appendChild(deleteZone);
+  wrapper.appendChild(actionZone);
   wrapper.appendChild(card);
 
-  const DELETE_WIDTH = 72;
+  const DELETE_WIDTH = action.width || 72;
   const SNAP_THRESHOLD = 30;
   let startX = 0, curX = 0, dragging = false;
 
@@ -9844,6 +9854,7 @@ function snapToGame(snap, myRole) {
     opponentId: d.players?.[opRole]?.id || null,
     updatedAt: d.lastUpdated?.toMillis?.() || null,
     rematchChallenge: !!(d.rematchChallenge && d.currentTurn === myRole),
+    friendChallenge: !!d.friendChallenge,
     rematchChallengerName: d.rematchChallengerName || null,
     resignedBy: d.resignedBy || null,
     rematchDeclined: !!d.rematchDeclined,
@@ -10123,7 +10134,7 @@ function buildFriendsList() {
         <div class="friend-name">${escHtml(f.name)}</div>
         <div class="friend-meta">Last played ${ago}</div>
       </div>
-      <button class="friend-play-btn" onclick="friendPlay('${escHtml(f.id)}')">PLAY</button>
+      <button class="friend-play-btn" onclick="event.stopPropagation();friendPlay('${escHtml(f.id)}')">PLAY</button>
     </div>`;
   }).join('');
 }
@@ -10137,9 +10148,79 @@ function timeAgo(ts) {
   return ago(Math.floor(diff/86400), 'day');
 }
 
+// The PLAY button must stop its click propagating (see the button's inline handler): the
+// document-level "tap outside to close" listener fires on the very click that would open a
+// chooser, sees a click outside it, and closes it again in the same tick — so nothing
+// appears at all. addFriend() dodges the same trap with a setTimeout.
 function friendPlay(friendId) {
   closeFriends();
-  homeStartNewGame(null);
+  challengeFriend(friendId);
+}
+
+// Challenge one specific friend, no invite link needed — we already know their player id.
+// Deliberately the same shape as startOnlineRematch: p2 pre-filled, so the friend's home
+// screen picks the game up through its players.p2.id listener and shows the existing
+// accept/decline card. currentTurn is p1, so as with a rematch the challenger plays first
+// and the card reaches the friend once it is their move.
+async function challengeFriend(friendId) {
+  const friend = getFriends().find(f => f.id === friendId);
+  if (!friend) { showMsg('Could not find that friend.', 'bad'); return; }
+
+  await authReady;
+  const myId = getPlayerId();
+  if (!myId) { showMsg('Could not start the game. Try again.', 'bad'); return; }
+  const gameId = generateGameId();
+
+  board = Array.from({length:BS}, ()=>Array(BS).fill(null));
+  boardSwapPositions = new Set();
+  bag = buildBag();
+  playerRack = []; aiRack = [];
+  drawTiles(playerRack); drawTiles(aiRack);
+  playerScore = 0; aiScore = 0; passCount = 0; aiNoMoveCount = 0; playerNoMoveCount = 0;
+  lastPlayScore = null; currentPlayer = 'player'; gameOver = false;
+  resetPending();
+  isOnlineMode = true; myOnlineRole = 'p1'; onlineGameId = gameId;
+  opponentOnlineName = friend.name || 'Opponent';
+  const nameEl = document.getElementById('ai-name-display');
+  if (nameEl) nameEl.textContent = opponentOnlineName;
+  addStoredGame(gameId, 'p1');
+  updateResignButton(); updateUI();
+
+  const expiry = new Date(); expiry.setDate(expiry.getDate() + 15);
+  const payload = {
+    status: 'active',
+    created: firebase.firestore.FieldValue.serverTimestamp(),
+    expiresAt: firebase.firestore.Timestamp.fromDate(expiry),
+    rematchChallenge: true,   // reuses the pending-challenge routing and its accept/decline card
+    friendChallenge: true,    // ...but this is a fresh game, so the card must not say "rematch"
+    rematchChallengerName: playerName || 'Your opponent',
+    players: {
+      p1: { id: myId, name: playerName || 'You' },
+      p2: { id: friend.id, name: friend.name || 'Opponent' }
+    },
+    ...buildOnlinePayload('p1'),
+  };
+
+  // Only the write is allowed to roll the game back. Anything after it failing would
+  // discard a game that already exists in Firestore — the friend would be looking at a
+  // challenge the challenger no longer has.
+  try {
+    await db.collection('games').doc(gameId).set(payload);
+  } catch(e) {
+    console.warn('[challengeFriend]', e);
+    showMsg('Could not start the game. Check your connection.', 'bad');
+    isOnlineMode = false; onlineGameId = null; myOnlineRole = null;
+    removeStoredGame(gameId);
+    showHomeScreen();
+    return;
+  }
+
+  startOnlineListener(gameId);
+  showGameScreen();
+  // Home-screen listeners only reach a friend who has the app open; the push is what
+  // reaches them otherwise.
+  notifyGameRole(gameId, 'p2', 'New challenge',
+    `${playerName || 'Someone'} challenged you to a game!`);
 }
 
 function addFriend() {
@@ -10280,6 +10361,7 @@ function buildHomeGamesList() {
           else label = 'Tie game';
           const finishedAiCard = resultCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', label, view);
           finishedAiCard._completedAt = s.lastUpdated || 0;
+          finishedAiCard._rematch = function() { _rematchSkill = s.aiSkill || 'hard'; startAiRematch(); };
           completedCards.push(finishedAiCard);
         }
       }
@@ -10301,6 +10383,7 @@ function buildHomeGamesList() {
         '<div class="hgc-score-line">' + scoreLine(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')') + '</div>' +
       '</div>';
     card._completedAt = s.lastUpdated || 0;
+    card._rematch = function() { _rematchSkill = s.aiSkill || 'hard'; startAiRematch(); };
     completedCards.push(card);
   });
 
@@ -10317,7 +10400,8 @@ function buildHomeGamesList() {
     const card = document.createElement('div');
     card.className = 'rematch-challenge-card';
     card.innerHTML =
-      '<div class="rematch-challenge-text">' + challenger + ' has challenged you to a rematch!</div>' +
+      '<div class="rematch-challenge-text">' + challenger +
+        (g.friendChallenge ? ' has challenged you to a game!' : ' has challenged you to a rematch!') + '</div>' +
       '<div class="rematch-challenge-btns">' +
         '<button class="rematch-accept-btn">ACCEPT</button>' +
         '<button class="rematch-decline-btn">decline</button>' +
@@ -10361,6 +10445,15 @@ function buildHomeGamesList() {
         }; })(g.id, g.myRole);
         const completedOnlineCard = resultCard(g.playerScore||0, g.aiScore||0, opp, label, viewCompleted);
         completedOnlineCard._completedAt = g.updatedAt || 0;
+        // Older finished games predate opponentId being stored; without it there is nobody
+        // to rematch, so those cards simply do not get the action.
+        if (g.opponentId) {
+          completedOnlineCard._rematch = function() {
+            _rematchOppId   = g.opponentId;
+            _rematchOppName = g.opponentName || 'Opponent';
+            startOnlineRematch();
+          };
+        }
         completedCards.push(completedOnlineCard);
       }
     } else {
@@ -10368,7 +10461,12 @@ function buildHomeGamesList() {
       const btnLabel = g.isWaiting ? 'RESEND' : (myTurn ? 'PLAY' : 'NUDGE');
       const btnAction = g.isWaiting ? function() { resendInvite(g.id); return; } : (myTurn ? resume : function() { sendNudge(g.id, g.myRole); });
       const card = scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, btnAction, resume);
-      const swipeable = makeSwipeable(card, g);
+      const swipeable = makeSwipeable(card, {
+        className: 'hgc-delete-zone',
+        html: _TRASH_SVG,
+        width: 72,
+        onAction: function() { homeDeleteGame(g); },
+      });
       if (myTurn) myMoveCards.push(swipeable);
       else theirMoveCards.push(swipeable);
     }
@@ -10376,11 +10474,23 @@ function buildHomeGamesList() {
 
   completedCards.sort(function(a, b) { return (b._completedAt || 0) - (a._completedAt || 0); });
 
+  // Wrapped after the sort and slice, so ordering still runs on the cards' own timestamps
+  // rather than on the wrappers.
+  const completedShown = completedCards.slice(0, COMPLETED_SHOWN).map(function(card) {
+    if (!card._rematch) return card;
+    return makeSwipeable(card, {
+      className: 'hgc-rematch-zone',
+      html: 'REMATCH',
+      width: 96,
+      onAction: card._rematch,
+    });
+  });
+
   const sections = [
     makeSection('Results', resultsCards, true),
     makeSection('Your Move', myMoveCards, false),
     makeSection('Their Move', theirMoveCards, true),
-    makeSection('Completed Games', completedCards.slice(0, COMPLETED_SHOWN), true),
+    makeSection('Completed Games', completedShown, true),
   ].filter(Boolean);
 
   if (sections.length === 0) {

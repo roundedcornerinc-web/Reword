@@ -1475,7 +1475,9 @@ body {
   pointer-events: none;
 }
 #home-splash.hidden { opacity: 0; }
-#home-splash img { width: 160px; }
+/* The tagline lockup is ~2.85:1, far wider than the plain mark it replaced, so it is
+   sized against the viewport with a cap rather than a fixed 160px. */
+#home-splash img { width: min(64vw, 300px); height: auto; }
 
 #home-screen {
   display: none;
@@ -2077,7 +2079,7 @@ body {
 
 <!-- ── HOME SCREEN ── -->
 <div id="home-splash">
-  <img src="./reword_logo.png" alt="REWORD">
+  <img src="./reword_logo_tag.svg" alt="REWORD">
 </div>
 
 <div id="home-screen">
@@ -9898,6 +9900,13 @@ function dismissSplash() {
   setTimeout(() => splash.remove(), 450);
 }
 
+// Armed here rather than inside loadHomeGames, where the equivalent timer sits below
+// `await authReady` — if auth never resolves (offline launch, sign-in wedged) that line is
+// never reached and the timer never even starts. The splash is fixed/inset:0/z-index:500,
+// so a missed dismissal leaves the whole app behind an opaque screen. This one cannot be
+// skipped: nothing has to resolve for it to fire.
+setTimeout(dismissSplash, 6000);
+
 async function loadHomeGames() {
   await authReady;
   stopHomeListeners();
@@ -9963,6 +9972,10 @@ function resetPerGameFeed() {
 
 function showGameScreen() {
   stopHomeListeners();
+  // Booting straight into a game (a single stored online game, or an invite link) never
+  // touches the home screen, so loadHomeGames — the only thing that dismisses the splash —
+  // never runs, and the board ends up behind it.
+  dismissSplash();
   resetPerGameFeed();
   document.getElementById('home-screen').classList.remove('active');
   document.getElementById('game-screen').classList.add('active');

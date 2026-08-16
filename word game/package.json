@@ -5,7 +5,7 @@
     "check": "node scripts/check-syntax.js",
     "test": "node scripts/test-logic.js",
     "presync": "npm run check && npm run test",
-    "sync": "cp index.html sw.js reword_logo.png manifest.json www/ && cp -r icons www/ && npx cap sync ios"
+    "sync": "cp index.html sw.js reword_logo.png reword_logo_tag.svg manifest.json www/ && cp -r icons www/ && npx cap sync ios"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.2",

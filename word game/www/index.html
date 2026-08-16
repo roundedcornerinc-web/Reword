@@ -1466,6 +1466,19 @@ body {
 @keyframes tut-outline-pulse { from { box-shadow:0 0 6px rgba(255,255,255,0.4); } to { box-shadow:0 0 16px rgba(255,255,255,0.75); } }
 
 /* ── HOME SCREEN ── */
+/* ── HOME SPLASH / LOADING SCREEN ── */
+#home-splash {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(to bottom, #110b2d, #2d1b68 55%, #1a1040);
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+#home-splash.hidden { opacity: 0; }
+/* The tagline lockup is ~2.85:1, far wider than the plain mark it replaced, so it is
+   sized against the viewport with a cap rather than a fixed 160px. */
+#home-splash img { width: min(64vw, 300px); height: auto; }
+
 #home-screen {
   display: none;
   flex-direction: column;
@@ -2065,6 +2078,10 @@ body {
 <body>
 
 <!-- ── HOME SCREEN ── -->
+<div id="home-splash">
+  <img src="./reword_logo_tag.svg" alt="REWORD">
+</div>
+
 <div id="home-screen">
   <div id="home-header" style="position:relative">
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">
@@ -9873,12 +9890,29 @@ function upsertHomeGame(g) {
   else (window._homeGames = window._homeGames || []).push(g);
 }
 
+let _splashDismissed = false;
+function dismissSplash() {
+  if (_splashDismissed) return;
+  _splashDismissed = true;
+  const splash = document.getElementById('home-splash');
+  if (!splash) return;
+  splash.classList.add('hidden');
+  setTimeout(() => splash.remove(), 450);
+}
+
+// Armed here rather than inside loadHomeGames, where the equivalent timer sits below
+// `await authReady` — if auth never resolves (offline launch, sign-in wedged) that line is
+// never reached and the timer never even starts. The splash is fixed/inset:0/z-index:500,
+// so a missed dismissal leaves the whole app behind an opaque screen. This one cannot be
+// skipped: nothing has to resolve for it to fire.
+setTimeout(dismissSplash, 6000);
+
 async function loadHomeGames() {
   await authReady;
   stopHomeListeners();
   window._homeGames = [];
   const uid = getPlayerId();
-  if (!uid) return;
+  if (!uid) { dismissSplash(); return; }
   const ids = myPlayerIds();   // account id plus every device id it has claimed
 
   let initialised = { p1: false, p2: false };
@@ -9901,21 +9935,25 @@ async function loadHomeGames() {
       return seenInQuery.has(g.id);
     });
     initialised[role] = true;
+    if (initialised.p1 && initialised.p2) dismissSplash();
     if (document.getElementById('home-screen')?.classList.contains('active')) {
       buildHomeGamesList();
     }
   }
 
+  setTimeout(dismissSplash, 4000); // safety valve if Firestore is slow
+
   try {
     const unsub1 = db.collection('games')
       .where('players.p1.id', 'in', ids)
-      .onSnapshot(snap => onQuerySnap('p1', snap), e => console.warn('[HomeGames] p1 listener error:', e));
+      .onSnapshot(snap => onQuerySnap('p1', snap), e => { console.warn('[HomeGames] p1 listener error:', e); dismissSplash(); });
     const unsub2 = db.collection('games')
       .where('players.p2.id', 'in', ids)
-      .onSnapshot(snap => onQuerySnap('p2', snap), e => console.warn('[HomeGames] p2 listener error:', e));
+      .onSnapshot(snap => onQuerySnap('p2', snap), e => { console.warn('[HomeGames] p2 listener error:', e); dismissSplash(); });
     _homeUnsubscribes.push(unsub1, unsub2);
   } catch(e) {
     console.warn('[HomeGames] failed to start listeners:', e);
+    dismissSplash();
   }
 }
 
@@ -9934,6 +9972,10 @@ function resetPerGameFeed() {
 
 function showGameScreen() {
   stopHomeListeners();
+  // Booting straight into a game (a single stored online game, or an invite link) never
+  // touches the home screen, so loadHomeGames — the only thing that dismisses the splash —
+  // never runs, and the board ends up behind it.
+  dismissSplash();
   resetPerGameFeed();
   document.getElementById('home-screen').classList.remove('active');
   document.getElementById('game-screen').classList.add('active');

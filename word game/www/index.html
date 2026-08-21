@@ -3174,7 +3174,7 @@ function submitPlay() {
     const bNew = b.cells.filter(({row,col}) => playKeys.has(`${row},${col}`)).length;
     return bNew > aNew || (bNew === aNew && b.word.length > a.word.length) ? b : a;
   }).word.toUpperCase();
-  updateStatsAfterPlay(lastPlayScore, scoredWords);
+  updateStatsAfterPlay(lastPlayScore, scoredWords, mainWord);
   playFanfare();          // Sparkle celebration for playing a word
   celebrateScore(lastPlayScore);
 
@@ -5907,9 +5907,18 @@ function initStrengthWorker() {
       if (m.type === 'ready') { _strengthWorkerReady = true; }
       else if (m.type === 'result') { const cb = _strengthPending[m.id]; delete _strengthPending[m.id]; if (cb) cb(m.best); }
     };
-    _strengthWorker.onerror = function () { _strengthWorker = null; _strengthWorkerReady = false; };
+    _strengthWorker.onerror = function (e) {
+      // Worth surfacing: without the worker every estimate comes from the curated list,
+      // which is small enough to report a "best" below the player's own play. WKWebView is
+      // the suspect — a Worker built from a blob: URL is not reliably allowed there.
+      console.warn('[Strength] worker failed — falling back to the on-thread search', e && e.message);
+      _strengthWorker = null; _strengthWorkerReady = false;
+    };
     _strengthWorker.postMessage({ type: 'dict', words: [...WORDS] });
-  } catch (e) { _strengthWorker = null; _strengthWorkerReady = false; }
+  } catch (e) {
+    console.warn('[Strength] worker could not be created — on-thread search only', e && e.message);
+    _strengthWorker = null; _strengthWorkerReady = false;
+  }
 }
 
 function computeBestScore() {
@@ -5958,10 +5967,24 @@ function computeBestScore() {
 
 // Curated-list search on the main thread. Cheap enough not to stall the board and it always
 // returns a number, which is why it backstops the worker rather than only replacing it.
+// How many tiles may be on the board before this falls back to the curated word list.
+// Measured cost of a full-dictionary search on the main thread: 26ms at 4 tiles, 49ms at
+// 12, 248ms at 20, 631ms at 33, 2.1s at 56. Anything past a light board is a visible
+// freeze, and this runs on every tile placement.
+const FULL_DICT_TILE_LIMIT = 12;
+
 function _bestScoreOnThread(rack) {
+    // The curated list is 3,545 words against the dictionary's 191,852, and it does not
+    // contain JIBE or JIBES — so on a board where the player plays a word it has never
+    // heard of, "best possible" came back BELOW what the player just scored and the meter
+    // pinned at 100%. Use the real dictionary whenever it is affordable.
+    let _boardTiles = 0;
+    for (let r = 0; r < BS; r++) for (let c = 0; c < BS; c++) if (board[r][c]) _boardTiles++;
+    const wordSource = _boardTiles <= FULL_DICT_TILE_LIMIT ? WORDS : AI_WORDS;
+
     const firstMoveWords = [];
     if (isEmpty()) {
-      for (const w of AI_WORDS) {
+      for (const w of wordSource) {
         if (w.length >= 2 && w.length <= rack.length && canSpell(w, rack)) firstMoveWords.push(w);
       }
     }
@@ -6004,11 +6027,11 @@ function _bestScoreOnThread(rack) {
         }
       }
     } else {
-      // Use AI_WORDS (smaller curated list) to avoid freezing the main thread.
-      // Swap/steal loops are skipped — they call findBestPlayWithRack hundreds of
-      // times and block the UI for many seconds on a mid-game board.
+      // wordSource is the full dictionary on a light board and the curated list once that
+      // gets too expensive — see FULL_DICT_TILE_LIMIT. Swap/steal loops are skipped either
+      // way: they call findBestPlayWithRack hundreds of times and block for seconds.
       const boardCopy = board.map(r => [...r]);
-      const best = findBestPlayWithRack(rack, boardCopy, AI_WORDS);
+      const best = findBestPlayWithRack(rack, boardCopy, wordSource);
       bestScore = best ? best.score : 0;
     }
 
@@ -6558,7 +6581,7 @@ const STATS_KEY = 'reword_stats';
 function getStats() { return JSON.parse(localStorage.getItem(STATS_KEY) || '{}'); }
 function saveStats(s) { localStorage.setItem(STATS_KEY, JSON.stringify(s)); }
 
-function updateStatsAfterPlay(playScore, wordScores) {
+function updateStatsAfterPlay(playScore, wordScores, mainWord) {
   const s = getStats();
   s.totalPlays = (s.totalPlays || 0) + 1;
   s.totalPlayScore = (s.totalPlayScore || 0) + playScore;
@@ -6570,7 +6593,12 @@ function updateStatsAfterPlay(playScore, wordScores) {
       s.longestWord = word;
       s.longestWordScore = score;
     }
-    if (score > (s.bestWordScore || 0)) { s.bestWordScore = score; s.bestWord = word; }
+  }
+  // Highest scoring PLAY — the full move total (cross-words + all-tiles bonus included),
+  // labelled with the word the player built from the most rack tiles.
+  if (playScore > (s.bestWordScore || 0)) {
+    s.bestWordScore = playScore;
+    s.bestWord = mainWord || (wordScores || []).reduce((a, b) => (b.score > a.score ? b : a), {word:''}).word;
   }
   saveStats(s);
 }
@@ -10106,7 +10134,7 @@ function buildStatsList() {
 
     <div class="stats-divider"></div>
     <div class="stats-word-section">
-      <div class="stats-lbl" style="margin-bottom:10px">HIGHEST SCORING WORD</div>
+      <div class="stats-lbl" style="margin-bottom:10px">HIGHEST SCORING PLAY</div>
       ${statTiles(bestWord, bestWordScore)}
     </div>
 

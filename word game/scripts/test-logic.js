@@ -482,6 +482,57 @@ console.log('\nScoring — replayed tiles keep their square bonuses\n');
   }
 })();
 
+// ── Abandoned-turn round trip ────────────────────────────────────────────────
+// Leaving a game mid-turn used to leave pendingPlacements alive in memory. loadAiGameState
+// then ran resetPending() AFTER `playerRack = s.playerRack`, so the abandoned turn's
+// cancel-restore was applied to the freshly loaded rack: swapped slots were overwritten by
+// letters from a turn that rack never played, and stolen slots were spliced out entirely.
+// The player saw their tiles silently change on re-entering the game.
+(function () {
+  vm.runInContext([
+    'var playerRack = [];',
+    'var pendingRemovalInfo = {};',
+    'var swapMode = false, swapCount = 0;',
+    'var swappedRackIndices = new Set();',
+    grabFunction('resetPending'),
+  ].join('\n'), ctx);
+
+  // The cancel path itself: a swap put the board's L into slot 2, holding G to give back.
+  ctx.playerRack = ['A', 'B', 'L', 'D'];
+  ctx.pendingPlacements = { '7,7': { letter: 'G', rackIdx: 2, isSwap: true } };
+  ctx.resetPending();
+  if (ctx.playerRack.join('') === 'ABGD') {
+    passed++; console.log('  pass  cancelling a swap gives the rack tile back');
+  } else {
+    failures.push('cancelling a swap gives the rack tile back');
+    console.log('  FAIL  cancelling a swap gives the rack tile back');
+    console.log('          expected: ABGD');
+    console.log('          actual:   ' + ctx.playerRack.join(''));
+  }
+
+  // The ordering that made that restore destructive. Structural on purpose: the bug was
+  // two correct statements in the wrong order, which no amount of calling them can catch.
+  // Strip line comments first — the code carries a comment naming resetPending(), and
+  // matching that instead of the call makes this test pass on the very order it guards.
+  const load = grabFunction('loadAiGameState').replace(/^\s*\/\/.*$/gm, '');
+  const reset = load.indexOf('resetPending()');
+  const assign = load.indexOf('playerRack = s.playerRack');
+  if (reset !== -1 && assign !== -1 && reset < assign) {
+    passed++; console.log('  pass  loadAiGameState clears pending before loading the rack');
+  } else {
+    failures.push('loadAiGameState clears pending before loading the rack');
+    console.log('  FAIL  loadAiGameState clears pending before loading the rack');
+    console.log('          resetPending() must run BEFORE playerRack is replaced');
+  }
+
+  if (grabFunction('showHomeScreen').includes('resetPending()')) {
+    passed++; console.log('  pass  leaving for the home screen cancels a half-built turn');
+  } else {
+    failures.push('leaving for the home screen cancels a half-built turn');
+    console.log('  FAIL  leaving for the home screen cancels a half-built turn');
+  }
+})();
+
 if (failures.length) {
   console.error(`\nLogic tests failed (${failures.length} of ${passed + failures.length}). Build stopped.\n`);
   process.exit(1);

@@ -6733,6 +6733,12 @@ function loadAiGameState() {
   const _aiNameEl = document.getElementById('ai-name-display');
   if (_aiNameEl) _aiNameEl.textContent = 'AI';
   resetPerGameFeed();   // the saved state below repopulates these for THIS game
+  // Cancel any half-built turn BEFORE the saved rack is installed. resetPending()'s cancel
+  // path writes swapped tiles back into playerRack by index and splices out stolen ones —
+  // run it after `playerRack = s.playerRack` and it applies an abandoned turn's restore to
+  // a rack that never had that turn, silently swapping letters and deleting tiles. The
+  // online path already resets before applyOnlineState for the same reason.
+  resetPending();
   try {
     const raw = localStorage.getItem(AI_SAVE_KEY);
     if (!raw) return false;
@@ -6777,7 +6783,6 @@ function loadAiGameState() {
       gameOver = false;
     }
 
-    resetPending();
     updateUI();
     checkGameOver();
     if (!gameOver && currentPlayer === 'ai') scheduleAiTurn(800);
@@ -9872,6 +9877,9 @@ function showHomeScreen() {
   }
   // Cancel any pending best-score computation so it can't fire when the next game opens
   clearTimeout(_bestScoreTimer); _bestScoreTimer = null; bestPossibleScore = null;
+  // Cancel a half-built turn on the way out, while playerRack is still the rack that turn
+  // mutated. Left pending, it survives in memory and gets applied to the next game's rack.
+  resetPending();
   document.getElementById('home-screen').classList.add('active');
   document.getElementById('game-screen').classList.remove('active');
   buildHomeGamesList(); // immediate render (AI game + cached _homeGames)

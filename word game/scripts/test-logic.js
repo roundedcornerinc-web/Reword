@@ -494,6 +494,9 @@ console.log('\nScoring — replayed tiles keep their square bonuses\n');
     'var pendingRemovalInfo = {};',
     'var swapMode = false, swapCount = 0;',
     'var swappedRackIndices = new Set();',
+    // resetPending also drops the tap-selected board square, which is pure DOM work and
+    // has nothing to do with the rack restore under test here.
+    'var clearCellSelection = function () {};',
     grabFunction('resetPending'),
   ].join('\n'), ctx);
 

@@ -395,6 +395,13 @@ body {
 
 .cell.swap-target-hover .tile-on-board { box-shadow: inset 0 -2px 0 var(--tile-shadow), 0 0 10px rgba(230,57,70,0.9); }
 .cell.drop-target { box-shadow: inset 0 0 0 2px #e8c870; }
+/* An empty square tapped first, waiting for a rack tile. Same gold as a drop target, plus a
+   pulse so it reads as "armed" rather than as a hover state on a board full of squares. */
+.cell.cell-selected { box-shadow: inset 0 0 0 2px #e8c870; animation: cell-selected-pulse 1.2s ease-in-out infinite; }
+@keyframes cell-selected-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px #e8c870; }
+  50%      { box-shadow: inset 0 0 0 2px #e8c870, 0 0 8px rgba(232,200,112,0.75); }
+}
 
 /* ── RACK ── */
 #rack-area {
@@ -1490,6 +1497,7 @@ body {
   transform: translateX(-50%);
   background: var(--bg);
   z-index: 1;
+  overflow: hidden;   /* a tab sliding out must not widen the page */
 }
 #home-screen.active { display: flex; }
 #game-screen {
@@ -1531,6 +1539,15 @@ body {
   font-size: 0.95rem; padding: 14px 18px; text-align: left; cursor: pointer;
 }
 .home-drop-item:hover { background: rgba(255,255,255,0.08); }
+
+/* Everything on the Games tab except the nav bar. The four tabs slide against each
+   other, and the bar has to stay put, so it sits outside this. */
+#home-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 
 #home-body {
   flex: 1;
@@ -1631,6 +1648,23 @@ body {
   white-space: nowrap; min-width: 94px;
 }
 .hgc-action-btn:active { background: #7234ee; color: #fff; }
+.hgc-action-btn:disabled { opacity: 0.45; cursor: default; }
+.hgc-action-btn:disabled:active { background: none; color: #291b62; }
+
+/* The home screen has no message bar — showMsg writes into #msg-bar, which only exists on
+   the game screen — so anything the player does from a card needs its own feedback here. */
+#home-toast {
+  position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%) translateY(12px);
+  z-index: 400; max-width: 84vw;
+  padding: 11px 20px; border-radius: 22px;
+  background: rgba(26,16,64,0.95); color: #fff;
+  font-size: 0.82rem; font-weight: 600; text-align: center;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+#home-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#home-toast.bad { background: rgba(120,26,40,0.95); }
 
 #home-empty {
   text-align: center; color: #1a1040;
@@ -1651,11 +1685,15 @@ body {
 .home-nav-btn {
   background: none; border: none; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 5px;
-  color: #fff; font-size: 7pt; font-family: 'Segoe UI', system-ui, sans-serif;
+  color: rgba(255,255,255,0.75); font-size: 7pt; font-family: 'Segoe UI', system-ui, sans-serif;
   font-weight: 400; letter-spacing: 0.04em; text-transform: uppercase;
   flex: 1;
+  transition: color 0.15s ease;
 }
+/* The icons stroke themselves in currentColor, so label and icon light up together. */
+.home-nav-btn.active { color: #7d5ebf; }
 .home-nav-btn svg { display: block; }
+
 
 /* ── FRIENDS OVERLAY ── */
 #stats-overlay {
@@ -1965,16 +2003,53 @@ body {
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 #friends-overlay.active #friends-panel { transform: translateX(0); }
+
+/* ── TAB SCREENS ───────────────────────────────────────────────────────────────
+   Settings, Friends and Stats were slide-out panels over the home screen. They are
+   full screens now, reached from the nav bar, so the backdrop and the slide-in are
+   gone and each fills the same 520px column the home screen uses. They stop above
+   the nav bar rather than covering it — that bar is how you leave them, which is
+   also why the back arrows are gone.
+   --home-nav-h is measured in JS: the bar's height depends on the device's
+   safe-area inset, and CSS cannot hand that measurement to a fixed sibling. */
+#settings-backdrop, #friends-backdrop, #stats-backdrop { display: none; }
+#settings-overlay, #friends-overlay, #stats-overlay { overflow: hidden; }
+/* Centred with auto margins rather than translateX(-50%), which leaves `transform`
+   free for the slide animation. */
+#settings-panel, #friends-panel, #stats-panel {
+  top: 0; bottom: var(--home-nav-h, 84px); left: 0; right: 0;
+  width: 100%; max-width: 520px;
+  margin-inline: auto;
+  transform: none;
+  transition: none;
+  visibility: hidden;
+}
+/* The overlay spans the viewport, nav bar included, so it must never take taps
+   itself — only the panel inside it does. */
+#settings-overlay.active, #friends-overlay.active, #stats-overlay.active { pointer-events: none; }
+#settings-overlay.active #settings-panel,
+#friends-overlay.active  #friends-panel,
+#stats-overlay.active    #stats-panel {
+  visibility: visible;
+  pointer-events: auto;
+}
+/* Applied to both screens for the length of a switch: whichever way you travel, the
+   tab you asked for comes in from the side its icon sits on. */
+.tab-anim { transition: transform 0.28s cubic-bezier(0.22,1,0.36,1) !important; }
+.panel-close-btn { display: none; }
 #friends-header {
   position: relative;
   padding: 56px 20px 16px;
   text-align: center;
-  border-bottom: 1px solid #eee;
+  background: #f0eafd;
+  border-bottom: 1px solid #e0d4f7;
+  flex-shrink: 0;
 }
 #friends-header h2 {
-  font-size: 1.1rem; font-weight: 500;
-  color: #1a1040; margin: 0;
+  font-size: 1.1rem; font-weight: 600;
+  color: #291b62; margin: 0;
   font-family: 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.08em; text-transform: uppercase;
 }
 #friends-list {
   flex: 1; overflow-y: auto;
@@ -2083,6 +2158,7 @@ body {
 </div>
 
 <div id="home-screen">
+ <div id="home-content">
   <div id="home-header" style="position:relative">
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.08262 17.94747" width="23" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.50168">
@@ -2110,16 +2186,28 @@ body {
       You have no active games
     </div>
   </div>
+ </div>
   <nav id="home-nav">
-    <button class="home-nav-btn" onclick="homeNav('settings')">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.35327 22.06078" width="36" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
+    <button class="home-nav-btn active" data-tab="games" onclick="homeNav('games')">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30.45689 30.47544" width="30" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2">
+        <rect x="10.9505" y="10.95978" width="8.55589" height="8.55589"/>
+        <rect x="21.401" y="10.95978" width="8.55589" height="8.55589"/>
+        <rect x=".5" y="10.95978" width="8.55589" height="8.55589"/>
+        <rect x="10.99337" y="21.41955" width="8.55589" height="8.55589"/>
+        <rect x="10.99337" y=".5" width="8.55589" height="8.55589"/>
+        <rect x="21.401" y=".5" width="8.55589" height="8.55589"/>
+      </svg>
+      Games
+    </button>
+    <button class="home-nav-btn" data-tab="settings" onclick="homeNav('settings')">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.35327 22.06078" width="36" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
         <circle cx="10.67664" cy="11.03039" r="3.79094"/>
         <path d="M5.31848,16.97759c.82598.74206,1.80333,1.31466,2.8901,1.66018l.36198,2.92301h4.21216l.36198-2.92301c1.08677-.34552,2.06412-.91812,2.8901-1.66018l2.7124,1.146,2.10608-3.65602-2.35042-1.76878c.11765-.53969.17688-1.09582.17688-1.66841s-.05923-1.12872-.17688-1.66841l2.35042-1.76878-2.10608-3.65602-2.7124,1.146c-.82598-.74206-1.80333-1.31466-2.8901-1.66018l-.36198-2.92301h-4.21216l-.36198,2.92301c-1.08677.34552-2.06412.91812-2.8901,1.66018l-2.7124-1.146L.5,7.59321l2.35042,1.76878c-.11765.53969-.17688,1.09582-.17688,1.66841s.05923,1.12872.17688,1.66841l-2.35042,1.76878,2.10608,3.65602,2.7124-1.146Z"/>
       </svg>
-      User Settings
+      Settings
     </button>
-    <button class="home-nav-btn" onclick="homeNav('friends');event.stopPropagation()">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26.88365 15.36974" width="52" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
+    <button class="home-nav-btn" data-tab="friends" onclick="homeNav('friends');event.stopPropagation()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26.88365 15.36974" width="52" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
         <path d="M19.6189,14.86974v-2.01482c0-2.34199-1.7567-3.66154-4.07015-4.1309l-2.072,1.89016-2.07-1.88776c-2.31422.47411-4.07173,1.80237-4.07173,4.1285v2.01482"/>
         <path d="M13.47675.5c-1.88337,0-3.41135,1.52717-3.41135,3.41176,0,1.88377,1.52798,3.41135,3.41135,3.41135,1.88418,0,3.41257-1.52758,3.41257-3.41135,0-1.88459-1.52839-3.41176-3.41257-3.41176Z"/>
         <path d="M8.5975,9.9235c-.33638-.13096-.69738-.23442-1.07581-.31119l-1.77142,1.61573-1.76939-1.61333c-1.97831.4054-3.48088,1.5403-3.48088,3.5289v1.72296"/>
@@ -2129,8 +2217,8 @@ body {
       </svg>
       Friends
     </button>
-    <button class="home-nav-btn" onclick="homeNav('stats')">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15.22821 14.52285" width="31" fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
+    <button class="home-nav-btn" data-tab="stats" onclick="homeNav('stats')">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15.22821 14.52285" width="31" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
         <rect x=".5" y="5.00762" width="3.65868" height="9.01524"/>
         <rect x="5.78476" y="7.26143" width="3.65868" height="6.76143"/>
         <rect x="11.06952" y=".5" width="3.65868" height="13.52285"/>
@@ -2217,6 +2305,11 @@ body {
   <div id="faq-panel">
     <div id="faq-header"><h2>FAQ</h2></div>
     <div id="faq-body">
+
+      <div class="faq-item">
+        <div class="faq-q">How do I place a tile?</div>
+        <div class="faq-a">Three ways, whichever suits you: drag a tile from your rack onto an empty square, tap a rack tile and then tap the square, or tap an empty square first and then tap the letter you want there. Tapping an armed square again clears it. Swaps and steals still start from the rack — tap or drag the tile you're playing onto the board tile you want.</div>
+      </div>
 
       <div class="faq-item">
         <div class="faq-q">How do I swap a tile?</div>
@@ -2599,6 +2692,10 @@ let touchPendingKey = null; // board key of pending tile being dragged (touch)
 let touchPendingStartX = 0; // finger position when pending-tile touch started
 let touchPendingStartY = 0;
 let _suppressClick  = false; // true for 50ms after any drag/touch-drag ends, to block post-drag click
+// Empty board square tapped ahead of a rack tile — the reverse of the tile-then-square order.
+// Only ever an empty square: swaps still require picking the tile first, so that a tap on a
+// committed tile keeps its single, unambiguous meaning.
+let selectedCellKey = null;
 let blankPickerCallback = null;
 let exchangeMode    = false;
 let exchangeSelectedIdxs = new Set();
@@ -3455,6 +3552,7 @@ function resetPending(afterCommit = false) {
       playerRack.splice(info.rackIdx, 1);
     }
   }
+  clearCellSelection();
   pendingRemovals = new Set();
   pendingRemovalInfo = {};
   pendingPlacements = {};
@@ -3466,6 +3564,7 @@ function resetPending(afterCommit = false) {
 
 function toggleExchangeMode() {
   if (currentPlayer !== 'player' || gameOver) return;
+  clearCellSelection();
   if (exchangeMode) {
     cancelExchangeMode();
   } else {
@@ -3673,9 +3772,18 @@ function onCellClick(r, c) {
   if (selIdx === -1) {
     if (pendingRemovals.has(key)) { recallRemoval(key); return; }
     if (board[r][c] && !pendingPlacements[key]) { tryRemoveTile(r, c); return; }
-    showMsg('Select a tile from your rack first.', 'info');
+    // Empty square, no tile in hand: arm the square instead. Tapping it again disarms it,
+    // and tapping another empty square moves the selection rather than stacking one up.
+    if (selectedCellKey === key) { clearCellSelection(); updateUI(); return; }
+    clearCellSelection();
+    selectedCellKey = key;
+    playPickup();
+    showMsg('Now tap a letter to place it here.', 'info');
+    updateUI();
     return;
   }
+  // A tile in hand wins over an armed square — there is nothing left to disambiguate.
+  clearCellSelection();
 
   // SWAP: rack tile selected + clicking a committed board square
   if (board[r][c]) {
@@ -3705,27 +3813,32 @@ function onCellClick(r, c) {
     return;
   }
 
-  // NORMAL PLACEMENT (intercept blanks)
-  if (playerRack[selIdx] === ' ') {
-    const k = key, si = selIdx;
-    document.querySelectorAll('.rack-tile.selected').forEach(el => el.classList.remove('selected'));
-    showBlankPicker(chosen => {
-      pendingPlacements[k] = {letter: chosen.toLowerCase(), rackIdx: si, isBlank: true};
-      showMsg('', 'info');
-      playDrop();
-      computeBestScore();
-      updateUI();
-      if (!window.tutorialMode) zoomToCell(r, c);
-    });
-    return;
-  }
-  pendingPlacements[key] = {letter: playerRack[selIdx], rackIdx: selIdx};
+  // NORMAL PLACEMENT (blanks intercepted inside the helper)
+  placeRackTileOnCell(r, c, selIdx);
+}
+
+function clearCellSelection() {
+  selectedCellKey = null;
+  document.querySelectorAll('.cell.cell-selected').forEach(el => el.classList.remove('cell-selected'));
+}
+
+// The one place a rack tile becomes a pending placement on an EMPTY square. Both tap orders
+// end up here — tile then square, and square then tile — so the blank picker, the sound and
+// the best-score recompute cannot drift apart between them.
+function placeRackTileOnCell(r, c, rackIdx) {
+  const key = `${r},${c}`;
   document.querySelectorAll('.rack-tile.selected').forEach(el => el.classList.remove('selected'));
-  showMsg('', 'info');
-  playDrop();
-  computeBestScore();
-  updateUI();
-  if (!window.tutorialMode) zoomToCell(r, c);
+  clearCellSelection();
+  const finish = (letter, isBlank) => {
+    pendingPlacements[key] = {letter, rackIdx, ...(isBlank && {isBlank: true})};
+    showMsg('', 'info');
+    playDrop();
+    computeBestScore();
+    updateUI();
+    if (!window.tutorialMode) zoomToCell(r, c);
+  };
+  if (playerRack[rackIdx] === ' ') showBlankPicker(chosen => finish(chosen.toLowerCase(), true));
+  else finish(playerRack[rackIdx], false);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3744,6 +3857,18 @@ function onRackTileClick(idx) {
     const playBtn = document.getElementById('btn-play');
     if (playBtn) playBtn.classList.toggle('tiles-placed', exchangeSelectedIdxs.size > 0);
     return;
+  }
+
+  // A square was armed first: this tap places the tile there rather than selecting it.
+  if (selectedCellKey && !window.tutorialMode) {
+    const [sr, sc] = selectedCellKey.split(',').map(Number);
+    // The square can have been filled since it was armed (a swap, or the opponent's move
+    // arriving over the top of it). Fall through to plain selection instead of overwriting.
+    if (!board[sr][sc] && !pendingPlacements[selectedCellKey] && !pendingRemovals.has(selectedCellKey)) {
+      placeRackTileOnCell(sr, sc, idx);
+      return;
+    }
+    clearCellSelection();
   }
 
   // Normal selection
@@ -4969,6 +5094,13 @@ function renderBoard() {
   const replaying = replayState.active;
   const src = replaying ? replayState.board : board;
   const shouldAnim = !replaying && !lastMoveAnimated;
+  // The armed square only survives while it is still empty.
+  if (selectedCellKey) {
+    const [sr, sc] = selectedCellKey.split(',').map(Number);
+    if (replaying || board[sr]?.[sc] || pendingPlacements[selectedCellKey] || pendingRemovals.has(selectedCellKey)) {
+      selectedCellKey = null;
+    }
+  }
   if (!replaying) lastMoveAnimated = true;
   // Sound for the opponent's word revealing on the board (your own play uses the fanfare)
   if (shouldAnim && lastMoveKeys.length && currentPlayer === 'player' && !gameOver && !window.tutorialMode) {
@@ -5115,6 +5247,8 @@ function renderBoard() {
       }
 
       if (replaying) { boardEl.appendChild(cell); continue; }
+
+      if (selectedCellKey === key) cell.classList.add('cell-selected');
 
       cell.addEventListener('click', () => onCellClick(r, c));
 
@@ -6286,19 +6420,29 @@ async function acceptRematchChallenge(gameId, myRole) {
 }
 
 // Send a push to a specific role in a game (used by rematch decline, from the home screen)
+// Returns 'sent' | 'no-target' | 'failed'. Callers that fire and forget can ignore it, but
+// anything the player pressed a button for needs to know: /api/notify answers 400 when the
+// recipient has no push target registered, which is a different story to tell than a
+// network failure — and neither is the same as success.
 async function notifyGameRole(gameId, recipientRole, title, message) {
   // Same rule as sendPushToOpponent: name the recipient, never read their token.
   try {
     const d = (await db.collection('games').doc(gameId).get()).data();
     const recipientId = d?.players?.[recipientRole]?.id;
-    if (!recipientId) return;
+    if (!recipientId) return 'no-target';
     const form = new URLSearchParams({ recipientId, title, message, gameId, recipientRole });
-    await fetch(`${WEB_BASE}/api/notify`, {
+    const res = await fetch(`${WEB_BASE}/api/notify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: form.toString(),
     });
-  } catch(e) { console.warn('[Push] notifyGameRole error:', e?.message || e); }
+    if (res.ok) return 'sent';
+    console.warn('[Push] notifyGameRole rejected:', res.status);
+    return res.status === 400 ? 'no-target' : 'failed';
+  } catch(e) {
+    console.warn('[Push] notifyGameRole error:', e?.message || e);
+    return 'failed';
+  }
 }
 
 async function declineRematchChallenge(gameId) {
@@ -6536,6 +6680,7 @@ applyPlayerName();
 // ═══════════════════════════════════════════════════════
 function startGame() {
   document.getElementById('overlay').classList.remove('show');
+  _viewingArchivedAi = false;
   // A fresh local board is by definition not an online game. This used to be left to each
   // caller, and startAiRematch() did not do it — a stale isOnlineMode makes submitPlay take
   // the online branch, so the play scores and then the AI simply never moves, with no error
@@ -6627,8 +6772,14 @@ function updateStatsAfterGame(myFinalScore, won, tied) {
   saveStats(s);
 }
 
+// True while the board on screen is an archived finished game rather than the live save.
+// Viewing one is strictly read-only: the live save must survive being looked at, so every
+// route that could write over it — this function, the terminal-position rescue and
+// checkGameOver (endGame rewrites AI_SAVE_KEY), the AI turn scheduler — is skipped.
+let _viewingArchivedAi = false;
+
 function saveAiGameState() {
-  if (isOnlineMode || gameOver) return;
+  if (isOnlineMode || gameOver || _viewingArchivedAi) return;
   try {
     localStorage.setItem(AI_SAVE_KEY, JSON.stringify({
       board: board.flat().map(c => c === null ? '' : c),
@@ -6723,7 +6874,10 @@ function validateSavedTileCounts(s) {
   return { valid: true };
 }
 
-function loadAiGameState() {
+// Pass an archived history entry (see archiveAiGameToHistory) to view a finished game that
+// is no longer the current save; with no argument this loads the live save as before.
+function loadAiGameState(archived) {
+  _viewingArchivedAi = !!archived;
   // Leave online mode BEFORE any early return. This used to sit below them, so opening an
   // AI game with no save (or a rejected one) kept isOnlineMode true — and updateUI paints
   // the opponent panel from opponentOnlineName whenever that flag is set, so the last
@@ -6740,14 +6894,19 @@ function loadAiGameState() {
   // online path already resets before applyOnlineState for the same reason.
   resetPending();
   try {
-    const raw = localStorage.getItem(AI_SAVE_KEY);
-    if (!raw) return false;
-    const s = JSON.parse(raw);
+    let s = archived;
+    if (!s) {
+      const raw = localStorage.getItem(AI_SAVE_KEY);
+      if (!raw) return false;
+      s = JSON.parse(raw);
+    }
 
     // Reject corrupt saves with wrong tile counts rather than loading bad state silently.
     const validation = validateSavedTileCounts(s);
     if (!validation.valid) {
-      clearAiGameState();
+      // Only the live save is cleared on corruption. A bad archive entry is not worth
+      // deleting the game the player is actually in the middle of.
+      if (!archived) clearAiGameState();
       setTimeout(() => showMsg(`Your saved game had a tile error and couldn't be restored. (${validation.violations.join(', ')})`, 'bad'), 500);
       return false;
     }
@@ -6778,6 +6937,13 @@ function loadAiGameState() {
     // The flag is saved state and survives app updates, so it cannot clear itself.
     // Trust the position over the flag — checkGameOver below re-ends the game if it
     // really is over.
+    if (archived) {
+      // An archived game is finished by definition and has nowhere to be saved back to.
+      gameOver = true;
+      updateUI();
+      return true;
+    }
+
     if (gameOver && !isTerminalPosition()) {
       console.warn('[loadAiGameState] saved gameOver with no terminal position — resuming play');
       gameOver = false;
@@ -6798,13 +6964,19 @@ function clearAiGameState() {
 const AI_HISTORY_KEY = 'reword_ai_history';
 const AI_HISTORY_MAX = 5;
 
+// The whole final state is archived, not just the scoreline: it is the same shape
+// loadAiGameState reads, so a history entry can be reopened and shown as a board.
+// Five boards is a few KB. Entries written before this change have no `board` and
+// stay score-only — buildHomeGamesList renders those without a VIEW action.
 function archiveAiGameToHistory(state) {
   try {
     const history = JSON.parse(localStorage.getItem(AI_HISTORY_KEY) || '[]');
     history.unshift({
+      ...state,
       playerScore: state.playerScore,
       aiScore: state.aiScore,
       aiSkill: state.aiSkill,
+      gameOver: true,
       lastUpdated: state.lastUpdated || Date.now(),
     });
     localStorage.setItem(AI_HISTORY_KEY, JSON.stringify(history.slice(0, AI_HISTORY_MAX)));
@@ -8270,6 +8442,7 @@ async function updateGamesBadge() {
 
 // ── Load a specific game (switch to it) ────────────────
 async function loadOnlineGame(gameId, myRole) {
+  _viewingArchivedAi = false;
   dismissNextGamePrompt(); // hide any pending next-game banner
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
   // Cancel any pending best-score computation from a previous game
@@ -8412,11 +8585,25 @@ async function resendInvite(gameId) {
   document.getElementById('online-modal-link').value = link;
   await shareOnlineInvite();
 }
-async function sendNudge(gameId, myRole) {
+async function sendNudge(gameId, myRole, btn) {
   const opRole = myRole === 'p1' ? 'p2' : 'p1';
   const senderName = playerName || 'Your opponent';
-  await notifyGameRole(gameId, opRole, "It's your turn!", `${senderName} is waiting for your move.`);
-  showMsg('Nudge sent!', 'info');
+  // The round trip is a Firestore read plus the push call, so the button has to say
+  // something in the meantime — this used to look identical to a dead button.
+  if (btn) { btn.disabled = true; btn.textContent = 'SENDING'; }
+  const result = await notifyGameRole(gameId, opRole, "It's your turn!", `${senderName} is waiting for your move.`);
+  if (result === 'sent') {
+    // Left disabled: the nudge landed, and a second one adds nothing but noise. The next
+    // home render (any Firestore change) brings the button back.
+    if (btn) btn.textContent = 'NUDGED';
+    haptic('LIGHT');
+    showHomeToast('Nudge sent!');
+  } else {
+    if (btn) { btn.disabled = false; btn.textContent = 'NUDGE'; }
+    showHomeToast(result === 'no-target'
+      ? "They have notifications off, so they won't see a nudge."
+      : "Couldn't send the nudge. Check your connection.", 'bad');
+  }
 }
 async function cancelWaitingGame(gameId) {
   try {
@@ -8425,6 +8612,24 @@ async function cancelWaitingGame(gameId) {
   removeStoredGame(gameId);
   if (window._homeGames) window._homeGames = window._homeGames.filter(g => g.id !== gameId);
   buildHomeGamesList();
+}
+
+// Feedback for actions taken from the home screen, where showMsg's #msg-bar is off-screen.
+let _homeToastTimer = null;
+function showHomeToast(text, kind) {
+  let el = document.getElementById('home-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'home-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.className = kind === 'bad' ? 'bad' : '';
+  // Reflow so a toast raised while one is already showing restarts the fade.
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(_homeToastTimer);
+  _homeToastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
 // ── Home-screen delete/resign a game ───────────────────
@@ -9885,6 +10090,7 @@ function showHomeScreen() {
   buildHomeGamesList(); // immediate render (AI game + cached _homeGames)
   loadHomeGames();      // async fetch from Firestore, re-renders when ready
   requestAnimationFrame(syncHomeButtonWidth);
+  requestAnimationFrame(syncHomeNavHeight);
 }
 
 // ── Real-time home screen listeners ───────────────────
@@ -10051,20 +10257,97 @@ function reportIssue() {
   window.location.href = `mailto:info@rewordgame.app?subject=${subject}&body=${body}`;
 }
 
+// Which tab the nav bar is lit for. Set from the open/close functions rather than from
+// homeNav, so the highlight stays honest when a screen is left from inside itself —
+// saving a name in Settings, or starting a game from Friends.
+function setHomeTab(tab) {
+  document.querySelectorAll('#home-nav .home-nav-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+}
+
+// The nav bar's height varies with the device's safe-area inset, and the tab screens are
+// fixed siblings that have to stop exactly on top of it.
+function syncHomeNavHeight() {
+  const nav = document.getElementById('home-nav');
+  if (!nav) return;
+  const h = nav.getBoundingClientRect().height;
+  // Zero while the home screen is hidden (in a game) — keep the last good value.
+  if (h) document.documentElement.style.setProperty('--home-nav-h', h + 'px');
+}
+window.addEventListener('resize', syncHomeNavHeight);
+
+// Left-to-right order in the nav bar. A tab to the right of the one you are on arrives
+// from the right; one to the left arrives from the left — so the movement always matches
+// where you reached for.
+const HOME_TAB_ORDER   = ['games', 'settings', 'friends', 'stats'];
+const HOME_TAB_EL      = { games: 'home-content', settings: 'settings-panel', friends: 'friends-panel', stats: 'stats-panel' };
+const HOME_TAB_OVERLAY = { settings: 'settings-overlay', friends: 'friends-overlay', stats: 'stats-overlay' };
+let _homeTab = 'games';
+let _tabAnimTimer = null;
+const TAB_SLIDE_MS = 280;   // keep in step with .tab-anim's transition
+
+function switchHomeTab(tab) {
+  if (!HOME_TAB_EL[tab] || tab === _homeTab) return;
+  const from = _homeTab;
+  _homeTab = tab;
+  setHomeTab(tab);
+
+  const outEl = document.getElementById(HOME_TAB_EL[from]);
+  const inEl  = document.getElementById(HOME_TAB_EL[tab]);
+  const outOv = HOME_TAB_OVERLAY[from] && document.getElementById(HOME_TAB_OVERLAY[from]);
+  const inOv  = HOME_TAB_OVERLAY[tab]  && document.getElementById(HOME_TAB_OVERLAY[tab]);
+  const dir = HOME_TAB_ORDER.indexOf(tab) > HOME_TAB_ORDER.indexOf(from) ? 1 : -1;
+
+  // Land a switch still in flight before starting another, or its cleanup fires mid-way
+  // through this one and snaps a screen back across the viewport.
+  if (_tabAnimTimer) { clearTimeout(_tabAnimTimer); _tabAnimTimer = null; }
+  document.querySelectorAll('.tab-anim').forEach(el => {
+    el.classList.remove('tab-anim');
+    el.style.transform = '';
+  });
+  Object.keys(HOME_TAB_OVERLAY).forEach(t => {
+    if (t !== tab && t !== from) document.getElementById(HOME_TAB_OVERLAY[t]).classList.remove('active');
+  });
+
+  // Park the incoming screen off the edge it should arrive from and commit that position
+  // before the transition is switched on, or it animates from wherever it last sat.
+  if (inOv) inOv.classList.add('active');
+  inEl.style.transform = `translateX(${dir * 100}%)`;
+  void inEl.offsetWidth;
+
+  inEl.classList.add('tab-anim');
+  outEl.classList.add('tab-anim');
+  inEl.style.transform = '';
+  outEl.style.transform = `translateX(${dir * -100}%)`;
+
+  _tabAnimTimer = setTimeout(() => {
+    _tabAnimTimer = null;
+    if (outOv) outOv.classList.remove('active');
+    // Transition off first: the outgoing screen has to jump back to centre, not glide
+    // back across the screen the player is now looking at.
+    outEl.classList.remove('tab-anim');
+    inEl.classList.remove('tab-anim');
+    outEl.style.transform = '';
+    inEl.style.transform = '';
+  }, TAB_SLIDE_MS);
+}
+
 function homeNav(tab) {
+  if (tab === 'tutorial') { showGameScreen(); showTutorial(); return; }
   if (tab === 'friends') openFriends();
-  if (tab === 'stats') openStats();
-  if (tab === 'settings') openSettings();
-  if (tab === 'tutorial') { showGameScreen(); showTutorial(); }
+  else if (tab === 'stats') openStats();
+  else if (tab === 'settings') openSettings();
+  else switchHomeTab('games');
 }
 
 function openStats() {
   buildStatsList();
-  document.getElementById('stats-overlay').classList.add('active');
+  switchHomeTab('stats');
 }
 
 function closeStats() {
-  document.getElementById('stats-overlay').classList.remove('active');
+  if (_homeTab === 'stats') switchHomeTab('games');
 }
 
 function statTiles(word, score) {
@@ -10166,11 +10449,11 @@ function openSettings() {
   document.getElementById('toggle-sound').checked = s.sound !== false;
   document.getElementById('toggle-haptics').checked = s.haptics !== false;
   document.getElementById('toggle-zoom').checked = s.zoom !== false;
-  document.getElementById('settings-overlay').classList.add('active');
+  switchHomeTab('settings');
 }
 
 function closeSettings() {
-  document.getElementById('settings-overlay').classList.remove('active');
+  if (_homeTab === 'settings') switchHomeTab('games');
 }
 function saveSettingsName() {
   const val = document.getElementById('settings-name-input').value.trim();
@@ -10190,11 +10473,11 @@ function saveSettingsToggle(key, val) {
 function openFriends() {
   buildFriendsList();
   syncFriendsFromCloud();   // refreshes the list in place if the cloud copy has more
-  document.getElementById('friends-overlay').classList.add('active');
+  switchHomeTab('friends');
 }
 
 function closeFriends() {
-  document.getElementById('friends-overlay').classList.remove('active');
+  if (_homeTab === 'friends') switchHomeTab('games');
 }
 
 function escHtml(s) {
@@ -10373,7 +10656,7 @@ function buildHomeGamesList() {
         '<div class="hgc-score-line">' + scoreLine(myScore, oppScore, oppName) + '</div>' +
       '</div>' +
       '<button class="hgc-action-btn">' + btnText + '</button>';
-    card.querySelector('button').onclick = function(e) { e.stopPropagation(); btnAction(); };
+    card.querySelector('button').onclick = function(e) { e.stopPropagation(); btnAction(e.currentTarget); };
     card.onclick = cardAction;
     return card;
   }
@@ -10458,13 +10741,26 @@ function buildHomeGamesList() {
     if (s.playerScore > s.aiScore) label = 'You won!';
     else if (s.playerScore < s.aiScore) label = 'You lost';
     else label = 'Tie game';
-    const card = document.createElement('div');
-    card.className = 'home-game-card';
-    card.innerHTML =
-      '<div class="hgc-left">' +
-        '<div class="hgc-result-label">' + label + '</div>' +
-        '<div class="hgc-score-line">' + scoreLine(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')') + '</div>' +
-      '</div>';
+    let card;
+    if (s.board) {
+      // Archived with its full final state, so it can be reopened as a board. The view is
+      // read-only — loadAiGameState(entry) never writes back over the live save.
+      const view = (function(entry) { return function() {
+        window._suppressWinnerModal = true;
+        showGameScreen();
+        loadAiGameState(entry);
+      }; })(s);
+      card = resultCard(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')', label, view);
+    } else {
+      // Archived before final boards were kept: scoreline only, nothing to open.
+      card = document.createElement('div');
+      card.className = 'home-game-card';
+      card.innerHTML =
+        '<div class="hgc-left">' +
+          '<div class="hgc-result-label">' + label + '</div>' +
+          '<div class="hgc-score-line">' + scoreLine(s.playerScore||0, s.aiScore||0, 'AI (' + diff + ')') + '</div>' +
+        '</div>';
+    }
     card._completedAt = s.lastUpdated || 0;
     card._rematch = function() { _rematchSkill = s.aiSkill || 'hard'; startAiRematch(); };
     completedCards.push(card);
@@ -10542,7 +10838,7 @@ function buildHomeGamesList() {
     } else {
       const myTurn = g.currentPlayer === 'player';
       const btnLabel = g.isWaiting ? 'RESEND' : (myTurn ? 'PLAY' : 'NUDGE');
-      const btnAction = g.isWaiting ? function() { resendInvite(g.id); return; } : (myTurn ? resume : function() { sendNudge(g.id, g.myRole); });
+      const btnAction = g.isWaiting ? function() { resendInvite(g.id); return; } : (myTurn ? resume : function(btn) { sendNudge(g.id, g.myRole, btn); });
       const card = scoreCard(g.playerScore||0, g.aiScore||0, opp, ago, btnLabel, btnAction, resume);
       const swipeable = makeSwipeable(card, {
         className: 'hgc-delete-zone',

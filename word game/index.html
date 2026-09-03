@@ -2818,26 +2818,58 @@ function auditTiles(context) {
       if (cell) { const k = cell === cell.toUpperCase() ? cell : ' '; counts[k] = (counts[k]||0) + 1; }
   // Expected distribution
   const expected = {...DIST, ' ': 2};
-  const violations = [];
+  // letter -> how far off it is, so a game opened already damaged can be told apart from
+  // one this session broke.
+  const deltas = {};
   for (const [letter, exp] of Object.entries(expected)) {
     const got = counts[letter] || 0;
-    if (got !== exp) violations.push(`${letter}:expected ${exp} got ${got}`);
+    if (got !== exp) deltas[letter] = got - exp;
   }
-  // Also check for letters not in expected
   for (const [letter, got] of Object.entries(counts)) {
-    if (!(letter in expected)) violations.push(`${letter}:unexpected (got ${got})`);
+    if (!(letter in expected)) deltas[letter] = got;
   }
-  if (violations.length) {
-    const detail = violations.join(', ');
-    console.warn(`[TileAudit] ${context} — VIOLATION: ${detail}`);
+  const describe = ds => Object.keys(ds).sort()
+    .map(l => `${l}:${ds[l] > 0 ? '+' : ''}${ds[l]}`).join(', ');
+
+  // Games damaged before the fix landed carry their miscount forever. Warning about that on
+  // every turn would be nagging the player about something they cannot act on and did not
+  // cause, so the first audit of a game only records where it started. Anything that moves
+  // off that baseline afterwards is damage happening now, and that is worth interrupting for.
+  const gameKey = isOnlineMode ? (onlineGameId || 'online') : 'ai';
+  if (gameKey !== _auditBaselineKey) {
+    _auditBaselineKey = gameKey;
+    _auditBaseline = deltas;
+    if (Object.keys(deltas).length)
+      console.warn(`[TileAudit] ${context} — opened with a pre-existing miscount: ${describe(deltas)} (baseline, not reported)`);
+    else
+      console.log(`[TileAudit] ${context} — baseline OK`);
+    return;
+  }
+
+  const fresh = {};
+  for (const letter of new Set([...Object.keys(deltas), ...Object.keys(_auditBaseline)]))
+    if ((deltas[letter] || 0) !== (_auditBaseline[letter] || 0)) fresh[letter] = deltas[letter] || 0;
+
+  if (Object.keys(fresh).length) {
+    const detail = describe(fresh);
+    console.warn(`[TileAudit] ${context} — NEW VIOLATION: ${detail} (baseline ${describe(_auditBaseline) || 'clean'})`);
     // A console warning is invisible on a phone, which is how a duplicated tile survived a
-    // whole game unnoticed. Keep the last few violations in the save so a report can say
-    // which letter went wrong and when, and tell the player their game is miscounted.
+    // whole game unnoticed. Keep the last few violations so a report can say which letter
+    // went wrong and when, and tell the player their game is miscounted.
     recordTileAudit(context, detail);
+    // Move the baseline up so one fault reports once rather than on every turn after it.
+    _auditBaseline = deltas;
+  } else if (Object.keys(deltas).length) {
+    console.log(`[TileAudit] ${context} — unchanged pre-existing miscount: ${describe(deltas)}`);
   } else {
     console.log(`[TileAudit] ${context} — OK (${Object.values(counts).reduce((a,b)=>a+b,0)} tiles)`);
   }
 }
+
+// Where the current game's tile count stood when it was opened, and which game that was.
+// A game is only ever compared against itself.
+let _auditBaselineKey = null;
+let _auditBaseline = {};
 
 // Violations seen this session, newest last, capped so a repeating fault cannot fill storage.
 // Written into the saved game so it travels with the game it describes.
@@ -6810,6 +6842,9 @@ applyPlayerName();
 function startGame() {
   document.getElementById('overlay').classList.remove('show');
   _viewingArchivedAi = false;
+  // Successive solo games share the 'ai' audit key, so a previous game's miscount would be
+  // carried in as this one's baseline. A fresh bag starts clean; re-baseline to say so.
+  _auditBaselineKey = null; _auditBaseline = {};
   // A fresh local board is by definition not an online game. This used to be left to each
   // caller, and startAiRematch() did not do it — a stale isOnlineMode makes submitPlay take
   // the online branch, so the play scores and then the AI simply never moves, with no error
@@ -7079,6 +7114,7 @@ function loadAiGameState(archived) {
     }
 
     updateUI();
+    auditTiles('loadAiGameState');
     checkGameOver();
     if (!gameOver && currentPlayer === 'ai') scheduleAiTurn(800);
     return true;

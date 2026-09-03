@@ -223,24 +223,31 @@ body {
 #msg-bar {
   width: 100%;
   max-width: 520px;
-  min-height: 32px;
+  /* Two lines are always reserved, even for a one-line message. Sizing to the content
+     meant every message that wrapped grew the bar and shoved the board down mid-turn. */
+  min-height: calc(2 * 1.35 * 0.82rem + 11px);
   display: flex;
   align-items: stretch;
   font-size: 0.82rem;
   font-weight: 600;
+  line-height: 1.35;
   background: #3c2d75;
   color: #ccc;
-  text-align: center;
+  text-align: left;
 }
-/* The text centres in what's left of the bar, not in the bar as a whole, so the
-   replay button doesn't push it visibly off-centre. */
+/* Left-aligned against the replay button, and vertically centred in the two-line box so
+   the common one-line message doesn't sit high. balance evens the two lines out, which is
+   what keeps a single stranded word off the second line; breaking is word-only. */
 #msg-text {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 7px 10px 4px;
+  text-wrap: balance;
+  -webkit-hyphens: none;
+  hyphens: none;
 }
 #replay-btn {
   flex: 0 0 52px;
@@ -1526,18 +1533,28 @@ body {
   display: flex; flex-direction: column; gap: 5px; flex-shrink: 0;
 }
 #home-logo { height: 62px; width: auto; }
-#home-dropdown {
-  display: none; position: absolute; top: 100%; left: 16px;
-  background: #1a1040; border: 1px solid #4a2fa0; border-radius: 12px;
-  overflow: hidden; z-index: 300; min-width: 200px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+/* The menu is the header carrying on downwards: full width, same purple, and it
+   slides out from under the header's bottom edge. This box does the clipping —
+   the panel itself is parked one height above and slides to 0. */
+#home-menu-clip {
+  position: absolute; top: 100%; left: 0; right: 0;
+  overflow: hidden; z-index: 300;
+  pointer-events: none;
 }
-#home-dropdown.show { display: block; }
+#home-dropdown {
+  background: #2d1b68;   /* the colour the header gradient ends on */
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  transform: translateY(-100%);
+  transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
+}
+#home-dropdown.show { transform: translateY(0); pointer-events: auto; }
 .home-drop-item {
   display: block; width: 100%; background: none; border: none;
   color: #e0d8ff; font-family: 'Segoe UI', system-ui, sans-serif;
-  font-size: 0.95rem; padding: 14px 18px; text-align: left; cursor: pointer;
+  font-size: 1.15rem; padding: 18px 20px; text-align: center; cursor: pointer;
 }
+/* Between items only — no line hanging under the last one or butting into the header. */
+.home-drop-item + .home-drop-item { border-top: 1px solid rgba(125,94,191,0.5); }
 .home-drop-item:hover { background: rgba(255,255,255,0.08); }
 
 /* Everything on the Games tab except the nav bar. The four tabs slide against each
@@ -2167,12 +2184,14 @@ body {
         <line x1=".75084" y1="17.19663" x2="20.33178" y2="17.19663"/>
       </svg>
     </button>
+    <div id="home-menu-clip">
     <div id="home-dropdown">
       <button class="home-drop-item" id="home-account-row" onclick="closeHomeMenu();openAccountPanel()">Sign in</button>
       <button class="home-drop-item" onclick="closeHomeMenu();showGameScreen();showTutorial()">Tutorial</button>
       <button class="home-drop-item" onclick="closeHomeMenu();openFaq()">FAQ</button>
       <button class="home-drop-item" onclick="closeHomeMenu();reportIssue()">Report an Issue</button>
       <button class="home-drop-item" id="home-signout-row" onclick="closeHomeMenu();confirmSignOut()">Sign Out</button>
+    </div>
     </div>
     <img src="./reword_logo.png" id="home-logo" alt="REWORD">
     <div style="width:41px;flex-shrink:0;"></div>
@@ -2765,12 +2784,33 @@ function drawTiles(rack, n = 7) {
 // ── Tile conservation audit ────────────────────────────
 // Logs a warning if any letter appears more times than its
 // distribution allows (bag + both racks + committed board).
+// The rack as it stands with any half-built turn undone — what the player actually owns.
+// A swap mutates playerRack the instant it happens (the stolen tile takes the slot) while
+// the board keeps its tile until the turn commits, so the live rack and the board both hold
+// that tile mid-turn. Serialising the live rack in that window persisted the duplicate, and
+// a Z stolen and abandoned came back as a second Z for the rest of the game. Every exit path
+// is supposed to call resetPending() first; this makes it so it no longer has to.
+// Mirrors resetPending()'s cancel-path restorations exactly, without mutating anything.
+function committedPlayerRack() {
+  const rack = [...playerRack];
+  const restoredIdx = new Set();
+  for (const p of Object.values(pendingPlacements || {})) {
+    if (p.isSwap && p.rackIdx != null && !restoredIdx.has(p.rackIdx)) {
+      rack[p.rackIdx] = p.isBlank ? ' ' : p.letter;
+      restoredIdx.add(p.rackIdx);
+    }
+  }
+  const removalEntries = Object.values(pendingRemovalInfo || {}).sort((a, b) => b.rackIdx - a.rackIdx);
+  for (const info of removalEntries) rack.splice(info.rackIdx, 1);
+  return rack;
+}
+
 function auditTiles(context) {
   const counts = {};
   // Count in bag
   for (const l of bag) counts[l] = (counts[l]||0) + 1;
   // Count in racks
-  for (const l of playerRack) counts[l] = (counts[l]||0) + 1;
+  for (const l of committedPlayerRack()) counts[l] = (counts[l]||0) + 1;
   for (const l of aiRack)     counts[l] = (counts[l]||0) + 1;
   // Count on committed board (lowercase = blank playing as that letter → counts as ' ')
   for (const row of board)
@@ -2787,10 +2827,26 @@ function auditTiles(context) {
   for (const [letter, got] of Object.entries(counts)) {
     if (!(letter in expected)) violations.push(`${letter}:unexpected (got ${got})`);
   }
-  if (violations.length)
-    console.warn(`[TileAudit] ${context} — VIOLATION: ${violations.join(', ')}`);
-  else
+  if (violations.length) {
+    const detail = violations.join(', ');
+    console.warn(`[TileAudit] ${context} — VIOLATION: ${detail}`);
+    // A console warning is invisible on a phone, which is how a duplicated tile survived a
+    // whole game unnoticed. Keep the last few violations in the save so a report can say
+    // which letter went wrong and when, and tell the player their game is miscounted.
+    recordTileAudit(context, detail);
+  } else {
     console.log(`[TileAudit] ${context} — OK (${Object.values(counts).reduce((a,b)=>a+b,0)} tiles)`);
+  }
+}
+
+// Violations seen this session, newest last, capped so a repeating fault cannot fill storage.
+// Written into the saved game so it travels with the game it describes.
+let tileAuditLog = [];
+function recordTileAudit(context, detail) {
+  tileAuditLog.push({ context, detail, at: Date.now() });
+  if (tileAuditLog.length > 20) tileAuditLog = tileAuditLog.slice(-20);
+  try { localStorage.setItem('reword_tile_audit', JSON.stringify(tileAuditLog)); } catch {}
+  showMsg(`Tile count is off (${detail}). Please report this game.`, 'bad');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2838,6 +2894,55 @@ function getWordsFormed(placements, tempBoard) {
     }
   }
   return words;
+}
+
+// Whole-board integrity gate. A turn can place, swap in place, steal and remove all at
+// once, and each of those checks only looks at the squares it touched — so a combination
+// could leave the board in a state none of them owned. This inspects the board the turn
+// would actually commit: every run of two or more tiles must be a word, and every tile must
+// still hang off the centre square. It is the last thing between a legal-looking turn and a
+// board with a floating IZZ on it.
+function findBoardDefect(b) {
+  const occupied = [];
+  for (let r = 0; r < BS; r++)
+    for (let c = 0; c < BS; c++)
+      if (b[r][c]) occupied.push([r, c]);
+  if (occupied.length === 0) return null;
+
+  // Every maximal run of 2+ tiles, in both directions, has to be a real word.
+  const seen = new Set();
+  for (const [r, c] of occupied) {
+    for (const [dr, dc] of [[0,1],[1,0]]) {
+      const w = getWordAt(b, r, c, dr, dc);
+      if (!w) continue;
+      const wKey = `${w.cells[0].row},${w.cells[0].col},${dr},${dc}`;
+      if (seen.has(wKey)) continue;
+      seen.add(wKey);
+      if (!WORDS.has(w.word.toUpperCase()))
+        return `That would leave "${w.word.toUpperCase()}" on the board, which is not a word.`;
+    }
+  }
+
+  // One connected island, flood-filled from any tile — a tile removed this turn can be the
+  // only thing that was holding another word on.
+  const key = ([r, c]) => `${r},${c}`;
+  const reached = new Set([key(occupied[0])]);
+  const stack = [occupied[0]];
+  while (stack.length) {
+    const [r, c] = stack.pop();
+    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      const nr = r + dr, nc = c + dc;
+      const k = `${nr},${nc}`;
+      if (nr < 0 || nr >= BS || nc < 0 || nc >= BS) continue;
+      if (!b[nr][nc] || reached.has(k)) continue;
+      reached.add(k);
+      stack.push([nr, nc]);
+    }
+  }
+  if (reached.size !== occupied.length)
+    return 'That would leave tiles on the board with nothing connecting them.';
+
+  return null;
 }
 
 function hasAdjacentTile(b, r, c, skipKey) {
@@ -3008,6 +3113,15 @@ function recallRemoval(key) {
   const info = pendingRemovalInfo[key];
   if (!info) return;
   playRecall();
+  // Drop any placement of the stolen tile first — the tile is going back to the square it
+  // came from, so a placement of it elsewhere is void. Left behind, its rackIdx pointed at a
+  // rack slot that the splice below destroys or reassigns, and the commit then wrote the
+  // stored letter to the board while removing whichever tile had inherited that index:
+  // one tile minted out of nothing, an unrelated one destroyed. recallPendingTile has always
+  // done this for swaps; steals were missing it.
+  for (const [otherKey, op] of Object.entries(pendingPlacements)) {
+    if (!op.isSwap && op.rackIdx === info.rackIdx) delete pendingPlacements[otherKey];
+  }
   swappedRackIndices.delete(info.rackIdx);
   playerRack.splice(info.rackIdx, 1);
   // Shift indices in pendingPlacements
@@ -3136,20 +3250,28 @@ function validatePlay(placements, swapKeys = new Set()) {
   if (isEmpty()) {
     if (!placements['7,7']) return {ok:false, err:'First word must cover the center star.'};
   } else {
-    // Must connect to existing tiles (primary tiles only)
+    // Must connect to existing tiles (primary tiles only). "Existing" means the tiles that
+    // survive this turn: a tile stolen or removed on the same turn is gone by the time the
+    // play commits, so reading the raw `board` here let a word anchor itself to a square it
+    // was about to empty and land on the board floating.
+    const standing = board.map(row => [...row]);
+    for (const remKey of pendingRemovals) {
+      const [rr, rc] = remKey.split(',').map(Number);
+      standing[rr][rc] = null;
+    }
     let connected = false;
     for (const key of checkKeys) {
       if (swapKeys.has(key)) continue; // swap position connects by definition
       const [r,c] = key.split(',').map(Number);
-      if (hasAdjacentTile(board, r, c, null)) { connected = true; break; }
+      if (hasAdjacentTile(standing, r, c, null)) { connected = true; break; }
     }
     if (!connected) {
       if (new Set(rows).size === 1) {
         const r = rows[0], mn = Math.min(...cols), mx = Math.max(...cols);
-        for (let c = mn; c <= mx; c++) if (board[r][c] && !allNewKeys.has(`${r},${c}`)) { connected = true; break; }
+        for (let c = mn; c <= mx; c++) if (standing[r][c] && !allNewKeys.has(`${r},${c}`)) { connected = true; break; }
       } else {
         const c = cols[0], mn = Math.min(...rows), mx = Math.max(...rows);
-        for (let r = mn; r <= mx; r++) if (board[r][c] && !allNewKeys.has(`${r},${c}`)) { connected = true; break; }
+        for (let r = mn; r <= mx; r++) if (standing[r][c] && !allNewKeys.has(`${r},${c}`)) { connected = true; break; }
       }
     }
     if (!connected) return {ok:false, err:'Word must connect to existing tiles.'};
@@ -3159,6 +3281,10 @@ function validatePlay(placements, swapKeys = new Set()) {
   if (words.length === 0) return {ok:false, err:'No valid word formed.'};
   for (const {word} of words)
     if (!WORDS.has(word.toUpperCase())) return {ok:false, err:`"${word.toUpperCase()}" is not a valid word.`};
+
+  // Last gate: the board this turn would actually leave behind.
+  const defect = findBoardDefect(tb);
+  if (defect) return {ok:false, err:defect};
 
   return {ok:true, words};
 }
@@ -3223,13 +3349,16 @@ function submitPlay() {
   lastSwapKeys = pairing.keys;
   lastSwapPairMap = pairing.pairMap;
 
-  // Commit to board
-  for (const [key, {letter}] of Object.entries(allPlacements))
-    board[+key.split(',')[0]][+key.split(',')[1]] = letter;
-
-  // Clear pending-removal tiles from the board
+  // Commit to board, in the same order boardWithPending() applies them: removals first,
+  // then placements. The reverse order let a removal blank a square a placement had just
+  // filled, so a turn that took a tile off a square and played another one back onto it
+  // validated against a filled square and committed an empty one — which is how a word
+  // could be left both broken and short a tile.
   for (const key of pendingRemovals)
     board[+key.split(',')[0]][+key.split(',')[1]] = null;
+
+  for (const [key, {letter}] of Object.entries(allPlacements))
+    board[+key.split(',')[0]][+key.split(',')[1]] = letter;
 
   // Remove used tiles from rack
   const rackSizeBeforePlay = playerRack.length;
@@ -6784,7 +6913,7 @@ function saveAiGameState() {
     localStorage.setItem(AI_SAVE_KEY, JSON.stringify({
       board: board.flat().map(c => c === null ? '' : c),
       bag: [...bag],
-      playerRack: [...playerRack],
+      playerRack: committedPlayerRack(),
       aiRack: [...aiRack],
       playerScore,
       aiScore,
@@ -7800,7 +7929,7 @@ function buildOnlinePayload(nextTurn) {
     board:  board.flat().map(c => c === null ? '' : c),
     bag:    [...bag],
     racks:  {
-      [myOnlineRole]: [...playerRack],
+      [myOnlineRole]: committedPlayerRack(),
       [opRole]:       [...aiRack]
     },
     scores: {
@@ -7859,7 +7988,6 @@ function applyOnlineState(data) {
   currentPlayer = data.currentTurn === myOnlineRole ? 'player' : 'ai';
 
   resetPending();
-  auditTiles('applyOnlineState');
   updateUI();
   // Don't run computeBestScore here — it blocks the main thread for several seconds
   // on a large board. It will fire lazily when the player places their first tile.
@@ -7909,6 +8037,9 @@ function applyOnlineState(data) {
     }
     updateGamesBadge();
   }
+
+  // Last, so its warning isn't immediately overwritten by the turn message above.
+  auditTiles('applyOnlineState');
 }
 
 // ── Save state after a move ────────────────────────────

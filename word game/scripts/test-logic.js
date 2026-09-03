@@ -41,7 +41,7 @@ const ctx = {
   pendingPlacements: {},
   pendingRemovals: new Set(),
   swapPendingPositions: new Set(),
-  WORDS: new Set(['AZO','ABO','BO','ZA','AB','OB','DOME','DOMED','CAT','AT','ATE']),
+  WORDS: new Set(['AZO','ABO','BO','ZA','AB','OB','DOME','DOMED','CAT','AT','ATE','ETA','FETA']),
   console,
 };
 vm.createContext(ctx);
@@ -55,6 +55,7 @@ vm.runInContext([
   grabFunction('hasAdjacentTile'),
   grabFunction('hasGaps'),
   grabFunction('isBoardConnected'),
+  grabFunction('findBoardDefect'),
   grabFunction('scoreWords'),
   grabFunction('scorePlay'),
   grabFunction('validatePlay'),
@@ -136,6 +137,33 @@ check('a steal that leaves a non-word is rejected', {
   placements: { '6,7': { letter: 'T', rackIdx: 0 } },
   removals: ['5,4'],
 }, { allowed: false, errorContains: 'not a valid word' });
+
+// Game 2XQDRA, 2026-09-02: FETA ran down column 7 and the opponent played across row 4
+// off its F, stealing that same F in the same turn. Connectivity was tested against the
+// committed board, where the F still stood, so it passed -- and the commit then emptied
+// that square, leaving the new word floating in the middle of the board.
+check('a word anchored only to a tile stolen this turn is rejected', {
+  tiles: [[4,7,'F'], [5,7,'E'], [6,7,'T'], [7,7,'A']],
+  placements: {
+    '4,8':  { letter: 'A', rackIdx: 0 },
+    '4,9':  { letter: 'B', rackIdx: 1 },
+  },
+  removals: ['4,7'],
+}, { allowed: false, errorContains: 'connect' });
+
+// The same play WITHOUT stealing the anchor is a normal, legal move, so the fix must not
+// have simply made every steal-plus-play rejectable.
+check('the same word is fine when the anchor stays put', {
+  tiles: [[4,7,'A'], [5,7,'B'], [6,7,'O']],
+  placements: { '4,8': { letter: 'B', rackIdx: 0 } },
+}, { allowed: true });
+
+// A board already broken before this turn stays playable -- games damaged by the old
+// tile bug must not be locked out by the new gate.
+check('an already-disconnected board does not block a legal play', {
+  tiles: [[4,7,'A'], [4,8,'B'], [10,2,'A'], [10,3,'T']],
+  placements: { '4,9': { letter: 'O', rackIdx: 0 } },
+}, { allowed: true });
 
 console.log('\nSteal eligibility — getRemovableInfo\n');
 

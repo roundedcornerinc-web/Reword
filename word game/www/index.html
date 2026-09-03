@@ -2928,52 +2928,19 @@ function getWordsFormed(placements, tempBoard) {
   return words;
 }
 
-// Whole-board integrity gate. A turn can place, swap in place, steal and remove all at
-// once, and each of those checks only looks at the squares it touched — so a combination
-// could leave the board in a state none of them owned. This inspects the board the turn
-// would actually commit: every run of two or more tiles must be a word, and every tile must
-// still hang off the centre square. It is the last thing between a legal-looking turn and a
-// board with a floating IZZ on it.
-function findBoardDefect(b) {
-  const occupied = [];
-  for (let r = 0; r < BS; r++)
-    for (let c = 0; c < BS; c++)
-      if (b[r][c]) occupied.push([r, c]);
-  if (occupied.length === 0) return null;
-
-  // Every maximal run of 2+ tiles, in both directions, has to be a real word.
-  const seen = new Set();
-  for (const [r, c] of occupied) {
-    for (const [dr, dc] of [[0,1],[1,0]]) {
-      const w = getWordAt(b, r, c, dr, dc);
-      if (!w) continue;
-      const wKey = `${w.cells[0].row},${w.cells[0].col},${dr},${dc}`;
-      if (seen.has(wKey)) continue;
-      seen.add(wKey);
-      if (!WORDS.has(w.word.toUpperCase()))
-        return `That would leave "${w.word.toUpperCase()}" on the board, which is not a word.`;
-    }
-  }
-
-  // One connected island, flood-filled from any tile — a tile removed this turn can be the
-  // only thing that was holding another word on.
-  const key = ([r, c]) => `${r},${c}`;
-  const reached = new Set([key(occupied[0])]);
-  const stack = [occupied[0]];
-  while (stack.length) {
-    const [r, c] = stack.pop();
-    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
-      const nr = r + dr, nc = c + dc;
-      const k = `${nr},${nc}`;
-      if (nr < 0 || nr >= BS || nc < 0 || nc >= BS) continue;
-      if (!b[nr][nc] || reached.has(k)) continue;
-      reached.add(k);
-      stack.push([nr, nc]);
-    }
-  }
-  if (reached.size !== occupied.length)
+// Connectivity gate. Every other check in validatePlay looks only at the squares the turn
+// touched, so none of them owns the question "is the board still one island afterwards?" —
+// which is how a word anchored solely to a tile stolen on the same turn committed floating.
+//
+// Deliberately comparative, not absolute: a board that is ALREADY broken stays playable.
+// Games damaged before this landed still contain a stranded word, and failing them outright
+// would lock those players out of their own game rather than merely leaving it untidy. Only
+// a turn that breaks a board which was whole is refused. Word validity is not re-checked
+// here for the same reason — getWordsFormed covers the words this turn forms, and the
+// pendingRemovals loop covers the ones it breaks, both scoped to the turn.
+function findBoardDefect(before, after) {
+  if (isBoardConnected(before) && !isBoardConnected(after))
     return 'That would leave tiles on the board with nothing connecting them.';
-
   return null;
 }
 
@@ -3314,8 +3281,10 @@ function validatePlay(placements, swapKeys = new Set()) {
   for (const {word} of words)
     if (!WORDS.has(word.toUpperCase())) return {ok:false, err:`"${word.toUpperCase()}" is not a valid word.`};
 
-  // Last gate: the board this turn would actually leave behind.
-  const defect = findBoardDefect(tb);
+  // Last gate: the board this turn would actually leave behind, against the one it started
+  // from. `standing` is the committed board minus this turn's removals, so compare the real
+  // committed board instead.
+  const defect = findBoardDefect(board, tb);
   if (defect) return {ok:false, err:defect};
 
   return {ok:true, words};

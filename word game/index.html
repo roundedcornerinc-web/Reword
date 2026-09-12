@@ -2517,7 +2517,7 @@ body {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15.2858 14.11659" fill="none" stroke="#fff" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4.87848 11.41962 4.00715 11.81119 .5 4.00715 8.30405 .5 9.70942 3.62721"/><rect x="6.22991" y="5.0607" width="8.55589" height="8.55589"/></svg>
       Remaining Letters
     </button>
-    <button class="more-item" onclick="closeMoreMenu();showConfirmSheet('Pass your turn?','You won\'t score any points this turn.','Pass',passTurn,toggleMoreMenu)">
+    <button class="more-item" onclick="closeMoreMenu();showConfirmSheet('Pass your turn?','You won\'t score any points this turn.','Pass',passTurn,openMoreMenu)">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.12 18.11" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M15.11,3.01c-1.55-1.55-3.69-2.51-6.06-2.51C4.33.5.5,4.33.5,9.05s3.83,8.55,8.55,8.55c2.37,0,4.51-.96,6.06-2.51"/><polyline points="15.62 .81 15.62 3.61 12.83 3.61"/></svg>
       Pass Turn
     </button>
@@ -2525,7 +2525,7 @@ body {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14.86 18.7" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M.5,3.07c3.06-.74,3.98-.78,7.08,0v1.57c3.08.74,3.67.73,6.78,0v8.77c-2.52.82-3.54.86-5.71.21"/><path d="M7.58,4.64v7.2c-3.09-.67-4.05-.59-7.08,0"/><line x1=".5" y1="18.2" x2=".5" y2=".5"/></svg>
       <span id="menu-resign-label">Resign Game</span>
     </button>
-    <button class="more-item resign-item" id="menu-cancel-game" style="display:none;" onclick="closeMoreMenu();showConfirmSheet('Cancel this game?','The game will be deleted for both players.','Cancel Game',cancelOnlineGame,toggleMoreMenu)">
+    <button class="more-item resign-item" id="menu-cancel-game" style="display:none;" onclick="closeMoreMenu();showConfirmSheet('Cancel this game?','The game will be deleted for both players.','Cancel Game',cancelOnlineGame,openMoreMenu)">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg>
       Cancel Game
     </button>
@@ -3108,6 +3108,13 @@ function tryRemoveTile(r, c) {
   updateUI();
 }
 
+// Is `rackIdx` the tile stolen off `key` this turn? Matched on the rack slot, never on the
+// letter — holding two of the same letter must not let one undo the other's steal.
+function isStealOrigin(key, rackIdx) {
+  const info = pendingRemovalInfo[key];
+  return !!info && rackIdx != null && info.rackIdx === rackIdx;
+}
+
 function recallRemoval(key) {
   const info = pendingRemovalInfo[key];
   if (!info) return;
@@ -3136,6 +3143,12 @@ function recallRemoval(key) {
   pendingRemovals.delete(key);
   delete pendingRemovalInfo[key];
   swapCount = Math.max(0, swapCount - 1);
+  // A placement may have just been dropped, so the best-play figure is stale.
+  computeBestScore();
+  if (!window.tutorialMode) {
+    const remaining = 4 - swapCount;
+    showMsg(`"${info.letter.toUpperCase()}" put back. ${remaining > 0 ? `${remaining} swap${remaining === 1 ? '' : 's'} left.` : 'No more swaps this turn.'}`, 'info');
+  }
   updateUI();
 }
 
@@ -3915,6 +3928,16 @@ function onCellClick(r, c) {
   // A tile in hand wins over an armed square — there is nothing left to disambiguate.
   clearCellSelection();
 
+  // UNDO STEAL: holding the stolen tile and tapping the square it came from puts it back.
+  // Without this the tap fell through to the swap branch below and was refused as
+  // "Stolen tiles must be placed on the board this turn", which reads like a rule against
+  // the one thing the player is trying to do.
+  if (isStealOrigin(key, selIdx)) {
+    document.querySelectorAll('.rack-tile.selected').forEach(el => el.classList.remove('selected'));
+    recallRemoval(key);
+    return;
+  }
+
   // SWAP: rack tile selected + clicking a committed board square
   if (board[r][c]) {
     if (swapCount >= 4) { showMsg('Maximum 4 swaps per turn.', 'bad'); return; }
@@ -4043,6 +4066,12 @@ function onCellDrop(r, c, rackIdx) {
   }
   if (gameOver) return;
   const key = `${r},${c}`;
+
+  // UNDO STEAL: the stolen tile dropped back on the square it came from → undo that steal
+  // alone, leaving the rest of the turn standing. Checked before `alreadyUsed` so putting it
+  // back works even once it has been played somewhere; recallRemoval drops that placement.
+  if (isStealOrigin(key, rackIdx)) { recallRemoval(key); return; }
+
   // Was a bare `return`. A refused drop that says nothing is indistinguishable from a
   // dead board, which is how "I couldn't move tiles" gets reported with no other detail.
   // Reaching this means the rack index is stale (its tile is already on the board), so a
@@ -4127,6 +4156,10 @@ function onPendingTileDrop(r, c, fromKey) {
   if (toKey === fromKey) return;
   const moving = pendingPlacements[fromKey];
   if (!moving) return;
+
+  // UNDO STEAL: a stolen tile already played somewhere, dragged back onto the square it came
+  // from. recallRemoval clears the placement it is being dragged out of.
+  if (!moving.isSwap && isStealOrigin(toKey, moving.rackIdx)) { recallRemoval(toKey); return; }
 
   // SWAP TILE: re-target to a different committed board square
   if (moving.isSwap) {
@@ -5397,7 +5430,10 @@ function renderBoard() {
             // Swap tile can only re-target to committed squares with no pending placement
             if (!board[r][c] || pendingPlacements[key]) return;
           } else {
-            if (board[r][c] || pendingPlacements[key]?.isSwap) return;
+            // The square a steal came from still holds its tile until the turn commits, so
+            // the plain "occupied" test would refuse the tile's own way home.
+            const goingBack = isStealOrigin(key, dragMoving?.rackIdx);
+            if (!goingBack && (board[r][c] || pendingPlacements[key]?.isSwap)) return;
           }
         }
         e.preventDefault();
@@ -6206,11 +6242,10 @@ function computeBestScore() {
     initStrengthWorker();
     if (_strengthWorker && _strengthWorkerReady) {
       const id = ++_strengthReqId;
-      let settled = false, timeoutId = null;
+      let timeoutId = null;
       const finish = (best) => {
-        if (settled || id !== _strengthReqId) return;   // already done, or superseded
-        settled = true;
-        if (timeoutId !== null) clearTimeout(timeoutId);
+        if (id !== _strengthReqId) return;              // superseded by a newer request
+        if (timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
         delete _strengthPending[id];
         // A 0 means the worker found nothing playable. On a board where the player can
         // obviously play, that is the search failing, not a dead rack — so fall back
@@ -6219,12 +6254,18 @@ function computeBestScore() {
       };
       _strengthPending[id] = finish;
       // The worker searches the full ~190k dictionary. On a crowded board, or with a blank
-      // in the rack (which matches every letter), that can crawl or wedge. Until it answers,
-      // bestPossibleScore stays null and the meter renders completely blank — so cap the wait.
+      // in the rack (which matches every letter), that can crawl. Until it answers,
+      // bestPossibleScore stays null and the meter renders completely blank — so show the
+      // cheap estimate after a beat.
+      //
+      // Deliberately NOT settling here. This used to mark the request done and delete the
+      // callback, so on any board big enough to miss the deadline the worker's real answer
+      // was computed and then thrown away — and a ~60-tile board takes about 2s, well past
+      // this. The curated stand-in was all the meter ever showed late in a game, which is
+      // exactly where it reads a best BELOW the player's own play and pins at 100%.
       timeoutId = setTimeout(() => {
-        if (settled || id !== _strengthReqId) return;
-        settled = true;
-        delete _strengthPending[id];
+        timeoutId = null;
+        if (id !== _strengthReqId) return;
         apply(_bestScoreOnThread(rack));
       }, 1500);
       _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: board.map(r => [...r]) });
@@ -6337,6 +6378,20 @@ function updateStrengthBar() {
     console.log('[Strength] bestPossibleScore=0, no play found');
     fill.style.width = '0%';
     fill.style.backgroundColor = '#555';
+    pct.textContent = '';
+    return;
+  }
+  // The player having already beaten "best possible" is proof the estimate is wrong — they
+  // are holding a counter-example. Math.min(1, …) used to launder that into a confident
+  // 100%, which is the false full bar reported since Build 40: the curated fallback list is
+  // 3,545 words against the dictionary's 191,852 and simply cannot see the better play.
+  // Show nothing rather than a flattering lie; the worker's real answer replaces it when it
+  // lands, and a blank bar late in a game is a signal the worker never started.
+  if (currentScore > bestPossibleScore) {
+    console.warn('[Strength] estimate of', bestPossibleScore, 'is below the play on the board (' +
+      currentScore + ') — search was incomplete, showing no reading');
+    fill.style.width = '0%';
+    fill.style.backgroundColor = 'rgba(255,255,255,0.15)';
     pct.textContent = '';
     return;
   }
@@ -6721,7 +6776,6 @@ function showScorePopup(pts) {
 // ═══════════════════════════════════════════════════════
 //  MORE MENU
 // ═══════════════════════════════════════════════════════
-let moreMenuOpen = false;
 let _confirmCancelCb = null;
 function showConfirmSheet(msg, sub, okLabel, onOk, onCancel) {
   const overlay = document.getElementById('confirm-overlay');
@@ -6735,19 +6789,29 @@ function showConfirmSheet(msg, sub, okLabel, onOk, onCancel) {
   overlay.classList.add('show');
   sheet.classList.add('show');
 }
-function closeConfirmSheet() {
+// runCancel=false tears the sheet down without answering it — for leaving the screen, where
+// the cancel callback (which puts the More menu back) would be actively wrong.
+function closeConfirmSheet(runCancel = true) {
   document.getElementById('confirm-overlay').classList.remove('show');
   document.getElementById('confirm-sheet').classList.remove('show');
-  if (_confirmCancelCb) { const cb = _confirmCancelCb; _confirmCancelCb = null; cb(); }
+  const cb = _confirmCancelCb;
+  _confirmCancelCb = null;
+  if (runCancel && cb) cb();
 }
 
-function toggleMoreMenu(e) {
-  e?.stopPropagation();
-  moreMenuOpen = !moreMenuOpen;
+// Whether the menu is up is read off the element itself. It used to be tracked in a
+// `moreMenuOpen` flag that nothing ever resynchronised, so once the flag and the DOM
+// disagreed every later tap did the opposite of what it looked like.
+function isMoreMenuOpen() {
+  return !!document.getElementById('more-menu')?.classList.contains('show');
+}
+
+function openMoreMenu() {
   const menu    = document.getElementById('more-menu');
   const overlay = document.getElementById('more-overlay');
   const btn     = document.getElementById('btn-more');
   const clip    = document.getElementById('more-menu-clip');
+  if (!menu) return;
   const board    = document.getElementById('board-wrapper');
   const controls = document.getElementById('controls');
   const boardBottom = board ? board.getBoundingClientRect().bottom : window.innerHeight * 0.6;
@@ -6760,20 +6824,24 @@ function toggleMoreMenu(e) {
       clip.style.right = (window.innerWidth - cr.right) + 'px';
     }
   }
-  if (overlay) overlay.style.bottom = belowBoard + 'px';
-  menu.style.transform = moreMenuOpen ? 'translateY(0)' : 'translateY(100%)';
-  menu.classList.toggle('show', moreMenuOpen);
-  overlay.classList.toggle('show', moreMenuOpen);
-  btn.classList.toggle('active', moreMenuOpen);
+  if (overlay) { overlay.style.bottom = belowBoard + 'px'; overlay.classList.add('show'); }
+  menu.style.transform = 'translateY(0)';
+  menu.classList.add('show');
+  if (btn) btn.classList.add('active');
 }
+
 function closeMoreMenu() {
-  moreMenuOpen = false;
   const menu    = document.getElementById('more-menu');
   const overlay = document.getElementById('more-overlay');
   const btn     = document.getElementById('btn-more');
   if (menu)    { menu.classList.remove('show'); menu.style.transform = 'translateY(100%)'; }
   if (overlay) overlay.classList.remove('show');
   if (btn)     btn.classList.remove('active');
+}
+
+function toggleMoreMenu(e) {
+  e?.stopPropagation();
+  if (isMoreMenuOpen()) closeMoreMenu(); else openMoreMenu();
 }
 
 // ── Player name ──
@@ -8319,9 +8387,9 @@ function updateResignButton() {
 function confirmResign() {
   closeMoreMenu();
   if (isOnlineMode) {
-    showConfirmSheet('End this game?', 'Your progress will be lost.', 'End Game', resignOnlineGame, toggleMoreMenu);
+    showConfirmSheet('End this game?', 'Your progress will be lost.', 'End Game', resignOnlineGame, openMoreMenu);
   } else {
-    showConfirmSheet('End this game?', '', 'End AI Game', resignOnlineGame, toggleMoreMenu);
+    showConfirmSheet('End this game?', '', 'End AI Game', resignOnlineGame, openMoreMenu);
   }
 }
 
@@ -10216,6 +10284,10 @@ function showHomeScreen() {
   if (!document.getElementById('home-screen')?.classList.contains('active')) {
     promotePendingResultViews();
   }
+  // An open menu is tied to the game screen's layout, and nothing else closes it. Left up,
+  // it came back with the next game and no tap would clear it.
+  closeMoreMenu();
+  closeConfirmSheet(false);
   // Cancel any pending best-score computation so it can't fire when the next game opens
   clearTimeout(_bestScoreTimer); _bestScoreTimer = null; bestPossibleScore = null;
   // Cancel a half-built turn on the way out, while playerRack is still the rack that turn
@@ -10355,6 +10427,7 @@ function resetPerGameFeed() {
 
 function showGameScreen() {
   stopHomeListeners();
+  closeMoreMenu();
   // Booting straight into a game (a single stored online game, or an invite link) never
   // touches the home screen, so loadHomeGames — the only thing that dismisses the splash —
   // never runs, and the board ends up behind it.

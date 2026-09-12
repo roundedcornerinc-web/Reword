@@ -564,6 +564,146 @@ console.log('\nScoring — replayed tiles keep their square bonuses\n');
   }
 })();
 
+// ── Putting a stolen tile back ───────────────────────────────────────────────
+// Undoing one steal used to mean the global Recall button, which throws away the whole
+// turn. These cover the targeted undo the drag/tap gestures now reach.
+console.log('\nPutting a stolen tile back — one steal, not the whole turn\n');
+
+(function () {
+  vm.runInContext([
+    'var playerRack = [];',
+    'var pendingRemovalInfo = {}, pendingRemovals = new Set();',
+    'var swappedRackIndices = new Set(), swapCount = 0;',
+    'var window = {};',
+    'var playRecall = function () {}, computeBestScore = function () {};',
+    'var updateUI = function () {}, showMsg = function () {};',
+    grabFunction('isStealOrigin'),
+    grabFunction('recallRemoval'),
+  ].join('\n'), ctx);
+
+  const ok = (name, cond, expected, actual) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          expected: ' + expected);
+    console.log('          actual:   ' + actual);
+  };
+
+  // A steal pushes the stolen letter onto the end of the rack and marks the square.
+  function stealSetup() {
+    ctx.playerRack = ['W', 'X', 'Y', 'F'];      // F stolen off 7,7 into slot 3
+    ctx.swappedRackIndices = new Set([3]);
+    ctx.pendingRemovals = new Set(['7,7']);
+    ctx.pendingRemovalInfo = { '7,7': { letter: 'F', rackIdx: 3, isBlank: false } };
+    ctx.swapCount = 1;
+    ctx.pendingPlacements = {};
+  }
+
+  // Identified by rack slot, never by letter — the W in slot 0 is not the stolen tile even
+  // if the player is holding another F.
+  stealSetup();
+  ok('the stolen slot is recognised as that square\'s origin',
+    ctx.isStealOrigin('7,7', 3) === true, 'true', String(ctx.isStealOrigin('7,7', 3)));
+  ok('a different rack slot is not',
+    ctx.isStealOrigin('7,7', 0) === false, 'false', String(ctx.isStealOrigin('7,7', 0)));
+  ok('an untouched square has no steal to undo',
+    ctx.isStealOrigin('9,9', 3) === false, 'false', String(ctx.isStealOrigin('9,9', 3)));
+
+  // The whole point: other placements this turn must survive the undo.
+  stealSetup();
+  ctx.pendingPlacements = {
+    '5,5': { letter: 'W', rackIdx: 0 },   // a normal play the user wants to keep
+    '5,6': { letter: 'F', rackIdx: 3 },   // the stolen tile, played out
+  };
+  ctx.recallRemoval('7,7');
+
+  ok('the stolen tile leaves the rack again',
+    ctx.playerRack.join('') === 'WXY', 'WXY', ctx.playerRack.join(''));
+  ok('its own placement is dropped',
+    ctx.pendingPlacements['5,6'] === undefined, 'gone', JSON.stringify(ctx.pendingPlacements['5,6']));
+  ok('the rest of the turn is left standing',
+    JSON.stringify(ctx.pendingPlacements['5,5']) === JSON.stringify({ letter: 'W', rackIdx: 0 }),
+    '{"letter":"W","rackIdx":0}', JSON.stringify(ctx.pendingPlacements['5,5']));
+  ok('the square stops being marked for removal',
+    !ctx.pendingRemovals.has('7,7') && ctx.pendingRemovalInfo['7,7'] === undefined,
+    'unmarked', JSON.stringify([...ctx.pendingRemovals]));
+  ok('the swap allowance is handed back',
+    ctx.swapCount === 0, '0', String(ctx.swapCount));
+  ok('the slot is no longer flagged as holding a stolen tile',
+    ctx.swappedRackIndices.size === 0, 'empty', JSON.stringify([...ctx.swappedRackIndices]));
+
+  // Placements above the spliced slot must follow the rack down, or they point at the wrong
+  // tile at commit -- the fault that minted a Z and destroyed an F in game 2XQDRA.
+  stealSetup();
+  ctx.playerRack = ['W', 'F', 'X', 'Y'];
+  ctx.swappedRackIndices = new Set([1]);
+  ctx.pendingRemovalInfo = { '7,7': { letter: 'F', rackIdx: 1, isBlank: false } };
+  ctx.pendingPlacements = { '5,5': { letter: 'Y', rackIdx: 3 } };
+  ctx.recallRemoval('7,7');
+  ok('a placement above the freed slot follows the rack down',
+    ctx.pendingPlacements['5,5'].rackIdx === 2 && ctx.playerRack[2] === 'Y',
+    'rackIdx 2 -> Y', 'rackIdx ' + ctx.pendingPlacements['5,5'].rackIdx + ' -> ' + ctx.playerRack[2]);
+})();
+
+// ── Strength meter — an estimate the board disproves ─────────────────────────
+// The meter divides the play by a "best possible" that, past FULL_DICT_TILE_LIMIT tiles,
+// comes from the 3,545-word curated list rather than the 191,852-word dictionary. That
+// estimate can land BELOW the play the player has already made, and Math.min(1, ...) turned
+// that contradiction into a confident 100% — the false full bar reported since Build 40.
+console.log('\nStrength meter — refusing to report a disproved estimate\n');
+
+(function () {
+  // scorePlay is stubbed so the play's value is fixed: the decision is what is under test,
+  // not the scoring, which its own section already covers.
+  vm.runInContext([
+    'var bestPossibleScore = null, _bestScoreTimer = null, playerRack = [];',
+    'var pendingRemovalInfo = {}, swapPendingPositions = new Set();',
+    'var _stubPlayScore = 0;',
+    'var scorePlay = function () { return _stubPlayScore; };',
+    'var validatePlay = function () { return { ok: true, words: [] }; };',
+    'var earnsAllTilesBonus = function () { return false; };',
+    'var computeBestScore = function () {};',
+    'var _fill = { style: {} }, _pct = { textContent: null };',
+    'var document = { getElementById: function (id) {',
+    '  return id === "strength-fill" ? _fill : id === "strength-pct" ? _pct : null; } };',
+    grabFunction('updateStrengthBar'),
+  ].join('\n'), ctx);
+
+  const ok = (name, cond, expected, actual) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          expected: ' + expected);
+    console.log('          actual:   ' + actual);
+  };
+
+  const render = (playScore, best) => {
+    ctx.pendingPlacements = { '7,7': { letter: 'A', rackIdx: 0 } };
+    ctx._stubPlayScore = playScore;
+    ctx.bestPossibleScore = best;
+    ctx.updateStrengthBar();
+    return { pct: ctx._pct.textContent, width: ctx._fill.style.width };
+  };
+
+  // The reported case: a 24-point play against a curated "best" of 24 or less.
+  let r = render(24, 24);
+  ok('a play equal to the estimate still reports',
+    r.pct === '100%', '100%', String(r.pct));
+
+  r = render(24, 18);
+  ok('an estimate below the play reports nothing rather than 100%',
+    r.pct === '' && r.width === '0%', "'' and 0%", JSON.stringify(r));
+
+  // A trustworthy estimate must still read normally.
+  r = render(30, 60);
+  ok('a sound estimate reports its real ratio',
+    r.pct === '50%' && r.width === '50%', '50%', JSON.stringify(r));
+
+  r = render(46, 46);
+  ok('a genuinely optimal play still reads 100%',
+    r.pct === '100%', '100%', String(r.pct));
+})();
+
 if (failures.length) {
   console.error(`\nLogic tests failed (${failures.length} of ${passed + failures.length}). Build stopped.\n`);
   process.exit(1);

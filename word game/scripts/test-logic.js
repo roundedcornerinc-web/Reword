@@ -704,6 +704,97 @@ console.log('\nStrength meter — refusing to report a disproved estimate\n');
     r.pct === '100%', '100%', String(r.pct));
 })();
 
+// ── Narrating the turn that just ended ───────────────────────────────────────
+// Game W2ME2H (Brady vs Mohan, 2026-09-13): Mohan exchanged tiles, which ends a turn without
+// touching the board or lastPlayScore. The previous play's 36 survived and was read back as
+// " Mohan scored 36 pts." -- the asker's own JOLTS, credited to his opponent, while his word
+// sat highlighted with a 36 badge. It read as her turn being skipped.
+console.log('\nTurn narration — only report a turn to the player whose turn it was\n');
+
+(function () {
+  vm.runInContext([grabFunction('describeLastAction')].join('\n'), ctx);
+
+  const ok = (name, actual, expected) => {
+    if (actual === expected) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          expected: ' + JSON.stringify(expected));
+    console.log('          actual:   ' + JSON.stringify(actual));
+  };
+
+  const play     = { role: 'p1', type: 'play', score: 36 };
+  const exchange = { role: 'p2', type: 'exchange', count: 5 };
+  const pass     = { role: 'p2', type: 'pass' };
+
+  // The reported bug: p1's own play must not be narrated to p1 as the opponent's.
+  ok('my own play is not read back to me as my opponent\'s',
+    ctx.describeLastAction(play, 'p2', 'Mohan'), '');
+  ok('my own play is reported to me as mine',
+    ctx.describeLastAction(play, 'p1', 'You'), ' You scored 36 pts.');
+
+  ok('an exchange is reported, not silently skipped',
+    ctx.describeLastAction(exchange, 'p2', 'Mohan'), ' Mohan exchanged 5 tiles.');
+  ok('one exchanged tile is singular',
+    ctx.describeLastAction({ role: 'p2', type: 'exchange', count: 1 }, 'p2', 'Mohan'),
+    ' Mohan exchanged 1 tile.');
+  ok('a pass is reported',
+    ctx.describeLastAction(pass, 'p2', 'Mohan'), ' Mohan passed.');
+
+  // Games created before lastAction existed carry none. Saying nothing is right: the field
+  // that used to be used cannot tell a play from an exchange, which is the whole bug.
+  ok('a game with no recorded action says nothing rather than guessing',
+    ctx.describeLastAction(undefined, 'p2', 'Mohan'), '');
+  ok('a null action says nothing',
+    ctx.describeLastAction(null, 'p2', 'Mohan'), '');
+})();
+
+// ── The More menu opens only when asked ──────────────────────────────────────
+// Reported twice as "the in game menu keeps popping up". Cancelling a confirm sheet used to
+// re-open the menu, which is the only way it ever appeared without the player tapping MORE.
+// Structural on purpose: the fault is a callback being wired up, which no amount of calling
+// these functions can detect.
+console.log('\nMore menu — nothing opens it but the MORE button\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+
+  // Every mention of openMoreMenu, minus its own declaration, must be inside toggleMoreMenu.
+  const mentions = (src.match(/openMoreMenu/g) || []).length;
+  const declared = (src.match(/function openMoreMenu\s*\(/g) || []).length;
+  const inToggle = (grabFunction('toggleMoreMenu').match(/openMoreMenu/g) || []).length;
+  ok('openMoreMenu is called only by toggleMoreMenu',
+    mentions - declared === inToggle,
+    `${mentions} mentions, ${declared} declaration(s), ${inToggle} inside toggleMoreMenu — ` +
+    'something else opens the menu');
+
+  // Specifically: never handed to showConfirmSheet as its onCancel.
+  ok('no confirm sheet re-opens the menu when cancelled',
+    !/showConfirmSheet\([^)]*openMoreMenu/.test(src) && !/openMoreMenu\s*\)/.test(src.replace(/function openMoreMenu\s*\(\s*\)/g, '')),
+    'a showConfirmSheet call still passes openMoreMenu as its cancel callback');
+
+  // Leaving the game screen must drop the menu, or it survives into the next screen and
+  // no tap will clear it — which is what forced an app restart.
+  ok('leaving for the home screen closes the menu',
+    grabFunction('showHomeScreen').includes('closeMoreMenu()'),
+    'showHomeScreen does not call closeMoreMenu()');
+  ok('entering the game screen closes the menu',
+    grabFunction('showGameScreen').includes('closeMoreMenu()'),
+    'showGameScreen does not call closeMoreMenu()');
+
+  // The open/closed answer must come from the element, not a flag that can drift.
+  // Strip line comments: the code carries one naming the old flag, and matching that instead
+  // of a real reference would fail on the fixed version.
+  const codeOnly = src.replace(/^\s*\/\/.*$/gm, '');
+  ok('menu state is read from the DOM, not a shadow flag',
+    /classList\.contains\('show'\)/.test(grabFunction('isMoreMenuOpen')) && !/\bmoreMenuOpen\b/.test(codeOnly),
+    'isMoreMenuOpen does not read the element, or a moreMenuOpen flag is still around');
+})();
+
 if (failures.length) {
   console.error(`\nLogic tests failed (${failures.length} of ${passed + failures.length}). Build stopped.\n`);
   process.exit(1);

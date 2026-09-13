@@ -2517,7 +2517,7 @@ body {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15.2858 14.11659" fill="none" stroke="#fff" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4.87848 11.41962 4.00715 11.81119 .5 4.00715 8.30405 .5 9.70942 3.62721"/><rect x="6.22991" y="5.0607" width="8.55589" height="8.55589"/></svg>
       Remaining Letters
     </button>
-    <button class="more-item" onclick="closeMoreMenu();showConfirmSheet('Pass your turn?','You won\'t score any points this turn.','Pass',passTurn,openMoreMenu)">
+    <button class="more-item" onclick="closeMoreMenu();showConfirmSheet('Pass your turn?','You won\'t score any points this turn.','Pass',passTurn,null)">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.12 18.11" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M15.11,3.01c-1.55-1.55-3.69-2.51-6.06-2.51C4.33.5.5,4.33.5,9.05s3.83,8.55,8.55,8.55c2.37,0,4.51-.96,6.06-2.51"/><polyline points="15.62 .81 15.62 3.61 12.83 3.61"/></svg>
       Pass Turn
     </button>
@@ -2525,7 +2525,7 @@ body {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14.86 18.7" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><path d="M.5,3.07c3.06-.74,3.98-.78,7.08,0v1.57c3.08.74,3.67.73,6.78,0v8.77c-2.52.82-3.54.86-5.71.21"/><path d="M7.58,4.64v7.2c-3.09-.67-4.05-.59-7.08,0"/><line x1=".5" y1="18.2" x2=".5" y2=".5"/></svg>
       <span id="menu-resign-label">Resign Game</span>
     </button>
-    <button class="more-item resign-item" id="menu-cancel-game" style="display:none;" onclick="closeMoreMenu();showConfirmSheet('Cancel this game?','The game will be deleted for both players.','Cancel Game',cancelOnlineGame,openMoreMenu)">
+    <button class="more-item resign-item" id="menu-cancel-game" style="display:none;" onclick="closeMoreMenu();showConfirmSheet('Cancel this game?','The game will be deleted for both players.','Cancel Game',cancelOnlineGame,null)">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg>
       Cancel Game
     </button>
@@ -3433,7 +3433,7 @@ function submitPlay() {
 
   auditTiles('commitPlay');
   checkGameOver();
-  if (isOnlineMode) { saveOnlineState(); return; }
+  if (isOnlineMode) { saveOnlineState({ role: myOnlineRole, type: 'play', score: lastPlayScore }); return; }
   saveAiGameState();
   if (!gameOver) scheduleAiTurn(1200);
 }
@@ -3448,7 +3448,7 @@ function passTurn() {
     showMsg('You passed your turn.', 'info');
     updateUI();
     checkGameOver();
-    if (isOnlineMode) { saveOnlineState(); return; }
+    if (isOnlineMode) { saveOnlineState({ role: myOnlineRole, type: 'pass' }); return; }
     saveAiGameState();
     if (!gameOver) scheduleAiTurn(800);
   });
@@ -3772,7 +3772,7 @@ function confirmExchange() {
     }
   });
   checkGameOver();
-  if (isOnlineMode) { saveOnlineState(); return; }
+  if (isOnlineMode) { saveOnlineState({ role: myOnlineRole, type: 'exchange', count }); return; }
   saveAiGameState();
   if (!gameOver) scheduleAiTurn(800);
 }
@@ -7995,9 +7995,22 @@ function generateGameId() {
 }
 
 // ── Serialize current game state for Firestore ─────────
-function buildOnlinePayload(nextTurn) {
+// Cancelling a confirm sheet used to put the More menu back up. It is the only thing that
+// ever opened the menu without the player tapping MORE, and from the other side of the screen
+// that is a menu appearing by itself — reported twice as "the menu keeps popping up". Build 74
+// made it worse by accident: the old toggle sometimes failed to reopen, and replacing it with
+// an explicit open made it happen every time. Backing out of a destructive confirmation should
+// return you to the board.
+
+// `action` records what the turn that is ending actually was — a play, a pass or an
+// exchange, and whose it was. Without it the only trace of a turn was lastPlayScore, which a
+// pass and an exchange do not touch: the previous play's score survived into the next turn
+// and was read out as the opponent's. A player who exchanged looked like they were skipped,
+// and their opponent was congratulated on the exchanger's behalf for the asker's own word.
+function buildOnlinePayload(nextTurn, action = null) {
   const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
   return {
+    lastAction: action,
     // Firestore doesn't support nested arrays — store board as flat 225-element array
     board:  board.flat().map(c => c === null ? '' : c),
     bag:    [...bag],
@@ -8032,6 +8045,21 @@ function buildOnlinePayload(nextTurn) {
 // Timestamp of the most recent doc we've applied, so a resume can tell whether it missed a
 // turn while suspended without blindly re-applying and wiping tiles the player had placed.
 let _lastAppliedUpdate = 0;
+
+// What to say about the turn that just ended, from the point of view of `role`. Returns ''
+// unless that turn was actually theirs — a turn taken by the other player is their business
+// to be told about, not ours to narrate, and inventing a line for it is how "Mohan scored 36"
+// came to describe the reader's own word.
+function describeLastAction(action, role, who) {
+  if (!action || action.role !== role) return '';
+  if (action.type === 'play' && action.score != null) return ` ${who} scored ${action.score} pts.`;
+  if (action.type === 'pass') return ` ${who} passed.`;
+  if (action.type === 'exchange') {
+    const n = action.count;
+    return n != null ? ` ${who} exchanged ${n} tile${n === 1 ? '' : 's'}.` : ` ${who} exchanged tiles.`;
+  }
+  return '';
+}
 
 function applyOnlineState(data) {
   if (!isOnlineMode) return;
@@ -8099,13 +8127,12 @@ function applyOnlineState(data) {
     window._suppressWinnerModal = false;
     if (data.currentTurn === myOnlineRole) {
       const opName = opponentOnlineName || 'Opponent';
-      const scoreNote = (lastPlayScore != null) ? ` ${opName} scored ${lastPlayScore} pts.` : '';
-      showMsg(`Your turn!${scoreNote}`, 'good');
+      showMsg(`Your turn!${describeLastAction(data.lastAction, opRole, opName)}`, 'good');
       notifyYourTurn(opName);
       document.title = '🔔 Your Turn — Reword';
     } else {
-      const scoreNote = (lastPlayScore != null) ? ` You scored ${lastPlayScore} pts.` : '';
-      showMsg(`Waiting for ${opponentOnlineName || 'opponent'} to play…${scoreNote}`, 'info');
+      showMsg(`Waiting for ${opponentOnlineName || 'opponent'} to play…` +
+        describeLastAction(data.lastAction, myOnlineRole, 'You'), 'info');
       document.title = 'Reword';
     }
     updateGamesBadge();
@@ -8116,14 +8143,14 @@ function applyOnlineState(data) {
 }
 
 // ── Save state after a move ────────────────────────────
-async function saveOnlineState() {
+async function saveOnlineState(action = null) {
   if (!isOnlineMode || !onlineGameId) return;
   // Immediately lock the UI (don't wait for Firestore round-trip)
   currentPlayer = 'ai';
   document.title = 'Reword';
   updateUI();
   const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
-  const payload = buildOnlinePayload(gameOver ? null : opRole);
+  const payload = buildOnlinePayload(gameOver ? null : opRole, action);
   try {
     await db.collection('games').doc(onlineGameId).update(payload);
     // Refresh our own push token/subscription so the opponent always has our latest
@@ -8387,9 +8414,9 @@ function updateResignButton() {
 function confirmResign() {
   closeMoreMenu();
   if (isOnlineMode) {
-    showConfirmSheet('End this game?', 'Your progress will be lost.', 'End Game', resignOnlineGame, openMoreMenu);
+    showConfirmSheet('End this game?', 'Your progress will be lost.', 'End Game', resignOnlineGame, null);
   } else {
-    showConfirmSheet('End this game?', '', 'End AI Game', resignOnlineGame, openMoreMenu);
+    showConfirmSheet('End this game?', '', 'End AI Game', resignOnlineGame, null);
   }
 }
 

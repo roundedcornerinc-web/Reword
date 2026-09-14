@@ -4917,7 +4917,7 @@ function findAIMove(rackOverride = null) {
 
 // Find best play given an arbitrary rack on an arbitrary board state.
 // Used by the swap move finder so it can evaluate plays after a hypothetical swap.
-function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRackIndices = new Set()) {
+function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRackIndices = new Set(), withBonus = false) {
   const candidates = [];
   const maxLen = aiSkill === 'hard' ? 15 : 12;
 
@@ -4961,7 +4961,10 @@ function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRa
     if (words.length === 0) return;
     for (const {word:w} of words) if (!WORDS.has(w.toUpperCase())) return;
     const noScorePos = new Set(placements.filter(p => noScoreRackIndices.has(p.rackIdx)).map(p => `${p.row},${p.col}`));
-    const score = scoreWords(words, new Set(Object.keys(pMap)), noScorePos);
+    // withBonus: the strength meter compares against the player's score, which includes the
+    // all-tiles bonus. Without it a 7-tile play beats "best possible" and the meter blanks.
+    const score = scoreWords(words, new Set(Object.keys(pMap)), noScorePos) +
+      (withBonus && placements.length === rack.length && rack.length >= 7 ? 35 : 0);
     candidates.push({score, word, placements, words});
   };
 
@@ -5115,7 +5118,7 @@ function findAIStealMove(rackOverride = null) {
       // The stolen square [r,c] must remain blocked — mark it so findBestPlayWithRack skips it
       const newRack = [...rack, boardLetter];
       const stolenRackIdx = newRack.length - 1;
-      const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set([stolenRackIdx]), new Set([`${r},${c}`]));
+      const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set([stolenRackIdx]));
       if (!play || play.score <= 0) continue;
       if (!play.placements.some(p => p.rackIdx === stolenRackIdx)) continue;
       // Double-check: AI must not play back into the stolen square
@@ -6152,6 +6155,7 @@ const _strengthPending = {};
 
 // Runs INSIDE the worker (stringified). BS/VAL/PREMIUM/WORDS + solver fns are injected above it.
 function _strengthWorkerMain() {
+  var _rackLen = 0;
   function _tryFirst(w, r0, c0, dr, dc) {
     var pMap = {}, tb = [];
     for (var i = 0; i < BS; i++) tb.push(new Array(BS).fill(null));
@@ -6164,7 +6168,7 @@ function _strengthWorkerMain() {
     var wds = getWordsFormed(pMap, tb);
     if (!wds.length) return 0;
     for (var k = 0; k < wds.length; k++) if (!WORDS.has(wds[k].word.toUpperCase())) return 0;
-    return scoreWords(wds, new Set(Object.keys(pMap)));
+    return scoreWords(wds, new Set(Object.keys(pMap))) + (w.length >= 7 && w.length === _rackLen ? 35 : 0);
   }
   self.onmessage = function (e) {
     var d = e.data;
@@ -6172,6 +6176,7 @@ function _strengthWorkerMain() {
     if (d.type === 'compute') {
       var best = 0;
       try {
+        _rackLen = d.rack.length;
         if (d.isEmpty) {
           for (var w of WORDS) {
             if (w.length < 2 || w.length > d.rack.length || !canSpell(w, d.rack)) continue;
@@ -6181,7 +6186,7 @@ function _strengthWorkerMain() {
             }
           }
         } else {
-          var r = findBestPlayWithRack(d.rack, d.board, WORDS);
+          var r = findBestPlayWithRack(d.rack, d.board, WORDS, new Set(), true);
           best = r ? r.score : 0;
         }
       } catch (err) {}
@@ -6317,7 +6322,7 @@ function _bestScoreOnThread(rack) {
             if (pMap[`${center},${center}`]) {
               const wds = getWordsFormed(pMap, tb);
               if (wds.length && wds.every(({word:ww}) => WORDS.has(ww.toUpperCase())))
-                bestScore = Math.max(bestScore, scoreWords(wds, new Set(Object.keys(pMap))));
+                bestScore = Math.max(bestScore, scoreWords(wds, new Set(Object.keys(pMap))) + (w.length >= 7 && w.length === rack.length ? 35 : 0));
             }
           }
           // Vertical
@@ -6331,7 +6336,7 @@ function _bestScoreOnThread(rack) {
             if (pMap[`${center},${center}`]) {
               const wds = getWordsFormed(pMap, tb);
               if (wds.length && wds.every(({word:ww}) => WORDS.has(ww.toUpperCase())))
-                bestScore = Math.max(bestScore, scoreWords(wds, new Set(Object.keys(pMap))));
+                bestScore = Math.max(bestScore, scoreWords(wds, new Set(Object.keys(pMap))) + (w.length >= 7 && w.length === rack.length ? 35 : 0));
             }
           }
         }
@@ -6341,7 +6346,7 @@ function _bestScoreOnThread(rack) {
       // gets too expensive — see FULL_DICT_TILE_LIMIT. Swap/steal loops are skipped either
       // way: they call findBestPlayWithRack hundreds of times and block for seconds.
       const boardCopy = board.map(r => [...r]);
-      const best = findBestPlayWithRack(rack, boardCopy, wordSource);
+      const best = findBestPlayWithRack(rack, boardCopy, wordSource, new Set(), true);
       bestScore = best ? best.score : 0;
     }
 

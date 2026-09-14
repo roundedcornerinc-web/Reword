@@ -795,6 +795,38 @@ console.log('\nMore menu — nothing opens it but the MORE button\n');
     'isMoreMenuOpen does not read the element, or a moreMenuOpen flag is still around');
 })();
 
+// ── Strength meter: "best possible" must count the all-tiles bonus ─────────────────────
+// The player's score includes the 35-point bonus; the search did not. A 7-tile play then
+// beat "best possible" and the meter blanked (DRILLING, 15 + 35, against Aaron).
+console.log('\nStrength meter — best possible includes the all-tiles bonus\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const c = { BS: 15, aiSkill: 'hard', WORDS: new Set(['DRILLING']), AI_WORDS: null, console };
+  c.AI_WORDS = c.WORDS;
+  vm.createContext(c);
+  vm.runInContext([
+    grabLines('const PREMIUM = {}', "PREMIUM['7,7']"),
+    grabLines('const VAL = {', 'const VAL = {'),
+    grabFunction('getWordAt'), grabFunction('getWordsFormed'), grabFunction('hasAdjacentTile'),
+    grabFunction('scoreWords'), grabFunction('canSpell'), grabFunction('findBestPlayWithRack'),
+    'this.run = (bonus) => { const b = Array.from({length: BS}, () => Array(BS).fill(null)); b[7][7] = "I";' +
+    ' const r = findBestPlayWithRack(["D","R","L","L","I","N","G"], b, WORDS, new Set(), bonus); return r ? r.score : 0; };',
+  ].join('\n'), c);
+  const plain = c.run(false), meter = c.run(true);
+  ok('meter search adds 35 for a play using all seven tiles', meter === plain + 35 && plain > 0,
+    `without bonus ${plain}, with bonus ${meter}`);
+  ok('meter search passes withBonus; AI searches do not',
+    (src.match(/findBestPlayWithRack\([^;]*new Set\(\), true\);/g) || []).length === 2 &&
+    !/findBestPlayWithRack\(newRack[^;]*new Set\(\[`/.test(src),
+    'expected exactly the two strength-meter calls to request the bonus');
+})();
+
 if (failures.length) {
   console.error(`\nLogic tests failed (${failures.length} of ${passed + failures.length}). Build stopped.\n`);
   process.exit(1);

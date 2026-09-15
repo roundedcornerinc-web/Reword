@@ -827,6 +827,66 @@ console.log('\nStrength meter — best possible includes the all-tiles bonus\n')
     'expected exactly the two strength-meter calls to request the bonus');
 })();
 
+// ── Strength meter: searched once per turn, not once per tile ──────────────────────────
+// Every placement used to start a new search, and each one blanked the bar for a beat.
+console.log('\nStrength meter — one search per rack and board\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const posts = [], draws = [];
+  const c = {
+    console, setTimeout: (f) => f(), clearTimeout: () => {},
+    board: Array.from({ length: 15 }, () => Array(15).fill(null)),
+    playerRack: ['C','A','T','S','E','R','D'],
+    bestPossibleScore: null, _bestScoreTimer: null,
+    _strengthWorker: { postMessage: (m) => posts.push(m) }, _strengthWorkerReady: true,
+    _strengthReqId: 0, _strengthPending: {},
+    initStrengthWorker() {}, isEmpty() { return false; },
+    _bestScoreOnThread() { return 5; },
+    updateStrengthBar() { draws.push(c.bestPossibleScore); },
+  };
+  c.board[7][7] = 'A';
+  vm.createContext(c);
+  vm.runInContext([
+    grabLines('const _bestScoreCache = new Map()', 'let _bestScoreDictGen'),
+    grabFunction('_bestScoreKey'), grabFunction('resetBestScore'), grabFunction('computeBestScore'),
+    'this.answer = (best) => { const id = Object.keys(_strengthPending).pop(); _strengthPending[id](best); };',
+    'this.flushDict = () => { _bestScoreCache.clear(); _bestScoreInFlight = null; _bestScoreDictGen++; };',
+  ].join('\n'), c);
+
+  c.computeBestScore();
+  c.computeBestScore(); c.computeBestScore();               // placements while it searches
+  ok('placing tiles during a search does not start another', posts.length === 1, `${posts.length} searches`);
+  c.answer(40);
+  c.computeBestScore(); c.computeBestScore();
+  ok('placing tiles after the answer reuses it', posts.length === 1 && c.bestPossibleScore === 40,
+    `${posts.length} searches, best ${c.bestPossibleScore}`);
+  ok('the bar never shows a stand-in while waiting', !draws.includes(5), `drew ${JSON.stringify(draws)}`);
+
+  c.playerRack = ['C','A','T','S','E','R','Q'];               // a steal changes the letters
+  c.computeBestScore();
+  ok('a steal that changes the letters searches again', posts.length === 2, `${posts.length} searches`);
+  c.answer(55);
+  c.playerRack = ['D','R','E','S','T','A','C'];               // recalled, in a different order
+  c.computeBestScore();
+  ok('recalling the steal reuses the first answer', posts.length === 2 && c.bestPossibleScore === 40,
+    `${posts.length} searches, best ${c.bestPossibleScore}`);
+
+  c.board[7][8] = 'T';                                         // opponent played
+  c.computeBestScore();
+  ok('a changed board searches again', posts.length === 3, `${posts.length} searches`);
+
+  c.flushDict();                                               // full dictionary landed mid-search
+  c.answer(12);
+  ok('an answer from the partial dictionary is discarded and re-searched',
+    posts.length === 4 && c.bestPossibleScore !== 12, `${posts.length} searches, best ${c.bestPossibleScore}`);
+})();
+
 if (failures.length) {
   console.error(`\nLogic tests failed (${failures.length} of ${passed + failures.length}). Build stopped.\n`);
   process.exit(1);

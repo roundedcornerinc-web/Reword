@@ -2675,6 +2675,8 @@ let WORDS = new Set(AI_WORDS);
           try {
             initStrengthWorker();
             if (_strengthWorker) _strengthWorker.postMessage({ type: 'dict', words: [...full] });
+            // Anything cached so far came from the partial list; search again with the real one.
+            if (typeof _bestScoreCache !== 'undefined') { _bestScoreCache.clear(); _bestScoreInFlight = null; _bestScoreDictGen++; }
           } catch(e) {}
         }
       }
@@ -6223,6 +6225,8 @@ function initStrengthWorker() {
       // the suspect — a Worker built from a blob: URL is not reliably allowed there.
       console.warn('[Strength] worker failed — falling back to the on-thread search', e && e.message);
       _strengthWorker = null; _strengthWorkerReady = false;
+      // A search it was running will never answer; let the on-thread one take over.
+      if (_bestScoreInFlight) { _bestScoreInFlight = null; computeBestScore(); }
     };
     _strengthWorker.postMessage({ type: 'dict', words: [...WORDS] });
   } catch (e) {
@@ -6231,52 +6235,70 @@ function initStrengthWorker() {
   }
 }
 
+// "Best possible" depends only on the rack's letters and the committed board. Placing,
+// moving and recalling tiles changes neither, so it is computed once per turn and cached.
+// It used to be re-searched on every placement, and each search blanked the bar for a beat:
+// the 1.5s curated stand-in often read below the play and hid it, then the real answer
+// brought it back -- up, gone, back. Steals and swaps do change the letters, so they get
+// their own entry; a recall returns to one already cached.
+const _bestScoreCache = new Map();   // rack+board key -> full-dictionary best
+let _bestScoreBoardSig = '';
+let _bestScoreInFlight = null;       // key the worker is currently searching
+let _bestScoreDictGen = 0;           // bumped when the full dictionary replaces the partial one
+
+function _bestScoreKey(rack) {
+  const boardSig = board.map(r => r.map(c => c || '.').join('')).join('');
+  if (boardSig !== _bestScoreBoardSig) {         // the board moved on: nothing cached still applies
+    _bestScoreCache.clear(); _bestScoreBoardSig = boardSig; _bestScoreInFlight = null;
+  }
+  return [...rack].sort().join('') + '|' + boardSig;
+}
+
+function resetBestScore() {
+  clearTimeout(_bestScoreTimer); _bestScoreTimer = null; bestPossibleScore = null;
+  _bestScoreCache.clear(); _bestScoreBoardSig = ''; _bestScoreInFlight = null; _strengthReqId++;
+}
+
 function computeBestScore() {
-  // Keep the previous best on screen while the new one is computed. Clearing it here blanked
-  // the strength bar on every single tile placement — the 50ms debounce restarts with each
-  // tile, so during an active placement run the meter never had a value to draw.
-  // A new game clears bestPossibleScore explicitly.
+  const rack = [...playerRack];
+  if (!rack.length || !board) return;
+  const key = _bestScoreKey(rack);
+  if (_bestScoreCache.has(key)) {
+    const cached = _bestScoreCache.get(key);
+    if (bestPossibleScore !== cached) { bestPossibleScore = cached; updateStrengthBar(); }
+    return;
+  }
+  if (_bestScoreInFlight === key) return;         // already being searched; the answer draws itself
+
   clearTimeout(_bestScoreTimer);
   _bestScoreTimer = setTimeout(() => {
     _bestScoreTimer = null;
-    const rack = [...playerRack];
+    if (_bestScoreKey([...playerRack]) !== key) return;   // letters changed during the debounce
 
-    const apply = (best) => { bestPossibleScore = best; updateStrengthBar(); };
-
-    // Preferred path: full-dictionary search off the main thread.
+    // Preferred path: full-dictionary search off the main thread. Until it answers the bar
+    // stays empty -- no curated stand-in, which is what made it flicker.
     initStrengthWorker();
     if (_strengthWorker && _strengthWorkerReady) {
       const id = ++_strengthReqId;
-      let timeoutId = null;
-      const finish = (best) => {
-        if (id !== _strengthReqId) return;              // superseded by a newer request
-        if (timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+      _bestScoreInFlight = key;
+      const gen = _bestScoreDictGen;
+      bestPossibleScore = null; updateStrengthBar();
+      _strengthPending[id] = (best) => {
         delete _strengthPending[id];
-        // A 0 means the worker found nothing playable. On a board where the player can
-        // obviously play, that is the search failing, not a dead rack — so fall back
-        // instead of drawing an empty bar.
-        apply(best > 0 ? best : _bestScoreOnThread(rack));
+        if (_bestScoreInFlight === key) _bestScoreInFlight = null;
+        // A 0 on a board where the player can obviously play is the search failing, not a
+        // dead rack -- fall back rather than cache it.
+        const value = best > 0 ? best : _bestScoreOnThread(rack);
+        if (gen !== _bestScoreDictGen) { computeBestScore(); return; }   // searched the partial list
+        if (best > 0) _bestScoreCache.set(key, value);
+        if (_bestScoreKey([...playerRack]) === key) { bestPossibleScore = value; updateStrengthBar(); }
       };
-      _strengthPending[id] = finish;
-      // The worker searches the full ~190k dictionary. On a crowded board, or with a blank
-      // in the rack (which matches every letter), that can crawl. Until it answers,
-      // bestPossibleScore stays null and the meter renders completely blank — so show the
-      // cheap estimate after a beat.
-      //
-      // Deliberately NOT settling here. This used to mark the request done and delete the
-      // callback, so on any board big enough to miss the deadline the worker's real answer
-      // was computed and then thrown away — and a ~60-tile board takes about 2s, well past
-      // this. The curated stand-in was all the meter ever showed late in a game, which is
-      // exactly where it reads a best BELOW the player's own play and pins at 100%.
-      timeoutId = setTimeout(() => {
-        timeoutId = null;
-        if (id !== _strengthReqId) return;
-        apply(_bestScoreOnThread(rack));
-      }, 1500);
       _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: board.map(r => [...r]) });
       return;
     }
-    apply(_bestScoreOnThread(rack));
+    // No worker (dictionary still loading, or dead on this device). Not cached, so the
+    // worker gets its turn once it is ready.
+    bestPossibleScore = _bestScoreOnThread(rack); updateStrengthBar();
   }, 50);
 }
 
@@ -6433,6 +6455,8 @@ function updateUI() {
   renderScorePreview();
   updateReplayButton();
   updateStrengthBar();
+  // Start the search as soon as it is the player's turn, so it is done before a tile lands.
+  if (!gameOver && currentPlayer === 'player' && !replayState.active) computeBestScore();
   updateResignButton();
   // Play button: toggle between Play and Other Games
   const hasPlaced = Object.values(pendingPlacements).some(p => !p.isSwap);
@@ -8682,7 +8706,7 @@ async function loadOnlineGame(gameId, myRole) {
   dismissNextGamePrompt(); // hide any pending next-game banner
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
   // Cancel any pending best-score computation from a previous game
-  clearTimeout(_bestScoreTimer); _bestScoreTimer = null; bestPossibleScore = null;
+  resetBestScore();
   // Reset game state without drawing random tiles (applyOnlineState will supply real tiles)
   document.getElementById('overlay').classList.remove('show');
   board = Array.from({length:BS}, ()=>Array(BS).fill(null));
@@ -10321,7 +10345,7 @@ function showHomeScreen() {
   closeMoreMenu();
   closeConfirmSheet(false);
   // Cancel any pending best-score computation so it can't fire when the next game opens
-  clearTimeout(_bestScoreTimer); _bestScoreTimer = null; bestPossibleScore = null;
+  resetBestScore();
   // Cancel a half-built turn on the way out, while playerRack is still the rack that turn
   // mutated. Left pending, it survives in memory and gets applied to the next game's rack.
   resetPending();

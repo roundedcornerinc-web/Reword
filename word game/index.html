@@ -6275,14 +6275,18 @@ function computeBestScore() {
     _bestScoreTimer = null;
     if (_bestScoreKey([...playerRack]) !== key) return;   // letters changed during the debounce
 
-    // Preferred path: full-dictionary search off the main thread. Until it answers the bar
-    // stays empty -- no curated stand-in, which is what made it flicker.
+    // Preferred path: full-dictionary search off the main thread.
     initStrengthWorker();
     if (_strengthWorker && _strengthWorkerReady) {
       const id = ++_strengthReqId;
       _bestScoreInFlight = key;
       const gen = _bestScoreDictGen;
-      bestPossibleScore = null; updateStrengthBar();
+      // Never blank what is already on screen to start a search -- that is what still made
+      // the bar vanish mid-turn, both on a turn's first search and again when the worker
+      // became ready after the dictionary finished loading. With nothing to show yet, draw
+      // the cheap estimate so there is a reading from the first tile; the worker's answer
+      // replaces it in place, and only that answer is cached.
+      if (bestPossibleScore == null) { bestPossibleScore = _bestScoreOnThread(rack); updateStrengthBar(); }
       _strengthPending[id] = (best) => {
         delete _strengthPending[id];
         if (_bestScoreInFlight === key) _bestScoreInFlight = null;

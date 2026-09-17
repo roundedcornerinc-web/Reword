@@ -866,7 +866,12 @@ console.log('\nStrength meter — one search per rack and board\n');
   c.computeBestScore(); c.computeBestScore();
   ok('placing tiles after the answer reuses it', posts.length === 1 && c.bestPossibleScore === 40,
     `${posts.length} searches, best ${c.bestPossibleScore}`);
-  ok('the bar never shows a stand-in while waiting', !draws.includes(5), `drew ${JSON.stringify(draws)}`);
+  // Starting a search must never empty a bar that already has a reading — that is what kept
+  // it vanishing mid-turn. With nothing to show yet the cheap estimate stands in, so there
+  // is always something from the first tile onward.
+  ok('a search never blanks the bar', !draws.includes(null), `drew ${JSON.stringify(draws)}`);
+  ok('the cheap estimate stands in until the real answer lands',
+    draws[0] === 5 && c.bestPossibleScore === 40, `drew ${JSON.stringify(draws)}`);
 
   c.playerRack = ['C','A','T','S','E','R','Q'];               // a steal changes the letters
   c.computeBestScore();

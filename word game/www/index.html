@@ -6246,12 +6246,31 @@ let _bestScoreBoardSig = '';
 let _bestScoreInFlight = null;       // key the worker is currently searching
 let _bestScoreDictGen = 0;           // bumped when the full dictionary replaces the partial one
 
-function _bestScoreKey(rack) {
-  const boardSig = board.map(r => r.map(c => c || '.').join('')).join('');
-  if (boardSig !== _bestScoreBoardSig) {         // the board moved on: nothing cached still applies
-    _bestScoreCache.clear(); _bestScoreBoardSig = boardSig; _bestScoreInFlight = null;
+// The board "best possible" is searched on: the committed board with this turn's steals and
+// swaps already applied, but not the ordinary placements -- those are the play being measured.
+// A stolen tile is in the rack, so its square must be empty; a swapped square holds the
+// player's tile, and the letter it replaced is in the rack. Searching the committed board
+// instead counted those tiles twice: blocked squares that were free, allowed words through
+// tiles that were gone.
+function _searchBoard() {
+  const b = board.map(r => [...r]);
+  for (const key of pendingRemovals) { const [r, c] = key.split(',').map(Number); b[r][c] = null; }
+  for (const [key, p] of Object.entries(pendingPlacements)) {
+    if (!p.isSwap) continue;
+    const [r, c] = key.split(',').map(Number); b[r][c] = p.letter;
   }
-  return [...rack].sort().join('') + '|' + boardSig;
+  return b;
+}
+
+function _bestScoreKey(rack) {
+  // The cache lives for one committed board (one turn); steals and swaps within it get
+  // their own keys, so recalling one returns to an answer already found.
+  const committedSig = board.map(r => r.map(c => c || '.').join('')).join('');
+  if (committedSig !== _bestScoreBoardSig) {
+    _bestScoreCache.clear(); _bestScoreBoardSig = committedSig; _bestScoreInFlight = null;
+  }
+  const searchSig = _searchBoard().map(r => r.map(c => c || '.').join('')).join('');
+  return [...rack].sort().join('') + '|' + searchSig;
 }
 
 function resetBestScore() {
@@ -6297,7 +6316,7 @@ function computeBestScore() {
         if (best > 0) _bestScoreCache.set(key, value);
         if (_bestScoreKey([...playerRack]) === key) { bestPossibleScore = value; updateStrengthBar(); }
       };
-      _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: board.map(r => [...r]) });
+      _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: _searchBoard() });
       return;
     }
     // No worker (dictionary still loading, or dead on this device). Not cached, so the
@@ -6315,6 +6334,7 @@ function computeBestScore() {
 const FULL_DICT_TILE_LIMIT = 12;
 
 function _bestScoreOnThread(rack) {
+    const board = _searchBoard();   // this turn's steals and swaps applied -- see _searchBoard
     // The curated list is 3,545 words against the dictionary's 191,852, and it does not
     // contain JIBE or JIBES — so on a board where the player plays a word it has never
     // heard of, "best possible" came back BELOW what the player just scored and the meter

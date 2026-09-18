@@ -843,6 +843,7 @@ console.log('\nStrength meter — one search per rack and board\n');
     console, setTimeout: (f) => f(), clearTimeout: () => {},
     board: Array.from({ length: 15 }, () => Array(15).fill(null)),
     playerRack: ['C','A','T','S','E','R','D'],
+    pendingRemovals: new Set(), pendingPlacements: {},
     bestPossibleScore: null, _bestScoreTimer: null,
     _strengthWorker: { postMessage: (m) => posts.push(m) }, _strengthWorkerReady: true,
     _strengthReqId: 0, _strengthPending: {},
@@ -854,7 +855,8 @@ console.log('\nStrength meter — one search per rack and board\n');
   vm.createContext(c);
   vm.runInContext([
     grabLines('const _bestScoreCache = new Map()', 'let _bestScoreDictGen'),
-    grabFunction('_bestScoreKey'), grabFunction('resetBestScore'), grabFunction('computeBestScore'),
+    grabFunction('_searchBoard'), grabFunction('_bestScoreKey'), grabFunction('resetBestScore'),
+    grabFunction('computeBestScore'),
     'this.answer = (best) => { const id = Object.keys(_strengthPending).pop(); _strengthPending[id](best); };',
     'this.flushDict = () => { _bestScoreCache.clear(); _bestScoreInFlight = null; _bestScoreDictGen++; };',
   ].join('\n'), c);
@@ -890,6 +892,22 @@ console.log('\nStrength meter — one search per rack and board\n');
   c.answer(12);
   ok('an answer from the partial dictionary is discarded and re-searched',
     posts.length === 4 && c.bestPossibleScore !== 12, `${posts.length} searches, best ${c.bestPossibleScore}`);
+
+  // Steals and swaps already made this turn: search the board as it will be committed.
+  c.answer(30);
+  c.board[3][3] = 'Z'; c.board[4][4] = 'Q';
+  c.pendingRemovals = new Set(['3,3']);                                   // Z stolen
+  c.pendingPlacements = { '4,4': { letter: 'K', rackIdx: 0, isSwap: true },   // K swapped onto Q
+                          '8,8': { letter: 'S', rackIdx: 1 } };              // an ordinary placement
+  c.playerRack = ['Q','A','T','S','E','R','D','Z'];
+  const before = posts.length;
+  c.computeBestScore();
+  const sent = posts[posts.length - 1].board;
+  ok('a steal or swap starts a search with the new letters', posts.length === before + 1,
+    `${posts.length - before} new searches`);
+  ok('the searched board has the stolen square empty', sent[3][3] === null, `got ${sent[3][3]}`);
+  ok('the searched board shows the swapped-in tile', sent[4][4] === 'K', `got ${sent[4][4]}`);
+  ok('ordinary placements stay off the searched board', sent[8][8] === null, `got ${sent[8][8]}`);
 })();
 
 if (failures.length) {

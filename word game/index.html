@@ -2513,7 +2513,7 @@ body {
       <div id="more-menu-handle"></div>
       <button id="more-menu-close" onclick="closeMoreMenu()">✕</button>
     </div>
-    <button class="more-item" onclick="toggleRemaining();closeMoreMenu()">
+    <button class="more-item" onclick="openRemaining();closeMoreMenu()">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15.2858 14.11659" fill="none" stroke="#fff" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4.87848 11.41962 4.00715 11.81119 .5 4.00715 8.30405 .5 9.70942 3.62721"/><rect x="6.22991" y="5.0607" width="8.55589" height="8.55589"/></svg>
       Remaining Letters
     </button>
@@ -2565,11 +2565,11 @@ body {
     <button id="tut-next-btn" onclick="tutorialAdvance()" style="background:#7234ee;color:#fff;border:none;border-radius:999px;padding:9px 22px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Next →</button>
   </div>
 </div>
-<div id="remaining-modal" onclick="if(event.target===this)toggleRemaining()">
+<div id="remaining-modal" onclick="if(event.target===this)closeRemaining()">
   <div id="remaining-modal-inner">
     <div id="remaining-modal-title">Unplayed Letters</div>
     <div class="rem-grid" id="rem-grid"></div>
-    <button id="remaining-modal-close" onclick="toggleRemaining()">Close</button>
+    <button id="remaining-modal-close" onclick="closeRemaining()">Close</button>
   </div>
 </div>
 
@@ -6128,14 +6128,24 @@ function setSkill(level) {
   updateDifficultyBadge();
 }
 
-let remainingVisible = false;
+// Whether the panel is up is read off the element, like the More menu. It used to be a
+// `remainingVisible` flag, and the flag and the DOM drifted apart the moment anything
+// dismissed the modal without going through the toggle — after which Close opened it.
+function isRemainingOpen() {
+  return !!document.getElementById('remaining-modal')?.classList.contains('show');
+}
+function openRemaining() {
+  document.getElementById('remaining-modal')?.classList.add('show');
+  updateRemainingPanel();
+}
+function closeRemaining() {
+  document.getElementById('remaining-modal')?.classList.remove('show');
+}
 function toggleRemaining() {
-  remainingVisible = !remainingVisible;
-  document.getElementById('remaining-modal').classList.toggle('show', remainingVisible);
-  if (remainingVisible) updateRemainingPanel();
+  if (isRemainingOpen()) closeRemaining(); else openRemaining();
 }
 function updateRemainingPanel() {
-  if (!remainingVisible) return;
+  if (!isRemainingOpen()) return;
   const counts = {};
   // bag tiles + opponent's rack (all unplayed tiles the current player hasn't seen)
   const unplayed = [...bag, ...aiRack];
@@ -10367,6 +10377,7 @@ function showHomeScreen() {
   // An open menu is tied to the game screen's layout, and nothing else closes it. Left up,
   // it came back with the next game and no tap would clear it.
   closeMoreMenu();
+  closeRemaining();
   closeConfirmSheet(false);
   // Cancel any pending best-score computation so it can't fire when the next game opens
   resetBestScore();
@@ -10508,6 +10519,9 @@ function resetPerGameFeed() {
 function showGameScreen() {
   stopHomeListeners();
   closeMoreMenu();
+  // The panel lives inside #game-screen and nothing else dismissed it, so a panel left open
+  // in one game came straight back up in the next one.
+  closeRemaining();
   // Booting straight into a game (a single stored online game, or an invite link) never
   // touches the home screen, so loadHomeGames — the only thing that dismisses the splash —
   // never runs, and the board ends up behind it.

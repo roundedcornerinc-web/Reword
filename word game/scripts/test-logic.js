@@ -795,6 +795,47 @@ console.log('\nMore menu — nothing opens it but the MORE button\n');
     'isMoreMenuOpen does not read the element, or a moreMenuOpen flag is still around');
 })();
 
+// ── The Remaining Letters panel closes when the game does ────────────────────
+// Reported as "the menu springs up automatically in other games". The panel lives inside
+// #game-screen and nothing closed it on the way out, so it came back up with the next game;
+// the `remainingVisible` flag it used to keep then disagreed with the DOM, and Close opened
+// it again. Structural, for the same reason the More menu's checks are.
+console.log('\nRemaining Letters — does not survive a change of game\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+
+  ok('leaving for the home screen closes the panel',
+    grabFunction('showHomeScreen').includes('closeRemaining()'),
+    'showHomeScreen does not call closeRemaining()');
+  ok('entering the game screen closes the panel',
+    grabFunction('showGameScreen').includes('closeRemaining()'),
+    'showGameScreen does not call closeRemaining()');
+
+  const codeOnly = src.replace(/^\s*\/\/.*$/gm, '');
+  ok('panel state is read from the DOM, not a shadow flag',
+    /classList\.contains\('show'\)/.test(grabFunction('isRemainingOpen')) &&
+    !/\bremainingVisible\b/.test(codeOnly),
+    'isRemainingOpen does not read the element, or a remainingVisible flag is still around');
+
+  // The menu item must open the panel outright. A toggle there does the wrong thing whenever
+  // the panel is already up behind the menu: the tap dismisses it instead.
+  ok('the More menu item opens the panel rather than toggling it',
+    /openRemaining\(\);closeMoreMenu\(\)/.test(src) && !/toggleRemaining\(\);closeMoreMenu\(\)/.test(src),
+    'the Remaining Letters menu item still calls toggleRemaining');
+
+  // Close and the backdrop must close, never toggle.
+  ok('Close and the backdrop only ever close the panel',
+    !/remaining-modal-close"\s*onclick="toggleRemaining/.test(src) &&
+    !/event\.target===this\)toggleRemaining/.test(src),
+    'a dismiss control still calls toggleRemaining');
+})();
+
 // ── Strength meter: "best possible" must count the all-tiles bonus ─────────────────────
 // The player's score includes the 35-point bonus; the search did not. A 7-tile play then
 // beat "best possible" and the meter blanked (DRILLING, 15 + 35, against Aaron).

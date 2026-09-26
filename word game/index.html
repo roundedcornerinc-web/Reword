@@ -111,6 +111,10 @@ body {
   justify-content: flex-end;
   flex: 1;
 }
+/* Mirrors the home button on the left so the two scores sit the same distance from their
+   edges. It is CSS rather than an inline width so fitNameLabels() can narrow it, and put it
+   back, when the opponent's name needs the room. */
+#score-right-pad { width: 22px; flex-shrink: 0; }
 
 #btn-home {
   background: none;
@@ -194,8 +198,9 @@ body {
   min-width: 0;
 }
 /* Names must stay on one line — a two-line name ("LOVE MONKE") shoves the scoreboard around.
-   fitNameLabels() shrinks the font until it fits; nowrap is what makes the overflow
-   measurable in the first place. */
+   fitNameLabels() shrinks the font until it fits, then borrows room from the right-hand pad
+   and the logo (planNameRoom); nowrap is what makes the overflow measurable in the first
+   place. */
 .ai-name-lbl {
   font-size: 14.7px; color: #aaa; letter-spacing: 0.02em;
   white-space: nowrap; min-width: 0;
@@ -803,6 +808,41 @@ body {
   box-shadow: 0 4px 20px rgba(123,47,247,0.5);
 }
 #btn-play:active { transform: scale(0.97); }
+
+/* Play, counting down: the button is Undo, red, and its fill drains over the three seconds the play
+   is held. Everything else on the game screen is locked and dimmed until it goes through or is undone. */
+#btn-play.counting {
+  position: relative;
+  overflow: hidden;
+  background: var(--btn-swap);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(230,57,70,0.45);
+}
+#btn-play.counting::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.16);
+  transform-origin: left center;
+  animation: play-drain 3s linear forwards;
+}
+@keyframes play-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+#btn-play .undo-lbl, #btn-play .undo-count { position: relative; text-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+#btn-play .undo-count {
+  display: inline-block;
+  min-width: 1.7em;
+  margin-left: 0.5em;
+  padding: 0 0.4em;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.25);
+  font-size: 0.95em;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+#game-screen.play-pending > *:not(#controls) { pointer-events: none; }
+#game-screen.play-pending #controls-icons { pointer-events: none; opacity: 0.4; transition: opacity 0.15s; }
+#game-screen.play-pending #board-wrapper,
+#game-screen.play-pending #rack-area { opacity: 0.6; transition: opacity 0.15s; }
+@media (prefers-reduced-motion: reduce) { #btn-play.counting::before { display: none; } }
 
 /* ── BOARD SCORE PREVIEW ── */
 #board { position: relative; }
@@ -1814,27 +1854,30 @@ body {
 .stats-games-played .gp-num { font-weight: 700; color: #582bba; }
 .stats-games-played .gp-lbl { font-weight: 400; color: #291b62; }
 .stats-word-section { text-align: center; margin-bottom: 24px; }
+/* Words are laid out in the tile artwork itself — tiles/tile-A.svg … tile-Z.svg, each a 120x128
+   box: a 120x120 face over an 8-unit edge, the letter centred and its point value bottom-right.
+   The tiles share one row and shrink together (flex-shrink), so a 12-letter word stays on a
+   single line instead of wrapping and orphaning its last tile. They are pictures, not
+   controls: no drag, and no iOS "save image" callout on a long press. */
 .stat-tiles-row {
-  display: inline-flex; align-items: center; justify-content: center;
-  gap: 0; flex-wrap: wrap; margin-top: 10px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  gap: 3px; margin-top: 10px; pointer-events: none;
 }
-.stat-tile-letter {
-  width: 30px; height: 30px; background: #d4a84b;
-  border-radius: 4px; display: flex; align-items: center; justify-content: center;
-  font-size: 0.9rem; font-weight: 700; color: #3a2000;
-  position: relative; box-shadow: inset 0 -2px 0 #a07830;
-  font-family: 'Segoe UI', system-ui, sans-serif;
-}
-.stat-tile-pts {
-  position: absolute; bottom: 1px; right: 2px;
-  font-size: 7px; font-weight: 700; color: #3a2000; line-height: 1;
-}
+.stat-tile { flex: 0 1 44px; min-width: 0; aspect-ratio: 120 / 128; display: block; }
+/* A blank standing in for a letter. The artwork's blank has no letter (a blank has none until
+   it is played), so the letter and its 0 are laid over tile-blank.svg in the same positions
+   and type as the lettered tiles. */
+.stat-tile.blank { position: relative; }
+.stat-tile.blank img, .stat-tile.blank svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stat-tile.blank text { fill: #2c1a00; font-family: 'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif; }
+.stat-tile.blank .tl { font-size: 70.6px; font-weight: 900; text-anchor: middle; dominant-baseline: central; }
+.stat-tile.blank .tv { font-size: 25.1px; font-weight: 700; fill-opacity: 0.7; text-anchor: end; }
 .stat-tile-score-badge {
   background: #582bba; color: #fff;
   font-size: 0.7rem; font-weight: 700;
-  border-radius: 50%; width: 22px; height: 22px;
+  border-radius: 11px; min-width: 22px; height: 22px; padding: 0 5px;
   display: flex; align-items: center; justify-content: center;
-  margin-left: 4px; flex-shrink: 0;
+  margin-left: 3px; flex-shrink: 0;
 }
 
 /* ── FAQ OVERLAY ── */
@@ -2453,7 +2496,7 @@ body {
           <span id="difficulty-badge">HARD</span>
         </div>
       </div>
-      <div style="width:22px;flex-shrink:0;"></div>
+      <div id="score-right-pad"></div>
     </div>
   </div>
   <div id="tut-header-text" style="display:none;padding:10px 16px;font-size:1.05rem;color:#ddd;line-height:1.55;text-align:center;"></div>
@@ -2503,7 +2546,7 @@ body {
       <span class="icon-btn-lbl" id="shuffle-recall-lbl">Shuffle</span>
     </button>
   </div>
-  <button id="btn-play" onclick="submitPlay()">Play</button>
+  <button id="btn-play" onclick="onPlayButton()">Play</button>
 </div>
 
 <div id="more-overlay" onclick="closeMoreMenu()"></div>
@@ -3308,7 +3351,80 @@ function validatePlay(placements, swapKeys = new Set()) {
 // ═══════════════════════════════════════════════════════
 //  GAME ACTIONS
 // ═══════════════════════════════════════════════════════
-function submitPlay() {
+
+// ── Play confirmation ── Play does not go through at once. The button turns into Undo and counts
+// down from 3; the play is made when it reaches 0, or the moment the player leaves the app. A stray
+// tap on Play used to be a move that could not be taken back. While it counts, the board, the rack
+// and the other buttons are locked (see .play-pending), so the play that goes through is the one
+// that was on screen when Play was tapped.
+const PLAY_COUNTDOWN_MS = 3000;
+const PLAY_CANCEL_GUARD_MS = 300;   // a second tap this soon is a double-tap on Play, not a change of mind
+let _playCountdown = null;          // { startedAt, deadline, sig, timer } while a play is waiting to go through
+
+// What is on the board this turn, so a countdown can tell whether anything under it has moved.
+function playSignature() {
+  return JSON.stringify([pendingPlacements, [...pendingRemovals].sort(), [...swapPendingPositions].sort()]);
+}
+
+// The Play button's tap. Idle it starts the countdown (if the play is a legal one: otherwise
+// submitPlay says why, as it always did); counting, it is Undo.
+function onPlayButton() {
+  if (_playCountdown) {
+    if (Date.now() - _playCountdown.startedAt >= PLAY_CANCEL_GUARD_MS) stopPlayCountdown();
+    return;
+  }
+  if (window.tutorialMode) { submitPlay(); return; }
+  if (!submitPlay(true)) return;
+  const now = Date.now();
+  _playCountdown = { startedAt: now, deadline: now + PLAY_COUNTDOWN_MS, sig: playSignature(), timer: setInterval(tickPlayCountdown, 100) };
+  document.getElementById('game-screen').classList.add('play-pending');
+  updatePlayButton();
+}
+
+// Is the play still the one that was on the board when it started counting?
+function playCountdownHolds() {
+  const c = _playCountdown;
+  return !!c && !gameOver && currentPlayer === 'player' && !exchangeMode &&
+    document.getElementById('game-screen').classList.contains('active') && playSignature() === c.sig;
+}
+
+function tickPlayCountdown() {
+  if (!_playCountdown) return;
+  if (!playCountdownHolds()) { stopPlayCountdown(); return; }   // the game moved on under it: drop it
+  if (Date.now() >= _playCountdown.deadline) finishPlayCountdown();
+  else updatePlayButton();
+}
+
+// Undo: the tiles stay where they are, and the button is Play again.
+function stopPlayCountdown() {
+  if (!_playCountdown) return;
+  clearInterval(_playCountdown.timer);
+  _playCountdown = null;
+  const screen = document.getElementById('game-screen');
+  if (screen) screen.classList.remove('play-pending');
+  updatePlayButton();
+}
+
+// The countdown ran out, or the app is being left: make the play, if it still stands.
+function finishPlayCountdown() {
+  if (!_playCountdown) return;
+  const stands = playCountdownHolds();
+  stopPlayCountdown();
+  if (stands) submitPlay();
+}
+
+// Leaving the app does not wait out the count: iOS freezes the page's timers in the background, so a
+// play left counting would hang until the player came back. WebKit fires blur and then
+// visibilitychange (hidden) a couple of milliseconds apart when the app is left (seen in Safari and in
+// the native app on the iOS simulator); pagehide covers a closed tab. The first one through makes the
+// play, the rest find nothing.
+document.addEventListener('visibilitychange', () => { if (document.hidden) finishPlayCountdown(); });
+window.addEventListener('pagehide', finishPlayCountdown);
+window.addEventListener('blur', finishPlayCountdown);
+
+// With dryRun it runs every check and stops short of committing anything: true if the play would go
+// through, otherwise the reason is on screen already. onPlayButton uses it to decide whether to count down.
+function submitPlay(dryRun) {
   if (currentPlayer !== 'player' || gameOver) return;
 
   // Online mode with no game to write to is incoherent, and the failure it produces is
@@ -3338,6 +3454,7 @@ function submitPlay() {
 
   const result = validatePlay(allPlacements, swapKeys);
   if (!result.ok) { showMsg(result.err, 'bad'); return; }
+  if (dryRun) return true;
 
   // Only swap positions miss out on premiums — that square already held a tile, so its
   // bonus was spent. A tile taken off the board and replayed at a fresh square earns that
@@ -3682,6 +3799,7 @@ function clearRackSlide() {
 // afterCommit=true when called after a play is committed — tile moves were
 // already handled by usedIdx splicing, so skip the cancel-path restorations.
 function resetPending(afterCommit = false) {
+  stopPlayCountdown();   // a play waiting to go through is void once the turn is cleared
   if (!afterCommit) {
     // Restore any swapped rack slots to their original letters (cancel path only).
     const restoredIdx = new Set();
@@ -5661,7 +5779,38 @@ window.addEventListener('orientationchange', () => setTimeout(fitRack, 100));
 // Floor is a readability limit, not a fitting one — below ~11px the name is unreadable, so
 // anything still too long at the floor is ellipsised by CSS rather than shrunk into nothing.
 const NAME_FONT_MAX = 14.7, NAME_FONT_MIN = 11, NAME_FONT_STEP = 0.3;
+// A name still too long at the floor takes room from the layout before it is ellipsised: it
+// costs the header a few pixels, where an ellipsis costs the player their opponent's name.
+// The logo may give up at most this fraction of its width. 25% is what a 10-character
+// caps name for BOTH players needs on the smallest phone (375pt); 22% left the player's own
+// name a pixel short there.
+const LOGO_MAX_SHRINK = 0.25;
 
+// Where the room comes from, given how many px each name is STILL too long by at the font
+// floor, the width of the right-hand pad, and the logo's designed width. Cheapest first:
+//  - the pad only mirrors the home button, so the opponent's name (the one the player can't
+//    ask to be shorter) borrows it 1px for 1px;
+//  - the logo sits between two equal columns, so every 2px it gives up is 1px for BOTH names.
+//    It is taken from only for what the pad can't cover, or for the player's own name, which
+//    has no pad to borrow. It stops at LOGO_MAX_SHRINK; past that the name is ellipsised.
+// Returns whole pixels: how much the logo narrows, and how much the pad narrows.
+// (Pure, so the arithmetic is tested without a browser.)
+function planNameRoom(missingOpp, missingMe, padMax, logoW) {
+  const cap = Math.floor(logoW * LOGO_MAX_SHRINK);
+  const logoGive = Math.min(cap, Math.ceil(Math.max(0, 2 * missingMe, 2 * (missingOpp - padMax))));
+  const padGive  = Math.ceil(clamp(missingOpp - logoGive / 2, 0, padMax));
+  return { logoGive, padGive };
+}
+
+// The label's true text width. scrollWidth and clientWidth are whole pixels, but the ellipsis
+// fires on ANY overflow — text needing 75.09px in a 75px box reads as "fits" and still clips.
+function _textWidth(el) {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  return range.getBoundingClientRect().width;
+}
+
+// Fits one label and returns how many px it is STILL too long by (0 when it fits).
 function _fitOneName(el, gap) {
   const row   = el?.parentElement;
   const panel = el?.closest('.score-panel');
@@ -5669,7 +5818,7 @@ function _fitOneName(el, gap) {
   // from content. Measuring the row instead ratchets: shrinking the label narrows the row,
   // which shrinks the next measurement, dragging even a two-letter name down to the floor.
   const container = panel?.parentElement;
-  if (!row || !panel || !container) return;
+  if (!row || !panel || !container) return 0;
 
   let avail = container.clientWidth;
   // Space taken beside the panel — the home button, the right-hand spacer.
@@ -5684,31 +5833,65 @@ function _fitOneName(el, gap) {
     if (sib === el || getComputedStyle(sib).display === 'none') continue;
     avail -= sib.getBoundingClientRect().width + gap;
   }
-  if (!(avail > 0)) return;   // laid out while hidden — a later call will size it
+  if (!(avail > 0)) return 0;   // laid out while hidden — the column observer below re-fits on show
+  avail -= 1;   // clientWidth above is rounded, so leave a pixel of slack rather than fit to the edge
   let size = NAME_FONT_MAX;
   el.style.fontSize = size + 'px';
-  // white-space:nowrap means scrollWidth is the full unwrapped text width.
-  while (size > NAME_FONT_MIN && el.scrollWidth > avail) {
+  // white-space:nowrap means the text's width is its full unwrapped width.
+  while (size > NAME_FONT_MIN && _textWidth(el) > avail) {
     size = Math.max(NAME_FONT_MIN, size - NAME_FONT_STEP);   // clamp: never step past the floor
     el.style.fontSize = size + 'px';
   }
+  return Math.max(0, _textWidth(el) - avail);
 }
 
 function fitNameLabels() {
-  _fitOneName(document.getElementById('ai-name-display'), 5);   // .ai-name-row gap
-  _fitOneName(document.getElementById('player-name-text'), 3);  // .score-panel .name gap
+  const logo = document.getElementById('game-logo-img');
+  const pad  = document.getElementById('score-right-pad');
+  const opp  = document.getElementById('ai-name-display');
+  const me   = document.getElementById('player-name-text');
+  const fitOpp = () => _fitOneName(opp, 5);   // .ai-name-row gap
+  const fitMe  = () => _fitOneName(me, 3);    // .score-panel .name gap
+
+  // Always measure from the designed layout, or a long name from the last game would leave
+  // the logo small and the score shifted for the next one.
+  if (logo) logo.style.width = '';
+  if (pad)  pad.style.width  = '';
+  const missingOpp = fitOpp(), missingMe = fitMe();
+  if (!(missingOpp > 0 || missingMe > 0)) return;
+
+  const padMax = pad ? pad.getBoundingClientRect().width : 0;
+  const logoW  = logo ? logo.getBoundingClientRect().width : 0;
+  const { logoGive, padGive } = planNameRoom(missingOpp, missingMe, padMax, logoW);
+  if (logo && logoGive > 0) logo.style.width = (logoW - logoGive) + 'px';
+  if (pad  && padGive  > 0) pad.style.width  = (padMax - padGive) + 'px';
+  fitOpp(); fitMe();   // now that there is room, settle on the largest size that fits
 }
 
 // The opponent name is assigned from many places, so watch the elements instead of chasing
 // every call site. Only text changes are observed — fitting sets style, which is an attribute,
-// so this cannot loop.
-['ai-name-display', 'player-name-text'].forEach(id => {
+// so this cannot loop. The player's label is watched through its container: renaming swaps
+// the <span> for a fresh one, and an observer left on the old span never hears about it.
+['ai-name-display', 'player-name-display'].forEach(id => {
   const el = document.getElementById(id);
   if (el) new MutationObserver(fitNameLabels)
     .observe(el, { childList: true, characterData: true, subtree: true });
 });
 window.addEventListener('resize', fitNameLabels);
 window.addEventListener('orientationchange', () => setTimeout(fitNameLabels, 100));
+
+// A name's room also changes with no text change and no window resize: the turn arrow makes
+// the logo's box 14px wider, the difficulty badge comes and goes, and a game screen that was
+// display:none when the name was set has no width to fit against until it is shown. Each of
+// those changes the width of the two columns, so watch them. Fitting settles on the logo
+// width it started from, so this re-runs at most once more and then stops.
+if (window.ResizeObserver) {
+  const columns = new ResizeObserver(fitNameLabels);
+  for (const id of ['score-left', 'score-right']) {
+    const col = document.getElementById(id);
+    if (col) columns.observe(col);
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 //  SOUND
@@ -5751,6 +5934,42 @@ function hapticNotify(type) {
 function soundEnabled() {
   try { return JSON.parse(localStorage.getItem('reword_settings') || '{}').sound !== false; } catch(e) { return true; }
 }
+// Three cues are recordings in sounds/ rather than synthesis. `gain` sets each to the loudness
+// of the sparkle it replaced (A-weighted, loudest 400 ms: how a small speaker weighs the bands),
+// so none jumps out of the mix. The synthesized versions below stay as the fallback: until a
+// file has loaded, or if it never does, the game plays those, so a failed download costs a
+// different sound, never silence.
+const RECORDED = {
+  played:   { file: 'sounds/word-played.wav',   gain: 1.2  },   // Puzzle Game Solved 02
+  opponent: { file: 'sounds/opponent-word.wav', gain: 1.33 },   // Puzzle Game Solved 01
+  exchange: { file: 'sounds/exchange.wav',      gain: 0.82 },   // Kids Game Collect Bonus fanfare
+};
+const _recorded = {}, _recordedLoads = {};   // name → decoded AudioBuffer; name → load in flight
+// Decoded on an offline context, so it needs neither a tap nor a running AudioContext.
+function loadRecorded(name) {
+  const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!Offline || _recorded[name] || _recordedLoads[name]) return;
+  _recordedLoads[name] = fetch(RECORDED[name].file)
+    // The app's own files come back with status 0 inside the native shell (bytes intact), so 0 is not a failure.
+    .then(res => { if (!res.ok && res.status !== 0) throw new Error(res.status); return res.arrayBuffer(); })
+    .then(data => new Promise((ok, no) => new Offline(2, 1, 44100).decodeAudioData(data, ok, no)))
+    .then(buf => { _recorded[name] = buf; })
+    .catch(() => {})
+    .then(() => { delete _recordedLoads[name]; });   // a failed load is tried again next time
+}
+window.addEventListener('load', () => setTimeout(() => Object.keys(RECORDED).forEach(loadRecorded), 1500));
+// True if the recording played; false means "not loaded yet, use the synthesized cue".
+function playRecorded(ctx, name) {
+  const buf = _recorded[name];
+  if (!buf) { loadRecorded(name); return false; }
+  const src = ctx.createBufferSource(), g = ctx.createGain();
+  src.buffer = buf;
+  g.gain.value = RECORDED[name].gain;
+  src.connect(g); g.connect(ctx.destination);
+  src.start();
+  return true;
+}
+
 // A single sine "voice" (used by the word fanfare)
 function blip(ctx, freq, t0, dur, gain, type) {
   const osc = ctx.createOscillator(), g = ctx.createGain();
@@ -5805,28 +6024,21 @@ async function playDrop() {
   } catch(e) {}
 }
 
+// Recall — a swish downward, then the tile lands in the rack (recallSlide, below)
 async function playRecall() {
   if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const g   = ctx.createGain();
-    osc.connect(g); g.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, now);
-    osc.frequency.exponentialRampToValueAtTime(400, now + 0.06);
-    g.gain.setValueAtTime(0.1, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
-    osc.start(now); osc.stop(now + 0.07);
+    recallSlide(ctx, 0.172);
   } catch(e) {}
 }
 
-// "Sparkle" — short celebratory bell shimmer when a word is played
+// Word played — the recording, else a "sparkle": a short celebratory bell shimmer
 async function playFanfare() {
   if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
+    if (playRecorded(ctx, 'played')) return;
     const t = ctx.currentTime;
     [784, 987.77, 1174.66, 1567.98].forEach((f, i) => {
       const t0 = t + i * 0.05;
@@ -5836,30 +6048,22 @@ async function playFanfare() {
   } catch(e) {}
 }
 
-// End of game — a triumphant rise on a win, a soft fall on a loss/tie
+// End of game — a brass fanfare on a win, a muted trombone's "wah wah wah waaah" on a loss or tie
+// (brassWin and brassLose, below)
 async function playGameEnd(won) {
   if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
-    const t = ctx.currentTime;
-    if (won) {
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
-        blip(ctx, f, t + i * 0.11, 0.5, 0.28, 'triangle');
-      });
-      blip(ctx, 1567.98, t + 0.33, 0.6, 0.14);   // sparkle on top
-    } else {
-      [523.25, 415.30, 329.63].forEach((f, i) => {
-        blip(ctx, f, t + i * 0.16, 0.45, 0.2, 'triangle');   // gentle descent
-      });
-    }
+    if (won) brassWin(ctx, 0.24); else brassLose(ctx, 0.216);
   } catch(e) {}
 }
 
-// Exchanging tiles — a soft filtered "whoosh" plus a light double blip
+// Exchanging tiles — the recording, else a soft filtered "whoosh" plus a light double blip
 async function playExchange() {
   if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
+    if (playRecorded(ctx, 'exchange')) return;
     const now = ctx.currentTime;
     const len = Math.floor(ctx.sampleRate * 0.28);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -5880,17 +6084,164 @@ async function playExchange() {
   } catch(e) {}
 }
 
-// Opponent's word revealing on the board — soft marimba-ish ticks timed to the tile pops
+// Opponent's word revealing on the board — the recording, else soft marimba-ish ticks timed to
+// the tile pops (the recording is one cue however many tiles they played)
 async function playWordReveal(n) {
   if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
+    if (playRecorded(ctx, 'opponent')) return;
     const t = ctx.currentTime;
     const notes = [392, 440, 493.88, 587.33, 659.25, 783.99];
     for (let i = 0; i < Math.min(n, 8); i++) {
       blip(ctx, notes[Math.min(i, notes.length - 1)], t + i * 0.08, 0.14, 0.16, 'triangle');
     }
   } catch(e) {}
+}
+
+// ── Synthesis behind Recall, Shuffle and Game over ── noise clicks, swooshes, a room and brass, built from
+// plain Web Audio nodes. Each sound takes a `level` (its own volume knob, set so it sits where the old sound did).
+function sfxRng(seed) {   // small seeded random generator: Shuffle passes Math.random() so every take differs
+  let a = (seed || 1) >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const _sfxNoise = new WeakMap();
+function sfxNoise(ctx) {   // one second of white noise, built once per context
+  let b = _sfxNoise.get(ctx);
+  if (!b) {
+    b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const d = b.getChannelData(0); let s = 22222;
+    for (let i = 0; i < d.length; i++) { s = (s * 1664525 + 1013904223) >>> 0; d[i] = s / 2147483648 - 1; }
+    _sfxNoise.set(ctx, b);
+  }
+  return b;
+}
+function sfxBus(ctx, level) {   // where a sound's nodes connect: its own volume, then the speaker
+  const g = ctx.createGain(); g.gain.value = level; g.connect(ctx.destination); return g;
+}
+// Band-limited noise measures quieter the narrower the band, so scale by the band's width: a `gain`
+// then means about the same at any pitch.
+const sfxBandNorm = (ctx, f, q) => 1 / (0.577 * Math.sqrt((Math.PI / 2) * (f / q) / (ctx.sampleRate / 2)));
+function sfxTick(ctx, out, t, f, q, dur, gain, off) {   // a click: a burst of noise ringing in one band, gone in `dur`
+  const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = sfxNoise(ctx);
+  bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain * sfxBandNorm(ctx, f, q), t + 0.0006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(bp); bp.connect(g); g.connect(out);
+  src.start(t, (off || 0) * 0.5, dur + 0.03);
+}
+function sfxThunk(ctx, out, t, f, dur, gain) {   // the low knock under a click: a sine that drops as it dies
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(f * 1.5, t); o.frequency.exponentialRampToValueAtTime(f, t + dur * 0.4);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(gain, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02);
+}
+function sfxSwoosh(ctx, out, t, f0, f1, dur, gain, q) {   // noise whose band glides from f0 to f1
+  const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = sfxNoise(ctx);
+  bp.type = 'bandpass'; bp.Q.value = q || 1.4;
+  bp.frequency.setValueAtTime(f0, t); bp.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain * sfxBandNorm(ctx, Math.sqrt(f0 * f1), bp.Q.value), t + dur * 0.25);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(bp); bp.connect(g); g.connect(out);
+  src.start(t, 0.1, dur + 0.03);
+}
+function sfxHiss(ctx, out, t, f, dur, gain) {   // bright noise dying away: a cymbal's wash
+  const src = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = sfxNoise(ctx);
+  hp.type = 'highpass'; hp.frequency.value = f;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(gain, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(hp); hp.connect(g); g.connect(out);
+  src.start(t, 0.2, dur + 0.03);
+}
+// A room: instruments connect to the node this returns; the dry sound and a darkened reverb tail both reach `out`.
+function sfxHall(ctx, out, secs, wet) {
+  const inp = ctx.createGain(), conv = ctx.createConvolver(), lp = ctx.createBiquadFilter(), w = ctx.createGain();
+  const n = Math.floor(ctx.sampleRate * secs), ir = ctx.createBuffer(2, n, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c); let s = 9001 + c * 77;
+    for (let i = 0; i < n; i++) { s = (s * 1664525 + 1013904223) >>> 0; d[i] = (s / 2147483648 - 1) * Math.pow(1 - i / n, 2.6); }
+  }
+  conv.buffer = ir; lp.type = 'lowpass'; lp.frequency.value = 4500; w.gain.value = wet;
+  inp.connect(out); inp.connect(conv); conv.connect(lp); lp.connect(w); w.connect(out);
+  return inp;
+}
+// A brass-like note: two detuned saws through a low-pass that opens as the note swells.
+// wah: the cutoff closes, opens and closes again over the note (a muted trombone). vib: vibrato depth in
+// cents, fading in as a player's does. slideTo: the pitch the note ends on.
+function sfxBrassNote(ctx, out, t, f, dur, gain, o) {
+  o = o || {};
+  const lp = ctx.createBiquadFilter(), g = ctx.createGain();
+  lp.type = 'lowpass'; lp.Q.value = 1.4;
+  if (o.wah) {
+    lp.frequency.setValueAtTime(f * 1.5, t); lp.frequency.exponentialRampToValueAtTime(f * 7, t + dur * 0.4); lp.frequency.exponentialRampToValueAtTime(f * 2, t + dur);
+  } else {
+    lp.frequency.setValueAtTime(f * 1.8, t); lp.frequency.exponentialRampToValueAtTime(f * 6, t + 0.05); lp.frequency.exponentialRampToValueAtTime(f * 4, t + dur);
+  }
+  const att = o.attack || 0.025;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(gain, t + att);
+  g.gain.setValueAtTime(gain, t + Math.max(att, dur - 0.06)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  let vib = null;
+  if (o.vib) {
+    const lfo = ctx.createOscillator();
+    vib = ctx.createGain();
+    lfo.frequency.value = 5.5; vib.gain.setValueAtTime(0, t); vib.gain.linearRampToValueAtTime(o.vib, t + Math.min(0.3, dur * 0.6));
+    lfo.connect(vib); lfo.start(t); lfo.stop(t + dur + 0.02);
+  }
+  for (const cents of [-7, 7]) {
+    const os = ctx.createOscillator();
+    os.type = 'sawtooth'; os.detune.value = cents;
+    os.frequency.setValueAtTime(f, t);
+    if (o.slideTo) os.frequency.exponentialRampToValueAtTime(o.slideTo, t + dur);
+    if (vib) vib.connect(os.detune);
+    os.connect(lp); os.start(t); os.stop(t + dur + 0.02);
+  }
+  lp.connect(g); g.connect(out);
+}
+
+// Recall: a swish downward, then a small wooden tap as the tile lands in the rack
+function recallSlide(ctx, level) {
+  const out = sfxBus(ctx, level), t = ctx.currentTime;
+  sfxSwoosh(ctx, out, t, 2800, 700, 0.16, 0.5, 1.3);
+  sfxTick(ctx, out, t + 0.15, 1300, 5, 0.035, 1.1, 0.3);
+  sfxThunk(ctx, out, t + 0.15, 210, 0.06, 0.6);
+}
+
+// Shuffle: a deck riffled. The clicks tighten into a buzz, then the last cards flap together.
+// The take is random each time, so pressing Shuffle twice doesn't sound the same.
+function shuffleRiffle(ctx, level, seed) {
+  const out = sfxBus(ctx, level), t = ctx.currentTime, r = sfxRng(seed);
+  const n = 30, span = 0.25;
+  for (let i = 0; i < n; i++) {
+    const at = t + span * Math.pow(i / (n - 1), 1.35);
+    sfxTick(ctx, out, at, 2400 + r() * 2800, 2.5 + r() * 2, 0.006 + r() * 0.006, 0.45 + 0.4 * r(), r());
+  }
+  sfxSwoosh(ctx, out, t + 0.22, 2600, 1100, 0.09, 0.25, 1.2);
+}
+async function playShuffle() {
+  if (!soundEnabled()) return;
+  try {
+    const ctx = await getAC();
+    shuffleRiffle(ctx, 0.195, Math.random() * 4294967296);
+  } catch(e) {}
+}
+
+// Game over, win: ta-ta-ta-TAAA, a brass chord with a cymbal wash
+function brassWin(ctx, level) {
+  const t = ctx.currentTime, out = sfxBus(ctx, level), room = sfxHall(ctx, out, 1.0, 0.25);
+  [0, 0.13, 0.26].forEach(d => sfxBrassNote(ctx, room, t + d, 392, 0.1, 0.35));
+  [523.25, 659.25, 783.99, 1046.5].forEach(f => sfxBrassNote(ctx, room, t + 0.42, f, 0.95, 0.22, { attack: 0.04, vib: 18 }));
+  sfxHiss(ctx, room, t + 0.42, 6000, 0.7, 0.12);
+}
+// Game over, loss or tie: a muted trombone, wah wah wah waaah
+function brassLose(ctx, level) {
+  const t = ctx.currentTime, out = sfxBus(ctx, level), room = sfxHall(ctx, out, 0.8, 0.18);
+  [[233.08, 0], [220, 0.33], [207.65, 0.66]].forEach(([f, d]) => sfxBrassNote(ctx, room, t + d, f, 0.3, 0.4, { wah: true }));
+  sfxBrassNote(ctx, room, t + 1.0, 196, 1.0, 0.4, { wah: true, slideTo: 185, vib: 22 });
 }
 
 function updateTurnBadge() {
@@ -6466,7 +6817,46 @@ function updateStrengthBar() {
 
 function handleShuffleOrRecall() {
   const hasPlaced = Object.values(pendingPlacements).some(p => !p.isSwap);
-  if (hasPlaced || swapCount > 0) recallTiles(); else shuffleRack();
+  if (hasPlaced || swapCount > 0) { playRecall(); recallTiles(); } else { playShuffle(); shuffleRack(); }
+}
+
+// The Play button is Play, Confirm while exchanging, Other Games while waiting on the opponent, and Undo
+// with its number while a play counts down.
+function updatePlayButton() {
+  const playBtn = document.getElementById('btn-play');
+  if (!playBtn) return;
+  const hasPlaced = Object.values(pendingPlacements).some(p => !p.isSwap);
+  const waitingForOpponent = isOnlineMode && currentPlayer !== 'player' && !gameOver;
+  if (_playCountdown) {
+    if (!playBtn.classList.contains('counting')) {   // drawn once: redrawing would restart the draining fill
+      playBtn.classList.remove('tiles-placed');
+      playBtn.classList.add('counting');
+      playBtn.innerHTML = '<span class="undo-lbl">Undo</span><span class="undo-count"></span>';
+      playBtn.setAttribute('aria-label', 'Undo play. It goes through in 3 seconds.');
+    }
+    playBtn.querySelector('.undo-count').textContent = Math.max(1, Math.ceil((_playCountdown.deadline - Date.now()) / 1000));
+    playBtn.onclick = onPlayButton;
+    return;
+  }
+  playBtn.classList.remove('counting');
+  playBtn.removeAttribute('aria-label');
+  if (exchangeMode) {
+    playBtn.textContent = 'Confirm';
+    playBtn.onclick = confirmExchange;
+    playBtn.classList.toggle('tiles-placed', exchangeSelectedIdxs.size > 0);
+  } else if (waitingForOpponent && _nextGameQueue.length > 0) {
+    playBtn.textContent = 'Other Games';
+    playBtn.onclick = showOtherGamesOverlay;
+    playBtn.classList.add('tiles-placed');
+  } else if (waitingForOpponent) {
+    playBtn.textContent = 'Play';
+    playBtn.onclick = null;
+    playBtn.classList.remove('tiles-placed');
+  } else {
+    playBtn.textContent = 'Play';
+    playBtn.onclick = onPlayButton;
+    playBtn.classList.toggle('tiles-placed', hasPlaced);
+  }
 }
 
 function updateUI() {
@@ -6492,29 +6882,8 @@ function updateUI() {
   // Start the search as soon as it is the player's turn, so it is done before a tile lands.
   if (!gameOver && currentPlayer === 'player' && !replayState.active) computeBestScore();
   updateResignButton();
-  // Play button: toggle between Play and Other Games
+  updatePlayButton();
   const hasPlaced = Object.values(pendingPlacements).some(p => !p.isSwap);
-  const waitingForOpponent = isOnlineMode && currentPlayer !== 'player' && !gameOver;
-  const playBtn = document.getElementById('btn-play');
-  if (playBtn) {
-    if (exchangeMode) {
-      playBtn.textContent = 'Confirm';
-      playBtn.onclick = confirmExchange;
-      playBtn.classList.toggle('tiles-placed', exchangeSelectedIdxs.size > 0);
-    } else if (waitingForOpponent && _nextGameQueue.length > 0) {
-      playBtn.textContent = 'Other Games';
-      playBtn.onclick = showOtherGamesOverlay;
-      playBtn.classList.add('tiles-placed');
-    } else if (waitingForOpponent) {
-      playBtn.textContent = 'Play';
-      playBtn.onclick = null;
-      playBtn.classList.remove('tiles-placed');
-    } else {
-      playBtn.textContent = 'Play';
-      playBtn.onclick = submitPlay;
-      playBtn.classList.toggle('tiles-placed', hasPlaced);
-    }
-  }
   const srIco = document.getElementById('shuffle-recall-ico');
   const srLbl = document.getElementById('shuffle-recall-lbl');
   const shuffleSVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34.23209 22.88277" width="32"><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,3.36493h4.24195c2.14461,0,4.20139.9596,5.71786,2.66771l9.60906,10.82333c1.51647,1.7081,3.57325,2.66771,5.71786,2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M18.80162,7.89138l1.70949-1.85874c1.51647-1.7081,3.57325-2.66771,5.71786-2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,19.52367h4.24195c2.14461,0,4.20139-.9596,5.71786-2.66771l1.79259-2.01912"/><polygon fill="#fff" points="34.23209 3.42723 29.56953 6.85447 29.56953 0 34.23209 3.42723"/><polygon fill="#fff" points="34.23209 19.45554 29.56953 22.88277 29.56953 16.02831 34.23209 19.45554"/></svg>';
@@ -10369,6 +10738,7 @@ function syncHomeButtonWidth() {
 }
 
 function showHomeScreen() {
+  stopPlayCountdown();
   // On a fresh return to home, promote the previous visit's results to "viewed"
   // so they drop out of the Results box into Completed Games.
   if (!document.getElementById('home-screen')?.classList.contains('active')) {
@@ -10517,6 +10887,7 @@ function resetPerGameFeed() {
 }
 
 function showGameScreen() {
+  stopPlayCountdown();
   stopHomeListeners();
   closeMoreMenu();
   // The panel lives inside #game-screen and nothing else dismissed it, so a panel left open
@@ -10653,14 +11024,25 @@ function closeStats() {
   if (_homeTab === 'stats') switchHomeTab('games');
 }
 
+// A word laid out in the tile artwork (tiles/tile-A.svg …), one <img> per letter. A lowercase
+// letter is a blank standing in for it: the board draws that on the pale blank face and
+// scores it 0, so it is tile-blank.svg with its letter and a 0 laid over it. The row shrinks
+// the tiles to fit, so nothing here needs to know the screen width. Only A–Z are drawn — the
+// filename is built from the letter, and the artwork has nothing else.
 function statTiles(word, score) {
-  if (!word || word === '—') return '<span style="color:#bbb;font-size:0.9rem">—</span>';
-  const tiles = word.toUpperCase().split('').map(l => {
-    const v = VAL[l] || 0;
-    return `<div class="stat-tile-letter">${l}<span class="stat-tile-pts">${v}</span></div>`;
+  const letters = [...(word || '')].filter(ch => /^[A-Za-z]$/.test(ch));
+  if (!letters.length) return '<span style="color:#bbb;font-size:0.9rem">—</span>';
+  const tiles = letters.map(ch => {
+    const l = ch.toUpperCase();
+    if (ch === l) return `<img class="stat-tile" src="tiles/tile-${l}.svg" alt="" draggable="false">`;
+    return '<span class="stat-tile blank"><img src="tiles/tile-blank.svg" alt="" draggable="false">' +
+      '<svg viewBox="0 0 120 128" aria-hidden="true">' +
+      `<text class="tl" x="60" y="52.2">${l}</text><text class="tv" x="111" y="111">0</text>` +
+      '</svg></span>';
   }).join('');
+  const label = escHtml(letters.join('').toUpperCase() + (score ? `, ${score} points` : ''));
   const badge = score ? `<span class="stat-tile-score-badge">${score}</span>` : '';
-  return `<div class="stat-tiles-row">${tiles}${badge}</div>`;
+  return `<div class="stat-tiles-row" role="img" aria-label="${label}">${tiles}${badge}</div>`;
 }
 
 function buildStatsList() {

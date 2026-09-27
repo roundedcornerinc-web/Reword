@@ -666,6 +666,7 @@ console.log('\nStrength meter — refusing to report a disproved estimate\n');
     'var scorePlay = function () { return _stubPlayScore; };',
     'var validatePlay = function () { return { ok: true, words: [] }; };',
     'var earnsAllTilesBonus = function () { return false; };',
+    grabFunction('rackSlotsPlayed'),
     'var computeBestScore = function () {};',
     'var _fill = { style: {} }, _pct = { textContent: null };',
     'var document = { getElementById: function (id) {',
@@ -1290,6 +1291,36 @@ inSequence(async function () {
       c.acCalls === 0 && c.made.log.sources.length === 0 && c.made.log.oscillators === 0, 'it made a sound');
   }
 });
+
+// ── The all-tiles bonus waits for the purple tile ─────────────────────────────────────────────
+// Reported with NESTLIN on the board and a purple blank still in the rack: the preview read 44, the play's 9 plus a
+// 35 bonus the turn had not earned. The swap's own entry points at the purple tile's slot, and it was counted as a
+// tile played, so six tiles on the board looked like seven.
+console.log('\nThe all-tiles bonus waits for the purple tile\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const b = {};
+  vm.createContext(b);
+  vm.runInContext(grabFunction('earnsAllTilesBonus') + '\n' + grabFunction('rackSlotsPlayed'), b);
+  // Slot 0's E was laid on a board blank, which came into slot 0 (purple); slots 1-6 are on the board.
+  const turn = { '13,8': { letter: 'E', rackIdx: 0, isSwap: true } };
+  [1, 2, 3, 4, 5, 6].forEach(i => { turn[`5,${i + 3}`] = { letter: 'X', rackIdx: i }; });
+  const bonus = t => b.earnsAllTilesBonus(7, b.rackSlotsPlayed(t).size, 0);
+  ok('with the purple blank still in the rack there is no bonus', !bonus(turn), `counted ${b.rackSlotsPlayed(turn).size} of 7 tiles played`);
+  ok('once the blank is played too, the bonus is earned', bonus({ ...turn, '5,11': { letter: 'g', rackIdx: 0, isBlank: true } }), 'no bonus with all seven played');
+
+  const codeOnly = t => t.replace(/^\s*\/\/.*$/gm, '');
+  for (const fn of ['renderScorePreview', 'updateStrengthBar']) {
+    const f = codeOnly(grabFunction(fn));
+    ok(`${fn} counts the tiles played the same way`, /earnsAllTilesBonus\(\s*playerRack\.length,\s*rackSlotsPlayed\(pendingPlacements\)\.size/.test(f), 'it counts rack slots some other way');
+  }
+})();
 
 // ── Recall keeps swaps and steals; Reset undoes them ──────────────────────────────────────────
 // Recall used to throw away the whole turn: tiles, swaps and steals. Now Recall only brings the placed tiles back

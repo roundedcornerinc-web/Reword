@@ -3082,6 +3082,13 @@ function earnsAllTilesBonus(rackSize, placedFromRack, stolenThisTurn) {
   return placedFromRack === rackSize && (rackSize - stolenThisTurn) >= 7;
 }
 
+// The rack slots this turn has emptied. A swap's own entry points at the slot its purple tile arrived in, and
+// that slot is only empty once the purple tile is played too, so swap entries don't count. Counting them had
+// the preview and the strength meter promising the 35-point bonus with a purple tile still in the rack.
+function rackSlotsPlayed(placements) {
+  return new Set(Object.values(placements).filter(p => !p.isSwap).map(p => p.rackIdx).filter(i => i != null));
+}
+
 function getRemovableInfo(r, c) {
   if (!board[r][c]) return {removable: false, reason: 'No committed tile here.'};
   const key = `${r},${c}`;
@@ -6404,9 +6411,8 @@ function renderScorePreview() {
 
   // Same rule as the commit path: only the swap square is denied premiums.
   const pts = scorePlay(words, new Set(keys), swapPendingPositions);
-  const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
   const bonus = earnsAllTilesBonus(
-    playerRack.length, usedIdx.size, Object.keys(pendingRemovalInfo).length) ? 35 : 0;
+    playerRack.length, rackSlotsPlayed(pendingPlacements).size, Object.keys(pendingRemovalInfo).length) ? 35 : 0;
 
   // Find the primary word (most overlap with non-swap new tiles)
   const primaryWord = words.reduce((best, w) => {
@@ -6792,9 +6798,8 @@ function updateStrengthBar() {
   if (primaryKeys.length > 0) {
     const result = validatePlay(pendingPlacements, new Set(swapPendingPositions));
     if (result.ok) {
-      const usedIdx = new Set(Object.values(pendingPlacements).map(p => p.rackIdx).filter(i => i != null));
       const bonus = earnsAllTilesBonus(
-        playerRack.length, usedIdx.size, Object.keys(pendingRemovalInfo).length) ? 35 : 0;
+        playerRack.length, rackSlotsPlayed(pendingPlacements).size, Object.keys(pendingRemovalInfo).length) ? 35 : 0;
       currentScore = scorePlay(result.words, new Set(keys), swapPendingPositions) + bonus;
     }
   }

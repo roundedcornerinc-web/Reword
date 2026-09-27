@@ -1291,6 +1291,105 @@ inSequence(async function () {
   }
 });
 
+// ── Recall keeps swaps and steals; Reset undoes them ──────────────────────────────────────────
+// Recall used to throw away the whole turn: tiles, swaps and steals. Now Recall only brings the placed tiles back
+// (a stolen or swapped-in tile returns to the rack still purple), and the Exchange icon becomes Reset once a swap
+// or steal is made, doing what Recall used to. With nothing on the board the Recall slot is Shuffle again.
+console.log('\nRecall keeps swaps and steals; Reset undoes them\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const element = () => ({ textContent: '', innerHTML: '', dataset: {} });
+
+  // A turn with one of each: a swap (G laid on 7,7, whose L came to rack slot 2), a steal (F off 9,9 into slot 4),
+  // an ordinary tile (A from slot 0 on 7,8) and the stolen F played out on 8,8.
+  function world() {
+    const w = { calls: [], ico: element(), lbl: element() };
+    const c = {
+      console, window: {}, exchangeMode: false,
+      playerRack: ['A', 'B', 'L', 'D', 'F'],
+      pendingPlacements: {
+        '7,7': { letter: 'G', rackIdx: 2, isSwap: true },
+        '7,8': { letter: 'A', rackIdx: 0 },
+        '8,8': { letter: 'F', rackIdx: 4 },
+      },
+      swapPendingPositions: new Set(['7,7']), swappedRackIndices: new Set([2, 4]), swapCount: 2,
+      pendingRemovals: new Set(['9,9']), pendingRemovalInfo: { '9,9': { letter: 'F', rackIdx: 4, isBlank: false } },
+      document: { getElementById: id => (id === 'exchange-ico' ? w.ico : id === 'exchange-label' ? w.lbl : null) },
+      flyPlacedTilesHome: done => { w.calls.push('fly'); done(); },   // the animation, which is DOM work
+      stopPlayCountdown() {}, clearCellSelection() {}, computeBestScore() {}, showMsg() {},
+      cancelExchangeMode() { c.exchangeMode = false; },
+      updateUI() { c.updateExchangeButton(); },
+      playRecall: () => w.calls.push('recall sound'), playShuffle: () => w.calls.push('shuffle sound'),
+      shuffleRack: () => w.calls.push('shuffle'), toggleExchangeMode: () => w.calls.push('exchange'),
+    };
+    vm.createContext(c);
+    vm.runInContext([
+      grabFunction('resetPending'), grabFunction('recallTiles'), grabFunction('recallPlacedTiles'),
+      grabFunction('handleShuffleOrRecall'), grabFunction('turnHasSwaps'), grabFunction('handleExchangeOrReset'),
+      grabLines('const EXCHANGE_SVG', 'const EXCHANGE_SVG'), grabLines('const RESET_SVG', 'const RESET_SVG'),
+      grabFunction('updateExchangeButton'),
+    ].join('\n'), c);
+    w.c = c;
+    w.placed = () => Object.keys(c.pendingPlacements).sort().join(' ');
+    return w;
+  }
+
+  // Recall.
+  let w = world(); w.c.handleShuffleOrRecall();
+  ok('Recall brings the placed tiles back, the stolen one included', w.placed() === '7,7', w.placed());
+  ok('but the swap stays made', w.c.pendingPlacements['7,7']?.isSwap === true && w.c.swapPendingPositions.has('7,7'), JSON.stringify(w.c.pendingPlacements));
+  ok('and so does the steal', w.c.pendingRemovals.has('9,9') && !!w.c.pendingRemovalInfo['9,9'], [...w.c.pendingRemovals].join());
+  ok('the rack is untouched, with the swapped-in L and stolen F still in it and still purple',
+    w.c.playerRack.join('') === 'ABLDF' && [...w.c.swappedRackIndices].sort().join() === '2,4' && w.c.swapCount === 2,
+    `${w.c.playerRack.join('')}, purple ${[...w.c.swappedRackIndices]}, swaps ${w.c.swapCount}`);
+  ok('it plays the recall sound', w.calls.join(' + ') === 'recall sound + fly', w.calls.join(' + '));
+  w.calls.length = 0; w.c.handleShuffleOrRecall();
+  ok('with only the swap left on the board the same button shuffles', w.calls.join(' + ') === 'shuffle sound + shuffle', w.calls.join(' + '));
+
+  // Reset.
+  w = world(); w.c.updateExchangeButton();
+  ok('once a swap or steal is made the Exchange icon is Reset', w.lbl.textContent === 'Reset' && w.ico.innerHTML === vm.runInContext('RESET_SVG', w.c), w.lbl.textContent);
+  w.c.handleExchangeOrReset();
+  ok('Reset undoes the whole turn: nothing on the board, no swaps or steals', w.placed() === '' && w.c.pendingRemovals.size === 0 && w.c.swapPendingPositions.size === 0 && w.c.swapCount === 0,
+    `${w.placed()} / ${[...w.c.pendingRemovals]} / ${w.c.swapCount}`);
+  ok('and gives back the original rack: G in slot 2, the stolen F gone', w.c.playerRack.join('') === 'ABGD', w.c.playerRack.join(''));
+  ok('then the icon is Exchange again', w.lbl.textContent === 'Exchange' && w.ico.innerHTML === vm.runInContext('EXCHANGE_SVG', w.c), w.lbl.textContent);
+  ok('with the recall sound', w.calls[0] === 'recall sound' && !w.calls.includes('exchange'), w.calls.join(' + '));
+
+  w = world(); w.c.pendingPlacements = {}; w.c.swapPendingPositions = new Set(); w.c.pendingRemovals = new Set(); w.c.handleExchangeOrReset();
+  ok('with no swap or steal it is Exchange, and exchanges', w.calls.join() === 'exchange', w.calls.join());
+  w.c.exchangeMode = true; w.c.updateExchangeButton();
+  ok('reading Cancel while tiles are being picked to exchange', w.lbl.textContent === 'Cancel' && w.ico.innerHTML === vm.runInContext('EXCHANGE_SVG', w.c), w.lbl.textContent);
+  w = world(); w.c.swapPendingPositions = new Set(); w.c.updateExchangeButton();
+  ok('a steal alone makes it Reset too', w.lbl.textContent === 'Reset', w.lbl.textContent);
+
+  // Wiring the tests above cannot see.
+  ok('the Exchange icon calls the Exchange-or-Reset handler', /<button class="icon-btn" id="btn-exchange" onclick="handleExchangeOrReset\(\)">/.test(src), 'the button still calls something else');
+  const ui = grabFunction('updateUI').replace(/^\s*\/\/.*$/gm, '');
+  ok('updateUI shows Recall only while tiles are on the board, and redraws the Exchange icon',
+    /const showRecall = hasPlaced;/.test(ui) && /updateExchangeButton\(\);/.test(ui), 'showRecall still counts swaps, or the Exchange icon is never redrawn');
+  // Each changing label reserves the width of every word it can show, so the Play button never resizes.
+  const reserved = id => ((new RegExp(`id="${id}" data-labels="([^"]*)"`).exec(src) || [, ''])[1]).split('&#10;');
+  const lacks = (id, words) => words.filter(x => !reserved(id).includes(x));
+  const missing = [...lacks('exchange-label', ['Exchange', 'Cancel', 'Reset']), ...lacks('shuffle-recall-lbl', ['Shuffle', 'Recall'])];
+  ok('the Exchange and Shuffle labels reserve room for every word they can show, so Play keeps its width',
+    missing.length === 0 && /\.icon-btn-lbl\[data-labels\]::after\s*\{[^}]*content:\s*attr\(data-labels\)/.test(src), missing.join(', ') || 'the reserving rule is gone');
+  ok('passing the turn still undoes everything first', /recallTiles\(/.test(grabFunction('passTurn')), 'passTurn no longer resets');
+  // The reset icon draws 1.5px wide, like every other icon in the bar (stroke width x drawn width / viewBox width).
+  const drawn = svg => { const vb = +/viewBox="[\d.\s-]+?\s([\d.]+)\s[\d.]+"/.exec(svg)[1], wd = +/width="([\d.]+)"/.exec(svg)[1];
+    return [...svg.matchAll(/stroke-width="([\d.]+)"/g)].map(m => +(m[1] * wd / vb).toFixed(2)); };
+  const bar = src.slice(src.indexOf('<div id="controls-icons">'), src.indexOf('<button id="btn-play"'));
+  const others = [...bar.matchAll(/<svg[\s\S]*?<\/svg>/g)].map(m => m[0]).concat(/const recallSVG\s*=\s*'([^']+)'/.exec(src)[1]);
+  const widths = new Set([...others.flatMap(drawn), ...drawn(vm.runInContext('RESET_SVG', world().c))]);
+  ok('the Reset icon\'s stroke is as heavy as the rest of the bar (1.5px)', widths.size === 1 && widths.has(1.5), [...widths].join(', '));
+})();
+
 // ── Recall, Shuffle and Game over: the sounds Braden picked ──────────────────────────────────
 // The one button is Shuffle until a tile is on the board, then Recall, and neither used to make a sound: the
 // recall blip belonged to tapping a single placed tile, and shuffling was silent. Recall (a swish and a tap),
@@ -1310,7 +1409,7 @@ inSequence(async function () {
   // Which press makes which sound (the handler only decides; the sounds and actions are stand-ins).
   const calls = [];
   const h = { console, pendingPlacements: {}, swapCount: 0,
-    playRecall: () => calls.push('recall sound'), recallTiles: () => calls.push('recall'),
+    playRecall: () => calls.push('recall sound'), recallPlacedTiles: () => calls.push('recall'), recallTiles: () => calls.push('reset'),
     playShuffle: () => calls.push('shuffle sound'), shuffleRack: () => calls.push('shuffle') };
   vm.createContext(h);
   vm.runInContext(grabFunction('handleShuffleOrRecall'), h);
@@ -1319,8 +1418,8 @@ inSequence(async function () {
   ok('with nothing on the board the button shuffles, with the shuffle sound', got === 'shuffle sound + shuffle', got);
   got = press({ '7,7': { isSwap: false, rackIdx: 0 } }, 0);
   ok('with a tile placed it recalls, with the recall sound', got === 'recall sound + recall', got);
-  got = press({}, 1);
-  ok('with only a stolen tile pending it recalls, with the recall sound', got === 'recall sound + recall', got);
+  got = press({ '7,7': { isSwap: true, rackIdx: 0 } }, 1);
+  ok('with only a swap or steal made it shuffles (undoing those is Reset\'s job now)', got === 'shuffle sound + shuffle', got);
 
   // The sounds themselves, against a strict stand-in for the audio context.
   const sound = () => {
@@ -1580,7 +1679,7 @@ console.log('\nPlay — held for three seconds before it goes through\n');
       bag: [1], playerRack: [1], aiRack: [1], playerScore: 0, aiScore: 0, isOnlineMode: false, opponentOnlineName: 'X', currentPlayer: 'player',
       pendingPlacements: { '7,7': { letter: 'C', rackIdx: 0, isSwap: false } }, swapCount: 0, ran: [] };
     for (const f of ['stopReplay', 'checkGameOver', 'updateTurnBadge', 'renderBoard', 'renderRack', 'renderScorePreview', 'updateReplayButton', 'updateStrengthBar',
-      'computeBestScore', 'updateResignButton', 'updatePlayButton']) u[f] = () => u.ran.push(f);
+      'computeBestScore', 'updateResignButton', 'updatePlayButton', 'updateExchangeButton']) u[f] = () => u.ran.push(f);
     vm.createContext(u); vm.runInContext(grabFunction('updateUI'), u); return u;
   };
   const u = ui(); let uiError = null;

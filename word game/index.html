@@ -641,6 +641,13 @@ body {
   letter-spacing: 0.07em;
   color: #aaa;
 }
+/* Exchange/Cancel/Reset and Shuffle/Recall change label mid-turn. Each reserves the width of its longest label
+   (data-labels, one per line, drawn invisibly at no height), so the Play button beside them never changes size. */
+.icon-btn-lbl[data-labels] { text-align: center; }
+.icon-btn-lbl[data-labels]::after {
+  content: attr(data-labels);
+  display: block; height: 0; overflow: hidden; visibility: hidden; white-space: pre;
+}
 .icon-btn:hover .icon-btn-lbl { color: #ddd; }
 .icon-btn.active-exchange .icon-btn-ico { color: #ffd050; }
 .icon-btn.active-exchange .icon-btn-lbl { color: #ffd050; }
@@ -2251,13 +2258,13 @@ body {
  </div>
   <nav id="home-nav">
     <button class="home-nav-btn active" data-tab="games" onclick="homeNav('games')">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30.45689 30.47544" width="30" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2">
-        <rect x="10.9505" y="10.95978" width="8.55589" height="8.55589"/>
-        <rect x="21.401" y="10.95978" width="8.55589" height="8.55589"/>
-        <rect x=".5" y="10.95978" width="8.55589" height="8.55589"/>
-        <rect x="10.99337" y="21.41955" width="8.55589" height="8.55589"/>
-        <rect x="10.99337" y=".5" width="8.55589" height="8.55589"/>
-        <rect x="21.401" y=".5" width="8.55589" height="8.55589"/>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30.43297 30.47665" width="30" overflow="visible" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2">
+        <rect x="11.22487" y="11.23415" width="8.00714" height="8.00714"/>
+        <rect x="21.92583" y="11.23415" width="8.00714" height="8.00714"/>
+        <rect x=".5" y="11.23415" width="8.00714" height="8.00714"/>
+        <rect x="11.22487" y="21.9695" width="8.00714" height="8.00714"/>
+        <rect x="11.22487" y=".5" width="8.00714" height="8.00714"/>
+        <rect x="21.92583" y=".5" width="8.00714" height="8.00714"/>
       </svg>
       Games
     </button>
@@ -2375,7 +2382,7 @@ body {
 
       <div class="faq-item">
         <div class="faq-q">How do I swap a tile?</div>
-        <div class="faq-a">Drag a tile from your rack onto a board tile, leaving a valid word behind, to swap them. The board tile moves to your rack, and both swapped tiles turn <span class="faq-purple">purple</span>. If you make multiple swaps in one turn, each pair gets a different shade of purple to show which tiles were swapped together. All purple tiles in your rack must be played that turn. To undo a swap, tap RECALL or drag the swapped letter back to its original placement on the board.</div>
+        <div class="faq-a">Drag a tile from your rack onto a board tile, leaving a valid word behind, to swap them. The board tile moves to your rack, and both swapped tiles turn <span class="faq-purple">purple</span>. If you make multiple swaps in one turn, each pair gets a different shade of purple to show which tiles were swapped together. All purple tiles in your rack must be played that turn. To undo a swap, drag the swapped letter back to its original placement on the board, or tap RESET to undo every swap and steal that turn. RECALL brings back the tiles you've played but keeps your swaps and steals.</div>
       </div>
 
       <div class="faq-item">
@@ -2537,13 +2544,13 @@ body {
       <span class="icon-btn-ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.08262 17.94747" width="20"><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.5812" x1=".75084" y1=".75084" x2="20.33178" y2=".75084"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.5812" x1="3.39096" y1="8.97373" x2="17.69165" y2="8.97373"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.5812" x1=".75084" y1="17.19663" x2="20.33178" y2="17.19663"/></svg></span>
       <span class="icon-btn-lbl">More</span>
     </button>
-    <button class="icon-btn" id="btn-exchange" onclick="toggleExchangeMode()">
-      <span class="icon-btn-ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30.30599 25.53577" width="26" height="22"><rect fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x=".76113" y="11.62571" width="13.14894" height="13.14894" rx="3.316" ry="3.316" transform="translate(.0576 -.02311)"/><polygon fill="#fff" points="7.03185 .71069 10.00663 4.78466 4.03135 4.76576 7.03185 .71069"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x1="7.00822" y1="8.18298" x2="7.02217" y2="3.76937"/><rect fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x="16.39592" y=".76113" width="13.14894" height="13.14894" rx="3.316" ry="3.316" transform="translate(45.91747 14.74381) rotate(-180)"/><polygon fill="#fff" points="23.27414 24.82509 20.29936 20.75111 26.27464 20.77001 23.27414 24.82509"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x1="23.29778" y1="17.35279" x2="23.28382" y2="21.7664"/></svg></span>
-      <span class="icon-btn-lbl" id="exchange-label">Exchange</span>
+    <button class="icon-btn" id="btn-exchange" onclick="handleExchangeOrReset()">
+      <span class="icon-btn-ico" id="exchange-ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30.30599 25.53577" width="26" height="22"><rect fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x=".76113" y="11.62571" width="13.14894" height="13.14894" rx="3.316" ry="3.316" transform="translate(.0576 -.02311)"/><polygon fill="#fff" points="7.03185 .71069 10.00663 4.78466 4.03135 4.76576 7.03185 .71069"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x1="7.00822" y1="8.18298" x2="7.02217" y2="3.76937"/><rect fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x="16.39592" y=".76113" width="13.14894" height="13.14894" rx="3.316" ry="3.316" transform="translate(45.91747 14.74381) rotate(-180)"/><polygon fill="#fff" points="23.27414 24.82509 20.29936 20.75111 26.27464 20.77001 23.27414 24.82509"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x1="23.29778" y1="17.35279" x2="23.28382" y2="21.7664"/></svg></span>
+      <span class="icon-btn-lbl" id="exchange-label" data-labels="Exchange&#10;Cancel&#10;Reset">Exchange</span>
     </button>
     <button class="icon-btn" id="btn-shuffle-recall" onclick="handleShuffleOrRecall()">
       <span class="icon-btn-ico" id="shuffle-recall-ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34.23209 22.88277" width="32"><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,3.36493h4.24195c2.14461,0,4.20139.9596,5.71786,2.66771l9.60906,10.82333c1.51647,1.7081,3.57325,2.66771,5.71786,2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M18.80162,7.89138l1.70949-1.85874c1.51647-1.7081,3.57325-2.66771,5.71786-2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,19.52367h4.24195c2.14461,0,4.20139-.9596,5.71786-2.66771l1.79259-2.01912"/><polygon fill="#fff" points="34.23209 3.42723 29.56953 6.85447 29.56953 0 34.23209 3.42723"/><polygon fill="#fff" points="34.23209 19.45554 29.56953 22.88277 29.56953 16.02831 34.23209 19.45554"/></svg></span>
-      <span class="icon-btn-lbl" id="shuffle-recall-lbl">Shuffle</span>
+      <span class="icon-btn-lbl" id="shuffle-recall-lbl" data-labels="Shuffle&#10;Recall">Shuffle</span>
     </button>
   </div>
   <button id="btn-play" onclick="onPlayButton()">Play</button>
@@ -3622,18 +3629,39 @@ function shuffleRack() {
   });
 }
 
+// Reset: every tile back in the rack and every swap and steal undone — the turn as it started.
+// Pass goes through here too.
 function recallTiles(onComplete) {
-  zoomBoardOut();
-  const pending = Object.entries(pendingPlacements).filter(([, p]) => !p.isSwap);
-
-  if (pending.length === 0) {
+  flyPlacedTilesHome(() => {
     resetPending();
     cancelExchangeMode();
     updateUI();
     showMsg('', 'info');
     onComplete?.();
-    return;
-  }
+  });
+}
+
+// Recall: the tiles on the board come back to the rack, but swaps and steals stay made, so a
+// purple tile comes back still purple and still has to be played this turn.
+function recallPlacedTiles() {
+  const placed = Object.entries(pendingPlacements).filter(([, p]) => !p.isSwap);
+  flyPlacedTilesHome(() => {
+    // Only the placements that were flown home: one made during the animation stays put.
+    for (const [key, p] of placed) if (pendingPlacements[key] === p) delete pendingPlacements[key];
+    clearCellSelection();
+    computeBestScore();
+    updateUI();
+    showMsg('', 'info');
+  });
+}
+
+// Flies each tile placed this turn (not the tiles standing in for a swap) back to its rack slot,
+// then runs `done`, which decides what the turn keeps.
+function flyPlacedTilesHome(done) {
+  zoomBoardOut();
+  const pending = Object.entries(pendingPlacements).filter(([, p]) => !p.isSwap);
+
+  if (pending.length === 0) { done(); return; }
 
   const rackEl = document.getElementById('rack');
   const clones = [];
@@ -3674,11 +3702,7 @@ function recallTiles(onComplete) {
     }
     setTimeout(() => {
       clones.forEach(({ clone }) => clone.remove());
-      resetPending();
-      cancelExchangeMode();
-      updateUI();
-      showMsg('', 'info');
-      onComplete?.();
+      done();
     }, 240);
   }));
 }
@@ -3836,7 +3860,6 @@ function toggleExchangeMode() {
     }
     exchangeMode = true;
     exchangeSelectedIdxs = new Set();
-    document.getElementById('exchange-label').textContent = 'Cancel';
     document.getElementById('btn-exchange').classList.add('active-exchange');
     showMsg('Select tiles to exchange, then tap Confirm — or tap Cancel.', 'info');
     renderRack();
@@ -3849,8 +3872,6 @@ function cancelExchangeMode() {
   exchangeSelectedIdxs = new Set();
   const btn = document.getElementById('btn-exchange');
   if (btn) { btn.classList.remove('active-exchange'); }
-  const lbl = document.getElementById('exchange-label');
-  if (lbl) lbl.textContent = 'Exchange';
   renderRack();
   updateUI();
 }
@@ -6815,9 +6836,35 @@ function updateStrengthBar() {
   pct.textContent = currentScore > 0 ? pctVal + '%' : '';
 }
 
+// Recall while tiles are on the board (swaps and steals are kept), Shuffle otherwise.
 function handleShuffleOrRecall() {
   const hasPlaced = Object.values(pendingPlacements).some(p => !p.isSwap);
-  if (hasPlaced || swapCount > 0) { playRecall(); recallTiles(); } else { playShuffle(); shuffleRack(); }
+  if (hasPlaced) { playRecall(); recallPlacedTiles(); } else { playShuffle(); shuffleRack(); }
+}
+
+// Has a swap or steal been made this turn?
+function turnHasSwaps() {
+  return (swapPendingPositions?.size || 0) > 0 || (pendingRemovals?.size || 0) > 0;
+}
+
+// The second icon is Exchange (Cancel while picking tiles to exchange) until a swap or steal is made,
+// then Reset: the whole turn undone, every tile back and every swap and steal taken back.
+function handleExchangeOrReset() {
+  if (turnHasSwaps()) { playRecall(); recallTiles(); } else toggleExchangeMode();
+}
+
+const EXCHANGE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30.30599 25.53577" width="26" height="22"><rect fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x=".76113" y="11.62571" width="13.14894" height="13.14894" rx="3.316" ry="3.316" transform="translate(.0576 -.02311)"/><polygon fill="#fff" points="7.03185 .71069 10.00663 4.78466 4.03135 4.76576 7.03185 .71069"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x1="7.00822" y1="8.18298" x2="7.02217" y2="3.76937"/><rect fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x="16.39592" y=".76113" width="13.14894" height="13.14894" rx="3.316" ry="3.316" transform="translate(45.91747 14.74381) rotate(-180)"/><polygon fill="#fff" points="23.27414 24.82509 20.29936 20.75111 26.27464 20.77001 23.27414 24.82509"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x1="23.29778" y1="17.35279" x2="23.28382" y2="21.7664"/></svg>';
+// Braden's icon_reset.svg. Its stroke is set to draw 1.5px wide at this size, the same as every icon in the bar.
+const RESET_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.12 18.1" width="19.6" height="22" overflow="visible"><path fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.234" d="M1.01,15.09c1.55,1.55,3.69,2.51,6.06,2.51,4.72,0,8.55-3.83,8.55-8.55S11.79.5,7.07.5c-2.37,0-4.51.96-6.06,2.51"/><polyline fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.234" points="3.29 3.61 .5 3.61 .5 .81"/></svg>';
+
+function updateExchangeButton() {
+  const ico = document.getElementById('exchange-ico');
+  const lbl = document.getElementById('exchange-label');
+  if (!ico || !lbl) return;
+  const reset = turnHasSwaps();
+  const icon = reset ? 'reset' : 'exchange';
+  if (ico.dataset.icon !== icon) { ico.innerHTML = reset ? RESET_SVG : EXCHANGE_SVG; ico.dataset.icon = icon; }
+  lbl.textContent = reset ? 'Reset' : exchangeMode ? 'Cancel' : 'Exchange';
 }
 
 // The Play button is Play, Confirm while exchanging, Other Games while waiting on the opponent, and Undo
@@ -6888,9 +6935,10 @@ function updateUI() {
   const srLbl = document.getElementById('shuffle-recall-lbl');
   const shuffleSVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34.23209 22.88277" width="32"><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,3.36493h4.24195c2.14461,0,4.20139.9596,5.71786,2.66771l9.60906,10.82333c1.51647,1.7081,3.57325,2.66771,5.71786,2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M18.80162,7.89138l1.70949-1.85874c1.51647-1.7081,3.57325-2.66771,5.71786-2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,19.52367h4.24195c2.14461,0,4.20139-.9596,5.71786-2.66771l1.79259-2.01912"/><polygon fill="#fff" points="34.23209 3.42723 29.56953 6.85447 29.56953 0 34.23209 3.42723"/><polygon fill="#fff" points="34.23209 19.45554 29.56953 22.88277 29.56953 16.02831 34.23209 19.45554"/></svg>';
   const recallSVG  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22.9623 24.99989" width="21"><polygon fill="#fff" points="19.47966 24.86524 22.9623 20.12729 15.99702 20.12729 19.47966 24.86524"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6402" d="M.75084,24.24905l.05706-20.75049c.00481-1.52233,1.24281-2.75253,2.76515-2.74771l13.28802.02415c1.52233.00481,2.75253,1.24281,2.74771,2.76515l-.05706,18.04306"/></svg>';
-  const showRecall = hasPlaced || swapCount > 0;
+  const showRecall = hasPlaced;
   if (srIco) srIco.innerHTML = showRecall ? recallSVG : shuffleSVG;
   if (srLbl) srLbl.textContent = showRecall ? 'Recall' : 'Shuffle';
+  updateExchangeButton();
   if (window._tutPostRender) window._tutPostRender();
 }
 
@@ -10470,7 +10518,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     document.getElementById('tut-bar').style.display = 'none';
     renderBoard();
     renderRack();
-    tutHeader('Like swapped tiles, stolen tiles turn purple and must be played. When you steal a tile, the square they came from is blocked for that turn. The Recall button will undo all swaps and steals and return original letters to your rack.' +
+    tutHeader('Like swapped tiles, stolen tiles turn purple and must be played. When you steal a tile, the square they came from is blocked for that turn. The Reset button will undo all swaps and steals and return original letters to your rack.' +
       '<br><span onclick="window._tutStep6b()" style="color:#f72585;font-weight:700;font-size:0.85rem;letter-spacing:0.08em;cursor:pointer;user-select:none;">NEXT →</span>');
     tutZoom(4, 6, 11, 9);
     after(80, function() { tutStep6ShowX(); window._tutPostRender = tutStep6ShowX; });
@@ -10667,7 +10715,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       '<div class="tut-card">' +
         '<h2>You\'re ready to play!</h2>' +
         '<p>You can swap or steal up to <strong>four letters</strong> every turn. ' +
-        'If you need to reset your tiles, tap the <strong>Recall</strong> button. ' +
+        '<strong>Recall</strong> brings your tiles back from the board, and <strong>Reset</strong> also undoes your swaps and steals. ' +
         'For more details on swaps, steals, and scoring, read the ' +
         '<a href="#" onclick="openFaq();return false;">FAQ</a>.</p>' +
         '<button class="tut-btn" onclick="closeTutorial()">Start Playing →</button>' +

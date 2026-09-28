@@ -988,6 +988,103 @@ console.log('\nThe AI\'s swaps and steals score by the player\'s rules\n');
     `AI ${steal && steal.score}, player ${stealAsPlayer}`);
 })();
 
+// ── Blanks: the picker slides up for every blank on the board ────────────────────────────
+// A blank going on the board brings up the letter picker (sliding up over the mask, the square ringed); Cancel sends
+// it back to the rack. Tapping a placed blank, or dragging it to another square, brings the picker back up to
+// change its letter — tapping it used to send it straight back to the rack like any other tile.
+console.log('\nBlanks — the picker comes up for every blank on the board\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const classes = () => { const s = new Set(); return { add: (...c) => c.forEach(x => s.add(x)), remove: (...c) => c.forEach(x => s.delete(x)), contains: c => s.has(c) }; };
+  function world() {
+    const w = { sounds: [] };
+    const letters = { children: [], style: {}, set innerHTML(v) { letters.children = []; }, appendChild: b => letters.children.push(b) };
+    const picker = { classList: classes() };
+    const cell = { classList: classes() };
+    const c = {
+      console, window: { tutorialMode: false }, BS: 15, gameOver: false,
+      board: Array.from({ length: 15 }, () => Array(15).fill(null)),
+      playerRack: ['C', ' ', 'T'], pendingPlacements: {}, pendingRemovals: new Set(), pendingRemovalInfo: {},
+      swapPendingPositions: new Set(), swappedRackIndices: new Set(), swapCount: 0, blankPickerCallback: null,
+      setTimeout: () => 0,
+      document: {
+        getElementById: id => (id === 'blank-picker' ? picker : id === 'blank-picker-letters' ? letters : null),
+        createElement: () => { const b = { handlers: {}, textContent: '', className: '', addEventListener: (t, f) => { b.handlers[t] = f; } }; return b; },
+        querySelector: () => cell, querySelectorAll: () => [],
+      },
+      playPickup: () => w.sounds.push('pickup'), playDrop: () => w.sounds.push('drop'), playRecall: () => w.sounds.push('recall'),
+      computeBestScore() {}, updateUI() {}, showMsg() {}, clearCellSelection() {}, zoomToCell() {},
+    };
+    vm.createContext(c);
+    vm.runInContext(['showBlankPicker', 'setBlankPickerTarget', 'cancelBlankPicker', 'tapPendingTile', 'repickBlank',
+      'recallPendingTile', 'placeRackTileOnCell', 'onPendingTileDrop', 'isStealOrigin']
+      .map(grabFunction).join('\n') + '\nvar blankPickerOnCancel = null, blankPickerTargetKey = null;', c);
+    w.c = c;
+    w.open = () => picker.classList.contains('show');
+    w.target = () => vm.runInContext('blankPickerTargetKey', c);
+    w.pick = ch => letters.children.find(b => b.textContent === ch).handlers.click();
+    w.current = () => (letters.children.find(b => /current/.test(b.className)) || {}).textContent;
+    w.placed = () => JSON.stringify(c.pendingPlacements);
+    return w;
+  }
+
+  // Putting a blank down.
+  let w = world(); w.c.placeRackTileOnCell(7, 7, 1);
+  ok('a blank put on the board brings up the picker, ringing its square', w.open() && w.target() === '7,7', `open ${w.open()}, target ${w.target()}`);
+  ok('nothing is placed until a letter is picked', w.placed() === '{}', w.placed());
+  w.pick('G');
+  ok('picking G places it as g (a blank)', w.c.pendingPlacements['7,7']?.letter === 'g' && w.c.pendingPlacements['7,7']?.isBlank && !w.open() && w.target() === null, w.placed());
+  w = world(); w.c.placeRackTileOnCell(7, 7, 1); w.c.cancelBlankPicker();
+  ok('Cancel leaves it in the rack', w.placed() === '{}' && w.c.playerRack.join('|') === 'C| |T' && !w.open() && w.target() === null, w.placed());
+
+  // Tapping a placed blank.
+  const withBlank = () => { const x = world(); x.c.pendingPlacements = { '7,7': { letter: 'g', rackIdx: 1, isBlank: true }, '7,8': { letter: 'T', rackIdx: 2 } }; return x; };
+  w = withBlank(); w.c.tapPendingTile('7,7');
+  ok('tapping a placed blank brings the picker back up, its letter marked', w.open() && w.target() === '7,7' && w.current() === 'G', `open ${w.open()}, current ${w.current()}`);
+  ok('and the blank stays on the board meanwhile', w.c.pendingPlacements['7,7']?.letter === 'g', w.placed());
+  w.pick('S');
+  ok('picking another letter changes it in place', w.c.pendingPlacements['7,7']?.letter === 's' && w.c.pendingPlacements['7,7'].isBlank, w.placed());
+  w = withBlank(); w.c.tapPendingTile('7,7'); w.c.cancelBlankPicker();
+  ok('Cancel on a placed blank sends it back to the rack', !w.c.pendingPlacements['7,7'] && !!w.c.pendingPlacements['7,8'], w.placed());
+  w = withBlank(); w.c.tapPendingTile('7,8');
+  ok('tapping any other placed tile still sends it straight back', !w.c.pendingPlacements['7,8'] && !w.open(), w.placed());
+
+  // Dragging a placed blank to another square.
+  w = withBlank(); w.c.onPendingTileDrop(9, 9, '7,7');
+  ok('dragging a blank to another square moves it and brings up the picker there', w.c.pendingPlacements['9,9']?.isBlank && !w.c.pendingPlacements['7,7'] && w.open() && w.target() === '9,9', `${w.placed()} open ${w.open()}`);
+  w.pick('E');
+  ok('and the letter picked applies at the new square', w.c.pendingPlacements['9,9']?.letter === 'e', w.placed());
+  w = withBlank(); w.c.onPendingTileDrop(9, 9, '7,7'); w.c.cancelBlankPicker();
+  ok('Cancel after a drag sends the blank back to the rack', !w.c.pendingPlacements['9,9'] && !w.c.pendingPlacements['7,7'], w.placed());
+  w = withBlank(); w.c.onPendingTileDrop(9, 9, '7,8');
+  ok('dragging any other tile just moves it', w.c.pendingPlacements['9,9']?.letter === 'T' && !w.open(), w.placed());
+
+  // The turn cleared while the sheet is up (Reset, the opponent's move): picking does nothing, and nothing breaks.
+  w = withBlank(); w.c.tapPendingTile('7,7'); w.c.pendingPlacements = {}; let threw = null;
+  try { w.pick('A'); } catch (e) { threw = e; }
+  ok('a blank gone from the board by the time a letter is picked is left gone', !threw && w.placed() === '{}', threw ? String(threw) : w.placed());
+
+  // Wiring the tests above cannot reach.
+  const codeOnly = t => t.replace(/^\s*\/\/.*$/gm, '');
+  ok('a tap on a placed tile goes through tapPendingTile, by mouse and by touch (swap blanks included)',
+    /tapPendingTile\(key\)/.test(codeOnly(grabFunction('onCellClick'))) && /wasTap && p && \(!p\.isSwap \|\| p\.isBlank\)\) \{\s*tapPendingTile\(touchPendingKey\)/.test(grabFunction('onTouchEnd')),
+    'a tap still recalls a blank directly');
+  ok('every way of putting a blank down rings its square',
+    (src.match(/showBlankPicker\([\s\S]{0,400}?\{ targetKey: (key|k) \}\)/g) || []).length === 4, `${(src.match(/showBlankPicker\([\s\S]{0,400}?\{ targetKey: (key|k) \}\)/g) || []).length} of 4`);
+  ok('the ring survives a redraw', /blankPickerTargetKey === key/.test(grabFunction('renderBoard')), 'renderBoard does not draw it');
+  ok('the picker slides up into place', /#blank-picker-inner\s*\{[^}]*transform:\s*translateY\(var\(--picker-rise/.test(src) && /#blank-picker\.show #blank-picker-inner\s*\{\s*transform:\s*translateY\(0\)/.test(src), 'no slide-up');
+  const sbp = codeOnly(grabFunction('showBlankPicker'));
+  ok('from behind the lower part of the screen: its mask and clip end at the top of the rack area',
+    /getElementById\('rack-area'\)/.test(sbp) && /stage\.style\.bottom/.test(sbp) && /--picker-rise/.test(sbp) && /#blank-picker-stage\s*\{[^}]*overflow:\s*hidden/.test(src),
+    'the card is not clipped at the rack area');
+})();
+
 // ── Strength meter: searched once per turn, not once per tile ──────────────────────────
 // Every placement used to start a new search, and each one blanked the bar for a beat.
 console.log('\nStrength meter — one search per rack and board\n');

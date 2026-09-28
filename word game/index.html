@@ -1026,20 +1026,50 @@ body {
 .rack-tile.swapped-tile.blank-tile { background: #c070ff; box-shadow: 0 3px 0 #7b2ff7, 0 4px 8px rgba(123,47,247,0.5); border: none; }
 .rack-tile.swapped-tile.blank-tile:hover { background: #d090ff; box-shadow: 0 7px 0 #7b2ff7, 0 8px 16px rgba(123,47,247,0.5); }
 
-/* Blank letter picker */
-#blank-picker { position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:300; display:none; align-items:center; justify-content:center; }
-#blank-picker.show { display:flex; }
-#blank-picker-inner { background:#2d1b69; border-radius:14px; padding:18px 14px; width:min(320px,92vw); box-shadow:0 8px 32px rgba(0,0,0,0.6); }
+/* Blank letter picker: the card rises from behind the lower part of the screen (strength meter, rack, icons)
+   and settles in the middle of the space above it, the way the More menu comes out from behind the rack.
+   #blank-picker-stage is both the dark mask and the clip: showBlankPicker ends it at the top of #rack-area, and
+   the card starts just below that edge (--picker-rise), so it is hidden until it clears the edge and slides back
+   behind it on the way out. #blank-picker itself is a transparent layer over the whole screen: the rack and
+   icons stay bright but can't be used meanwhile, and a tap anywhere outside the card is Cancel.
+   visibility, not display:none, so both directions can animate. The square the blank is going to is ringed
+   (.blank-target), and an empty one shows a pale blank tile. */
+#blank-picker {
+  position:fixed; inset:0; z-index:300; visibility:hidden; pointer-events:none;
+  transition: visibility 0s linear 0.3s;
+}
+#blank-picker.show { visibility:visible; pointer-events:auto; transition:none; }
+#blank-picker-stage {
+  position:absolute; left:0; right:0; top:0; bottom:40%; overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0); transition: background 0.25s ease;
+}
+#blank-picker.show #blank-picker-stage { background:rgba(0,0,0,0.65); }
+#blank-picker-inner {
+  background:#2d1b69; border-radius:14px; padding:18px 14px; width:min(320px,92vw); box-shadow:0 8px 32px rgba(0,0,0,0.6);
+  transform:translateY(var(--picker-rise, 100vh)); transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+}
+#blank-picker.show #blank-picker-inner { transform:translateY(0); }
 #blank-picker-title { text-align:center; color:#fff; font-weight:800; font-size:0.9rem; margin-bottom:12px; letter-spacing:0.5px; }
 #blank-picker-letters { display:grid; grid-template-columns:repeat(9,1fr); gap:5px; }
 .blank-letter-btn { background:#f5deb3; color:#2c1a00; border:none; border-radius:5px; padding:7px 2px; font-size:0.85rem; font-weight:800; cursor:pointer; }
 .blank-letter-btn:hover { background:#e8c870; }
+/* The letter a placed blank is playing as now, when it is tapped or dragged to be picked again. */
+.blank-letter-btn.current { background:#d4a0ff; box-shadow: inset 0 -2px 0 #7b2ff7; }
 #blank-picker-cancel {
   width:100%; margin-top:12px; background:transparent; color:#c0b3ff;
   border:1px solid #4b3a8f; border-radius:8px; padding:9px 0;
   font-size:0.82rem; font-weight:800; letter-spacing:0.5px; cursor:pointer;
 }
 #blank-picker-cancel:active { background:#3a2a7a; }
+.cell.blank-target { outline:2px solid #c070ff; outline-offset:1px; z-index:3; }
+.cell.blank-target-empty::after {
+  content:''; position:absolute; inset:0; border-radius:4px;
+  background:#f5e6c8; box-shadow: inset 0 -2px 0 #b89a60;
+}
+@media (prefers-reduced-motion: reduce) {
+  #blank-picker, #blank-picker.show, #blank-picker-stage, #blank-picker-inner { transition:none; }
+}
 
 .rack-tile.rack-reorder-target {
   outline: 2px solid #ffd050;
@@ -1934,6 +1964,8 @@ body {
   font-size: 0.84rem; color: #555; line-height: 1.6;
 }
 .faq-purple { color: #7b2ff7; font-weight: 600; }
+.faq-a p { margin: 0 0 8px; }
+.faq-a p:last-child { margin-bottom: 0; }
 /* Icon shown inline in an answer, sitting on the text baseline at roughly cap height. */
 .faq-inline-icon {
   width: 0.95em; height: 0.95em;
@@ -2374,30 +2406,29 @@ body {
   <div id="faq-panel">
     <div id="faq-header"><h2>FAQ</h2></div>
     <div id="faq-body">
-
       <div class="faq-item">
         <div class="faq-q">How do I place a tile?</div>
-        <div class="faq-a">Three ways, whichever suits you: drag a tile from your rack onto an empty square, tap a rack tile and then tap the square, or tap an empty square first and then tap the letter you want there. Tapping an armed square again clears it. Swaps and steals still start from the rack — tap or drag the tile you're playing onto the board tile you want.</div>
+        <div class="faq-a"><p>Three ways to do it—take your pick. Drag a tile from your rack onto an empty square, tap a rack tile and then tap the square, or tap an empty square first and then tap the letter you want there. Tapping an armed square again clears it.</p><p>Swaps and steals still start from the rack: tap or drag the tile you're playing onto the board tile you want.</p></div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">How do I swap a tile?</div>
-        <div class="faq-a">Drag a tile from your rack onto a board tile, leaving a valid word behind, to swap them. The board tile moves to your rack, and both swapped tiles turn <span class="faq-purple">purple</span>. If you make multiple swaps in one turn, each pair gets a different shade of purple to show which tiles were swapped together. All purple tiles in your rack must be played that turn. To undo a swap, drag the swapped letter back to its original placement on the board, or tap RESET to undo every swap and steal that turn. RECALL brings back the tiles you've played but keeps your swaps and steals.</div>
+        <div class="faq-a"><p>Drag a tile from your rack onto a board tile, leaving a valid word behind. The board tile moves into your rack, and both swapped tiles turn <span class="faq-purple">purple</span>.</p><p>Making multiple swaps? Each pair gets its own shade of purple.</p><p>All purple tiles in your rack must be played that turn. No saving them for a later play.</p><p>Changed your mind? Drag a swapped letter back to its original spot on the board or tap <strong>RESET</strong> to undo every swap and steal from that turn.</p><p><strong>RECALL</strong> pulls any tiles you've placed on the board back into your rack, while keeping your swaps and steals intact.</p></div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">How do I steal a tile?</div>
-        <div class="faq-a">Tap an exposed first or last letter of a word (three letters or longer) on the board. If removing it still leaves a valid word on the board, the tile moves into your rack and turns <span class="faq-purple">purple</span>. You must use it — along with any other swapped or stolen tiles — in your play that turn. The board square it came from is blocked until your play is submitted.</div>
+        <div class="faq-a"><p>Tap an exposed first or last letter of a word that's at least three letters long. If removing it still leaves a valid word on the board, the tile pops into your rack and turns <span class="faq-purple">purple</span>.</p><p>You have to use it—along with any other swapped or stolen tiles—in your play that turn.</p><p>The square you stole it from is blocked until your play is submitted.</p></div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">Why is the square blocked after I steal a tile?</div>
-        <div class="faq-a">If the square stayed open, you could steal a letter and immediately drop a different one from your rack into the same spot — effectively swapping letters for free. Blocking the square forces you to build a word elsewhere on the board.</div>
+        <div class="faq-a">If the square stayed open, you could steal a letter and immediately drop a different one from your rack into the same spot, effectively swapping letters for free. It also prevents players from exposing a bonus square on the board and using it for themselves.</div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">Why can't I steal from a two-letter word?</div>
-        <div class="faq-a">Stealing requires that the letters left behind still form a valid word. Stealing from a two-letter word would effectively erase the word from the board entirely (there are no valid 1-letter words in the game), so the steal is blocked.</div>
+        <div class="faq-a"><p>Stealing a tile has to leave a valid word behind. Take a letter from a two-letter word and you're left with a one-letter word—and those aren't allowed.</p><p>Sorry. No stealing a word into oblivion.</p></div>
       </div>
 
       <div class="faq-item">
@@ -2407,27 +2438,27 @@ body {
 
       <div class="faq-item">
         <div class="faq-q">Do swapped and stolen tiles still score points?</div>
-        <div class="faq-a">Yes. A swapped or stolen tile counts its full face value in the word you build with it, exactly like a tile drawn from the bag — and if you play it on a bonus square, it earns that bonus too. That's what makes taking a high-value letter worthwhile: pulling a <strong>J</strong>, <strong>Q</strong>, <strong>X</strong> or <strong>Z</strong> off the board and replaying it somewhere stronger is one of the biggest scoring swings in the game. A stolen Z landing on a double-letter square is worth 20 on its own, before any word multiplier.</div>
+        <div class="faq-a">Absolutely. A swapped or stolen tile scores just like a tile drawn from the bag. That's why swapping or stealing premium tiles is a solid strategy: pulling a <strong>J</strong>, <strong>Q</strong>, <strong>X</strong> or <strong>Z</strong> off the board and replaying it can generate some serious points.</div>
       </div>
 
       <div class="faq-item">
-        <div class="faq-q">Do new words created by swaps and steals score points?</div>
-        <div class="faq-a">No. Swapping or stealing letters from existing words lets you set up a bigger play, but the words left behind on the board don't earn points. The square a swapped tile lands on gives no letter bonus either, since that square was already used earlier in the game. The tile you take does still score — in the new word you build with it.</div>
+        <div class="faq-q">Do I get points for the new words I make with swaps and steals?</div>
+        <div class="faq-a">No. Swapping or stealing letters from existing words lets you set up a bigger play, but the words you've modified on the board don't earn points.</div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">How does scoring work at the end of a game?</div>
-        <div class="faq-a">Each player loses the total value of the tiles left on their rack. If you go out first — playing every tile you're holding — you also <strong>gain</strong> the value of whatever your opponent is still holding, so it counts twice over. If they're left with a D and an I (4 points), they lose 4 and you gain 4: an <strong>8-point swing</strong>. A leftover Q or Z is a 20-point swing on its own. Blanks count as 0, so being caught with one costs nothing. If nobody goes out — the game ends on passes, or someone resigns — each player still loses their leftover tiles, but nobody gains.</div>
+        <div class="faq-a"><p>When a player goes out by using their final tile and the tile bag is empty, they get a bonus equal to the sum of other players' unplayed tiles. On top of that, the losing player has that same amount subtracted from their score, so those points count twice in the final swing.</p><p>For example, if your opponent is left with a D and an I worth 4 points, they lose 4 and you gain 4. That's an <strong>8-point swing</strong>. Get caught holding a Q or Z and that's a 20-point swing all by itself.</p><p>Blanks are worth 0, so getting stuck with one doesn't hurt you.</p><p>If the game ends on passes, each player still loses the value of their leftover tiles, but nobody gets the bonus. Resigning a game ends it immediately with no calculations for leftover tiles.</p></div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">How do blank tiles work?</div>
-        <div class="faq-a">A blank can stand in for any letter. When you place one, a picker appears — choose the letter it represents, and the tile shows that letter on the board for the rest of the game. A blank always scores <strong>0 points</strong>, whichever letter you pick. If you drop it on the wrong square, tap <strong>Cancel</strong> or tap outside the picker to send it back to your rack.</div>
+        <div class="faq-a">Blanks have no value but can be any letter when played. When you place one, choose the letter you want it to be.</div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">Can I swap for or steal a blank that's already on the board?</div>
-        <div class="faq-a">Yes — blanks follow the same rules as any other tile. When a blank comes into your rack it goes back to being unlettered, so you choose its letter again when you replay it. It doesn't have to be the letter it was before, which can make a well-placed blank worth taking.</div>
+        <div class="faq-a">Yes — blanks follow the same rules as any other tile. Swapping for or stealing one allows you to use it as if you drew it from the tile bag.</div>
       </div>
 
       <div class="faq-item">
@@ -2435,19 +2466,19 @@ body {
         <div class="faq-a">
           <div class="faq-color-row"><span class="faq-swatch faq-swatch-gold"></span><span>Darker tiles show your opponent's last play.</span></div>
           <div class="faq-color-row"><span class="faq-swatch faq-swatch-cyan"></span><span>Teal tiles mark swaps and steals from previous turns, with matching shades showing swapped pairs.</span></div>
-          <div class="faq-color-row"><span class="faq-swatch faq-swatch-purple"></span><span><span class="faq-purple">Purple</span> tiles mark swaps and steals for the current turn, and must be played.</span></div>
+          <div class="faq-color-row"><span class="faq-swatch faq-swatch-purple"></span><span><span class="faq-purple">Purple</span> tiles mark swaps and steals for the current turn and must be played.</span></div>
           <div class="faq-color-row"><span class="faq-swatch faq-swatch-blank"></span><span>Pale tiles are blank tiles, playing as the letter shown. They're always worth 0 points.</span></div>
         </div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">Why does the word strength percentage show 100% when there are better plays available?</div>
-        <div class="faq-a">The strength meter compares your play against the best possibility using the tiles sitting in your rack at the time, not counting plays you might unlock by swapping or stealing tiles first. It's also checking against a restricted dictionary, not every word in existence. Searching every possibility against a full dictionary would stall the board for seconds on every tile you place.</div>
+        <div class="faq-a">The strength meter compares your play against the best one available using the tiles in your <strong>rack at that time</strong>. It does not consider all potential swaps and steals you <strong>could</strong> make.</div>
       </div>
 
       <div class="faq-item">
         <div class="faq-q">How did my opponent make that play?</div>
-        <div class="faq-a">Tap the replay icon <svg class="faq-inline-icon" viewBox="0 0 16.20285 16.81585" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.91292,5.01059v6.79467c0,.48518.52523.78842.94541.54583l5.88435-3.39733c.42018-.24259.42018-.84907,0-1.09166l-5.88435-3.39734c-.42018-.24259-.94541.06065-.94541.54583Z"/><path d="M15.70285,11.45536c-1.68305,4.02887-6.31348,5.93054-10.34235,4.24749S-.57005,9.38937,1.113,5.36049,7.42649-.57005,11.45536,1.113c1.35348.56541,2.46689,1.46346,3.28496,2.5596"/><polyline points="15.48187 1.70549 15.33198 4.29596 12.74151 4.14607"/></svg> left of the play summary above the board to see your opponent's last move. The board rewinds to how it looked before the last move, then shows any swaps or steals made before spelling out the new word.</div>
+        <div class="faq-a">Curious how they pulled that off? Tap the replay icon <svg class="faq-inline-icon" viewBox="0 0 16.20285 16.81585" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.91292,5.01059v6.79467c0,.48518.52523.78842.94541.54583l5.88435-3.39733c.42018-.24259.42018-.84907,0-1.09166l-5.88435-3.39734c-.42018-.24259-.94541.06065-.94541.54583Z"/><path d="M15.70285,11.45536c-1.68305,4.02887-6.31348,5.93054-10.34235,4.24749S-.57005,9.38937,1.113,5.36049,7.42649-.57005,11.45536,1.113c1.35348.56541,2.46689,1.46346,3.28496,2.5596"/><polyline points="15.48187 1.70549 15.33198 4.29596 12.74151 4.14607"/></svg> left of the play summary to find out. The board rewinds to how it looked before the last move, then shows any swaps or steals made before spelling out the new word.</div>
       </div>
 
     </div>
@@ -2597,11 +2628,13 @@ body {
   <button class="btn btn-swap" style="padding:6px 14px;font-size:0.8rem;" onclick="stopAiVsAiGame()">Stop</button>
 </div>
 
-<div id="blank-picker" onclick="if(event.target===this)cancelBlankPicker()">
-  <div id="blank-picker-inner">
-    <div id="blank-picker-title">Choose a letter for the blank tile</div>
-    <div id="blank-picker-letters"></div>
-    <button id="blank-picker-cancel" onclick="cancelBlankPicker()">Cancel</button>
+<div id="blank-picker" onclick="if(!event.target.closest('#blank-picker-inner'))cancelBlankPicker()">
+  <div id="blank-picker-stage">
+    <div id="blank-picker-inner">
+      <div id="blank-picker-title">Choose a letter for the blank tile</div>
+      <div id="blank-picker-letters"></div>
+      <button id="blank-picker-cancel" onclick="cancelBlankPicker()">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -4056,7 +4089,7 @@ function onCellClick(r, c) {
       showMsg('Recall first, or pick an empty square to place your tile.', 'info');
       return;
     }
-    recallPendingTile(key);
+    tapPendingTile(key);
     return;
   }
 
@@ -4109,7 +4142,7 @@ function onCellClick(r, c) {
       updateUI();
       if (!window.tutorialMode) zoomToCell(r, c);
     };
-    if (rackLetter === ' ') { showBlankPicker(chosen => finishClickSwap(chosen.toLowerCase(), true)); }
+    if (rackLetter === ' ') { showBlankPicker(chosen => finishClickSwap(chosen.toLowerCase(), true), { targetKey: key }); }
     else { finishClickSwap(rackLetter, false); }
     return;
   }
@@ -4138,7 +4171,7 @@ function placeRackTileOnCell(r, c, rackIdx) {
     updateUI();
     if (!window.tutorialMode) zoomToCell(r, c);
   };
-  if (playerRack[rackIdx] === ' ') showBlankPicker(chosen => finish(chosen.toLowerCase(), true));
+  if (playerRack[rackIdx] === ' ') showBlankPicker(chosen => finish(chosen.toLowerCase(), true), { targetKey: key });
   else finish(playerRack[rackIdx], false);
 }
 
@@ -4259,7 +4292,7 @@ function onCellDrop(r, c, rackIdx) {
       updateUI();
       if (!window.tutorialMode) zoomToCell(r, c);
     };
-    if (rackLetter === ' ') { showBlankPicker(chosen => finishDragSwap(chosen.toLowerCase(), true)); }
+    if (rackLetter === ' ') { showBlankPicker(chosen => finishDragSwap(chosen.toLowerCase(), true), { targetKey: key }); }
     else { finishDragSwap(rackLetter, false); }
     return;
   }
@@ -4278,7 +4311,7 @@ function onCellDrop(r, c, rackIdx) {
       computeBestScore();
       updateUI();
       if (!window.tutorialMode) zoomToCell(r, c);
-    });
+    }, { targetKey: k });
     return;
   }
   pendingPlacements[key] = {letter: playerRack[rackIdx], rackIdx};
@@ -4325,6 +4358,7 @@ function onPendingTileDrop(r, c, fromKey) {
     showMsg(`${tileDesc} is now in your rack (purple). Place it this turn. ${remaining > 0 ? `${remaining} swap${remaining===1?'':'s'} left.` : 'No more swaps this turn.'}`, 'info');
     playDrop();
     updateUI();
+    if (moving.isBlank && !window.tutorialMode) repickBlank(toKey);
     return;
   }
 
@@ -4343,6 +4377,8 @@ function onPendingTileDrop(r, c, fromKey) {
   }
   computeBestScore();
   updateUI();
+  // A blank moved to another square is asked for its letter again: the one it had was chosen for the old square.
+  if (moving.isBlank && !window.tutorialMode) repickBlank(toKey);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4522,8 +4558,8 @@ function onTouchEnd(e) {
       const dy = t.clientY - touchPendingStartY;
       const wasTap = Math.sqrt(dx * dx + dy * dy) < 10;
       const p = pendingPlacements[touchPendingKey];
-      if (wasTap && p && !p.isSwap) {
-        recallPendingTile(touchPendingKey);
+      if (wasTap && p && (!p.isSwap || p.isBlank)) {
+        tapPendingTile(touchPendingKey);
       } else {
         onPendingTileDrop(r, c, touchPendingKey);
       }
@@ -5570,6 +5606,10 @@ function renderBoard() {
       if (replaying) { boardEl.appendChild(cell); continue; }
 
       if (selectedCellKey === key) cell.classList.add('cell-selected');
+      if (blankPickerTargetKey === key) {
+        cell.classList.add('blank-target');
+        if (!board[r][c] && !pendingPlacements[key]) cell.classList.add('blank-target-empty');
+      }
 
       cell.addEventListener('click', () => onCellClick(r, c));
 
@@ -6455,14 +6495,22 @@ function renderScorePreview() {
   boardEl.appendChild(preview);
 }
 
-function showBlankPicker(callback) {
+// The picker slides up whenever a blank goes on the board, and again when a placed blank is tapped or dragged
+// to another square. targetKey rings that square while it is up; onCancel is what Cancel means for a blank that
+// is already on the board (it goes back to the rack); current marks the letter it is playing as now.
+let blankPickerOnCancel = null;
+let blankPickerTargetKey = null;
+function showBlankPicker(callback, opts) {
+  const { targetKey = null, onCancel = null, current = null } = opts || {};
   blankPickerCallback = callback;
+  blankPickerOnCancel = onCancel;
+  setBlankPickerTarget(targetKey);
   const lettersDiv = document.getElementById('blank-picker-letters');
   lettersDiv.innerHTML = '';
   for (let i = 0; i < 26; i++) {
     const ch = String.fromCharCode(65 + i);
     const btn = document.createElement('button');
-    btn.className = 'blank-letter-btn';
+    btn.className = 'blank-letter-btn' + (current && current.toUpperCase() === ch ? ' current' : '');
     btn.textContent = ch;
     btn.addEventListener('click', () => {
       document.getElementById('blank-picker').classList.remove('show');
@@ -6473,33 +6521,91 @@ function showBlankPicker(callback) {
       // to go on the board, with nothing on screen to explain it.
       const cb = blankPickerCallback;
       blankPickerCallback = null;
+      blankPickerOnCancel = null;
+      setBlankPickerTarget(null);
       if (cb) cb(ch);
     });
     lettersDiv.appendChild(btn);
   }
-  document.getElementById('blank-picker').classList.add('show');
+  // The mask and clip end where the rack area begins, and the card starts just below that edge, so it rises
+  // out from behind the strength meter, rack and icons. Measured each time: the board's size varies by device.
+  const picker = document.getElementById('blank-picker');
+  const stage = document.getElementById('blank-picker-stage');
+  const inner = document.getElementById('blank-picker-inner');
+  const lower = document.getElementById('rack-area');
+  const edge = lower && lower.offsetParent !== null ? lower.getBoundingClientRect().top : window.innerHeight;
+  if (stage) stage.style.bottom = Math.max(0, window.innerHeight - edge) + 'px';
+  if (stage && inner && !picker.classList.contains('show')) {
+    // Jump (not glide) to the starting point, then let the rise animate from there.
+    inner.style.transition = 'none';
+    inner.style.setProperty('--picker-rise', (stage.clientHeight - inner.offsetTop) + 'px');
+    void inner.offsetWidth;
+    inner.style.transition = '';
+  }
+  picker.classList.add('show');
   // Briefly disable pointer events so a drag-release mouseup can't accidentally click a letter
   lettersDiv.style.pointerEvents = 'none';
   setTimeout(() => { lettersDiv.style.pointerEvents = ''; }, 200);
 }
 
-// Back out of the blank picker — for a blank dropped on the wrong square. Nothing needs
-// undoing: all four callers place the tile inside the callback, so dropping the callback
-// leaves the board untouched and the blank still in the rack. Clearing blankPickerCallback
-// also re-arms the drag handler, which skips snap-to-cell while a picker is open.
+// Rings the square the picker is choosing for (renderBoard redraws it from blankPickerTargetKey too).
+function setBlankPickerTarget(key) {
+  blankPickerTargetKey = key;
+  document.querySelectorAll('.cell.blank-target').forEach(el => el.classList.remove('blank-target', 'blank-target-empty'));
+  if (!key) return;
+  const [r, c] = key.split(',').map(Number);
+  const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+  if (!cell) return;
+  cell.classList.add('blank-target');
+  if (!board[r][c] && !pendingPlacements[key]) cell.classList.add('blank-target-empty');
+}
+
+// Back out of the blank picker — for a blank on the wrong square, it goes back to the rack. A blank being
+// placed needs nothing undone: the callers place it inside the callback, so dropping the callback leaves it in
+// the rack. A blank already on the board (tapped, or dragged to a new square) is taken back by onCancel.
+// Clearing blankPickerCallback also re-arms the drag handler, which skips snap-to-cell while a picker is open.
 function cancelBlankPicker() {
   const picker = document.getElementById('blank-picker');
   // Clear the latch unconditionally. The early return used to sit above this, so if the
   // picker was already hidden while the latch was still set, Escape and Cancel could not
   // clear it either — the board stayed unplaceable with no way back short of a reload.
   const wasLatched = blankPickerCallback !== null;
+  const onCancel = blankPickerOnCancel;
   blankPickerCallback = null;
+  blankPickerOnCancel = null;
+  setBlankPickerTarget(null);
   if (!picker?.classList.contains('show')) {
     if (wasLatched) updateUI();
     return;
   }
   picker.classList.remove('show');
+  if (onCancel) { onCancel(); return; }   // it redraws
   updateUI();
+}
+
+// A placed tile tapped. A blank brings the picker back up, to play as another letter (Cancel sends it back to the
+// rack); any other tile goes straight back to the rack, as before.
+function tapPendingTile(key) {
+  const p = pendingPlacements[key];
+  if (!p) return;
+  if (p.isBlank && !window.tutorialMode) { repickBlank(key); return; }
+  recallPendingTile(key);
+}
+
+// Pick again for a blank already on the board. Recall, Reset or the opponent's move can take it off the board
+// while the sheet is up, so the choice checks it is still there.
+function repickBlank(key) {
+  const p = pendingPlacements[key];
+  if (!p || !p.isBlank) return;
+  playPickup();
+  showBlankPicker(ch => {
+    const now = pendingPlacements[key];
+    if (!now || !now.isBlank) return;
+    now.letter = ch.toLowerCase();
+    playDrop();
+    computeBestScore();
+    updateUI();
+  }, { targetKey: key, current: p.letter, onCancel: () => recallPendingTile(key) });
 }
 
 document.addEventListener('keydown', e => {

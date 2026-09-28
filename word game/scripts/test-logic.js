@@ -988,6 +988,64 @@ console.log('\nThe AI\'s swaps and steals score by the player\'s rules\n');
     `AI ${steal && steal.score}, player ${stealAsPlayer}`);
 })();
 
+// ── Resigning: no leftover tiles counted ────────────────────────────────────────────────
+// The FAQ: "Resigning a game ends it immediately with no calculations for leftover tiles." Online resigns always
+// did that; resigning an AI game took the resigner's leftover tiles off the final score shown.
+console.log('\nResigning — no leftover tiles counted\n');
+
+inSequence(async function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const shown = [];
+  const c = {
+    console, isOnlineMode: false, AI_SAVE_KEY: 'reword_ai_game', localStorage: { getItem: () => '{}' },
+    playerScore: 120, aiScore: 90, playerRack: ['Q', 'Z', 'E'], aiRack: ['X', 'A'], playerName: 'Brady', gameOver: false,
+    VAL: { Q: 10, Z: 10, E: 1, X: 8, A: 1 },
+    updateStatsAfterGame: (score) => { c.statsScore = score; }, clearAiGameState() {}, updateResignButton() {},
+    showWinnerModal: m => shown.push(m),
+  };
+  vm.createContext(c);
+  vm.runInContext('async ' + grabFunction('resignOnlineGame'), c);
+  await c.resignOnlineGame();
+  const m = shown[0] || {};
+  ok('resigning an AI game shows the scores as they stood (no tiles taken off)', m.myScore === 120 && m.oppScore === 90, `you ${m.myScore}, AI ${m.oppScore}`);
+  ok('it is a loss, with no tile deductions listed', m.forceResult === 'loss' && !m.myDeduct && !m.oppDeduct, JSON.stringify(m));
+  ok('and the stats record the same score', c.statsScore === 120, String(c.statsScore));
+
+  // What the result pop-up says. The AI game said "AI Won!" over a score the player was ahead on, with nothing
+  // saying why; online, the winner of a resigned game was told "You Resigned" as well.
+  const popup = (args) => {
+    const els = {};
+    const el = id => (els[id] = els[id] || { style: {}, classList: { add() {}, remove() {} }, innerHTML: '', textContent: '' });
+    const w = { console, document: { getElementById: el }, playGameEnd() {}, _flagSVG: '<div class="go-flag"></div>', _rematchSkill: 'hard',
+      startOnlineRematch() {}, startAiRematch() {}, showHomeScreen() {} };
+    vm.createContext(w);
+    // showWinnerModal destructures its argument, so its body starts at the first ') {', not the first '{'.
+    const at = src.indexOf('function showWinnerModal('); let depth = 0, end = -1;
+    for (let i = src.indexOf(') {', at) + 2; i < src.length; i++) {
+      if (src[i] === '{') depth++; else if (src[i] === '}' && --depth === 0) { end = i + 1; break; }
+    }
+    vm.runInContext(grabFunction('escHtml') + '\n' + src.slice(at, end), w);
+    w.showWinnerModal({ myScore: 120, oppScore: 90, myName: 'Brady', myDeduct: 0, oppDeduct: 0, ...args });
+    return els['modal-body'].innerHTML;
+  };
+  let h = popup({ oppName: 'AI', reason: 'You resigned', isOnline: false, forceResult: 'loss' });
+  ok('resigning an AI game says "You Resigned", with the flag', /You Resigned/.test(h) && /go-flag/.test(h) && !/AI Won/.test(h), h.slice(0, 120));
+  h = popup({ oppName: 'Aaron', reason: 'You resigned', isOnline: true, forceResult: 'loss' });
+  ok('and so does resigning an online game', /You Resigned/.test(h) && /go-flag/.test(h), h.slice(0, 120));
+  h = popup({ oppName: 'Aaron', reason: 'opponent resigned', isOnline: true, forceResult: 'win' });
+  ok('the winner of a resigned game sees "You Won!" and that the opponent resigned — not "You Resigned"',
+    /You Won!/.test(h) && /go-reason">Aaron resigned/.test(h) && !/You Resigned/.test(h), h.slice(0, 160));
+  h = popup({ oppName: '<b>x</b>', reason: 'opponent resigned', isOnline: true, forceResult: 'win' });
+  ok('the opponent\'s name in that line is escaped', /&lt;b&gt;x&lt;\/b&gt; resigned/.test(h), h.slice(0, 200));
+  h = popup({ oppName: 'AI', reason: 'you used all your tiles', isOnline: false });
+  ok('a game that ends normally says nothing about resigning', /You Won!/.test(h) && !/resign/i.test(h), h.slice(0, 120));
+});
+
 // ── Blanks: the picker slides up for every blank on the board ────────────────────────────
 // A blank going on the board brings up the letter picker (sliding up over the mask, the square ringed); Cancel sends
 // it back to the rack. Tapping a placed blank, or dragging it to another square, brings the picker back up to

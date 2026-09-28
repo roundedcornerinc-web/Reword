@@ -1300,6 +1300,7 @@ body {
 }
 #modal h2 { font-size: 1.5rem; font-weight: 600; color: #fff; margin: 0 0 6px; }
 #modal .go-emoji { font-size: 2rem; display: block; margin-bottom: 8px; }
+#modal .go-reason { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin: 0; }
 .go-scores {
   display: flex;
   align-items: center;
@@ -7094,16 +7095,20 @@ function showWinnerModal({ myScore, oppScore, myName, oppName, myDeduct, oppDedu
   const oppWins = forceResult ? forceResult === 'loss' : oppScore > myScore;
   playGameEnd(myWins);   // end-of-game jingle
 
+  // Whoever resigned sees the flag and "You Resigned", online or against the AI (the AI game used to say
+  // "AI Won!" over a score it was ahead on, with nothing saying why). The other player sees their win with a
+  // line saying the opponent resigned — matching any reason containing "resign" used to show the winner
+  // "You Resigned" too.
+  const youResigned  = /^you resigned$/i.test(reason || '');
+  const theyResigned = /^opponent resigned$/i.test(reason || '');
   let topContent;
-  if (isOnline) {
-    const isResign = reason && reason.toLowerCase().includes('resign');
-    const title    = isResign ? 'You Resigned' : myWins ? 'You Won!' : oppWins ? `${oppName} Won!` : "It's a Tie!";
-    const icon     = isResign ? _flagSVG : myWins ? '<span class="go-emoji">🏆</span>' : oppWins ? '<span class="go-emoji">😔</span>' : '<span class="go-emoji">🤝</span>';
-    topContent = `${icon}<h2 id="modal-title">${title}</h2>`;
+  if (youResigned) {
+    topContent = `${_flagSVG}<h2 id="modal-title">You Resigned</h2>`;
   } else {
-    const emoji = myWins ? '🎉' : oppWins ? '😔' : '🤝';
+    const emoji = myWins ? (isOnline ? '🏆' : '🎉') : oppWins ? '😔' : '🤝';
     const title = myWins ? 'You Won!' : oppWins ? `${oppName} Won!` : "It's a Tie!";
-    topContent = `<span class="go-emoji">${emoji}</span><h2 id="modal-title">${title}</h2>`;
+    topContent = `<span class="go-emoji">${emoji}</span><h2 id="modal-title">${title}</h2>` +
+      (theyResigned ? `<div class="go-reason">${escHtml(oppName)} resigned</div>` : '');
   }
 
   document.getElementById('modal-emoji').style.display = 'none';
@@ -9026,12 +9031,12 @@ async function resignOnlineGame() {
   if (!isOnlineMode) {
     gameOver = true;
     updateStatsAfterGame(playerScore, false, false);
-    const playerDeduct = playerRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
-    const aiDeduct     = aiRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
     clearAiGameState();
     updateResignButton();
+    // Resigning ends the game as it stands: no tiles are counted off either rack (FAQ, end-game scoring), the
+    // same as an online resign. It used to take the resigner's leftover tiles off the score shown here.
     showWinnerModal({
-      myScore: playerScore - playerDeduct, oppScore: aiScore,
+      myScore: playerScore, oppScore: aiScore,
       myName: playerName || 'You', oppName: 'AI',
       myDeduct: 0, oppDeduct: 0,
       reason: 'You resigned', isOnline: false, forceResult: 'loss',

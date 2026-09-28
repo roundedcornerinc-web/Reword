@@ -868,9 +868,124 @@ console.log('\nStrength meter — best possible includes the all-tiles bonus\n')
   ok('meter search adds 35 for a play using all seven tiles', meter === plain + 35 && plain > 0,
     `without bonus ${plain}, with bonus ${meter}`);
   ok('meter search passes withBonus; AI searches do not',
-    (src.match(/findBestPlayWithRack\([^;]*new Set\(\), true\);/g) || []).length === 2 &&
-    !/findBestPlayWithRack\(newRack[^;]*new Set\(\[`/.test(src),
+    (src.match(/findBestPlayWithRack\([^;]*new Set\(\), true[,)][^;]*;/g) || []).length === 2 &&
+    (src.match(/findBestPlayWithRack\(newRack[^;]*;/g) || []).length === 2 &&
+    (src.match(/findBestPlayWithRack\(newRack[^;]*;/g) || []).every(call => !/,\s*true\s*[,)]/.test(call)),
     'expected exactly the two strength-meter calls to request the bonus');
+})();
+
+// ── Strength meter: a swap square keeps its word multiplier in the search too ────────────
+// Reported with a blank meter: GAZED on the board with its G on a DW, the player's L swapped onto that G, and the
+// G played at the front with OUT below it — GLAZED doubled by the swap square's DW (38) plus GOUT tripled (21),
+// 59. That is the game's rule (a swap loses letter bonuses, keeps word multipliers). The search saw the L as an
+// old tile, found 40 at best, and the meter blanked because the play beat "best possible".
+console.log('\nStrength meter — a swap square keeps its word multiplier in the search\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const c = { BS: 15, aiSkill: 'hard', WORDS: new Set(['GAZED', 'LAZED', 'GLAZED', 'GOUT']), AI_WORDS: null, console };
+  c.AI_WORDS = c.WORDS;
+  vm.createContext(c);
+  vm.runInContext([
+    grabLines('const PREMIUM = {}', "PREMIUM['7,7']"),
+    grabLines('const VAL = {', 'const VAL = {'),
+    grabFunction('getWordAt'), grabFunction('getWordsFormed'), grabFunction('hasAdjacentTile'),
+    grabFunction('scoreWords'), grabFunction('scorePlay'), grabFunction('canSpell'), grabFunction('findBestPlayWithRack'),
+    'this.premium = k => PREMIUM[k];',
+  ].join('\n'), c);
+  ok('the squares are where the reported board had them (DW under the swap, TW under the T)',
+    c.premium('1,1') === 'DW' && c.premium('4,0') === 'TW', `${c.premium('1,1')} / ${c.premium('4,0')}`);
+
+  const empty = () => Array.from({ length: 15 }, () => Array(15).fill(null));
+  const committed = empty();
+  'GAZED'.split('').forEach((l, i) => { committed[1][1 + i] = l; });
+  // What the player did, scored the way the commit scores it.
+  const placements = { '1,1': { letter: 'L', isSwap: true }, '1,0': { letter: 'G' }, '2,0': { letter: 'O' }, '3,0': { letter: 'U' }, '4,0': { letter: 'T' } };
+  const tb = committed.map(r => [...r]);
+  for (const [k, p] of Object.entries(placements)) { const [r, col] = k.split(',').map(Number); tb[r][col] = p.letter; }
+  const swapKeys = new Set(['1,1']);
+  const actual = c.scorePlay(c.getWordsFormed(placements, tb), new Set(Object.keys(placements)), swapKeys);
+  ok('the play scores 59, as the preview said', actual === 59, String(actual));
+
+  // What the meter searches: the swap applied to the board, the swapped-in G in the rack.
+  const search = committed.map(r => [...r]); search[1][1] = 'L';
+  const rack = ['G', 'O', 'U', 'T', 'I', 'N', 'G'];
+  const best = keys => { const r = c.findBestPlayWithRack(rack, search, c.WORDS, new Set(), true, keys); return r ? r.score : 0; };
+  const found = best(swapKeys), blind = best(new Set());
+  ok('told where the swap is, the search finds the play (so the meter has a reading)', found >= actual, `best ${found}, play ${actual}`);
+  ok('without it the search falls short, which is what blanked the meter', blind < actual, `best ${blind}, play ${actual}`);
+  ok('the worker and the on-thread search are both told where the swaps are',
+    /findBestPlayWithRack\(d\.rack, d\.board, WORDS, new Set\(\), true, new Set\(d\.swapKeys \|\| \[\]\)\)/.test(src) &&
+    /swapKeys: \[\.\.\.swapPendingPositions\]/.test(src) &&
+    /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapPendingPositions\)\)/.test(src),
+    'one of the meter\'s searches is still blind to this turn\'s swaps');
+})();
+
+// ── The AI's swaps and steals score by the player's rules ────────────────────────────────
+// The AI banks its search's score, and its searches used stingier rules than a player's play: its swap square
+// never took its DW/TW, and the tile it took (swapped in or stolen) got no letter bonus — and any word whose only
+// new tile was that one scored nothing at all. Each move is checked against scorePlay on the same move.
+console.log('\nThe AI\'s swaps and steals score by the player\'s rules\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const empty = () => Array.from({ length: 15 }, () => Array(15).fill(null));
+  const world = (words, rack) => {
+    const c = { BS: 15, aiSkill: 'hard', WORDS: new Set(words), AI_WORDS: null, aiRack: rack, board: empty(), console };
+    c.AI_WORDS = c.WORDS;
+    vm.createContext(c);
+    vm.runInContext([
+      grabLines('const PREMIUM = {}', "PREMIUM['7,7']"),
+      grabLines('const VAL = {', 'const VAL = {'),
+      'function isEmpty(){ return board.every(r => r.every(x => !x)); }',
+      grabFunction('getWordAt'), grabFunction('getWordsFormed'), grabFunction('hasAdjacentTile'), grabFunction('isBoardConnected'),
+      grabFunction('scoreWords'), grabFunction('scorePlay'), grabFunction('canSpell'), grabFunction('findBestPlayWithRack'),
+      grabFunction('findAISwapMove'), grabFunction('findAIStealMove'),
+    ].join('\n'), c);
+    return c;
+  };
+  // Score a move the way a player's identical move is scored at commit.
+  const asPlayer = (c, placements, removals, swapKeys) => {
+    const tb = c.board.map(r => [...r]);
+    for (const k of removals) { const [r, col] = k.split(',').map(Number); tb[r][col] = null; }
+    for (const [k, p] of Object.entries(placements)) { const [r, col] = k.split(',').map(Number); tb[r][col] = p.letter; }
+    return c.scorePlay(c.getWordsFormed(placements, tb), new Set(Object.keys(placements)), new Set(swapKeys));
+  };
+  const laid = play => Object.fromEntries(play.placements.map(p => [`${p.row},${p.col}`, { letter: p.letter }]));
+
+  // A swap onto a DW: GAZED with its G on the DW at 1,1. The AI's L goes onto that G (LAZED), and the G is
+  // played in front with OUT below: GLAZED doubled by the swap square (38) and GOUT tripled by the TW at 4,0 (21).
+  let c = world(['GAZED', 'LAZED', 'GLAZED', 'GOUT'], ['L', 'O', 'U', 'T', 'Q', 'Q', 'Q']);
+  'GAZED'.split('').forEach((l, i) => { c.board[1][1 + i] = l; });
+  const swap = c.findAISwapMove();
+  const swapKey = swap && `${swap.swapRow},${swap.swapCol}`;
+  ok('the AI finds the swap onto the double word', swap && swapKey === '1,1' && swap.swapRackLetter === 'L', JSON.stringify(swap && { swapKey, letter: swap.swapRackLetter }));
+  const swapAsPlayer = swap && asPlayer(c, { [swapKey]: { letter: swap.swapRackLetter, isSwap: true }, ...laid(swap.play) }, [], [swapKey]);
+  ok('and banks what the same move would score for a player (59), the DW included', swap && swap.score === swapAsPlayer && swapAsPlayer === 59,
+    `AI ${swap && swap.score}, player ${swapAsPlayer}`);
+
+  // A steal onto a DL: ADZ on row 7 from column 1; the AI takes the Z (AD stays) and plays it on the DL at 6,1, above
+  // the A: ZA, the Z doubled (21, better than putting it back for ADZ's 13). Before, ZA's only new tile was the
+  // stolen one, so it scored nothing and the steal was missed.
+  c = world(['ADZ', 'AD', 'ZA'], ['Q', 'Q', 'Q', 'Q', 'Q', 'Q', 'Q']);
+  'ADZ'.split('').forEach((l, i) => { c.board[7][1 + i] = l; });
+  const steal = c.findAIStealMove();
+  const stolenAt = steal && steal.play.placements.find(p => p.rackIdx === steal.stolenRackIdx);
+  ok('the AI finds the steal and plays the stolen Z on the double letter', steal && steal.stealLetter === 'Z' && stolenAt && `${stolenAt.row},${stolenAt.col}` === '6,1',
+    JSON.stringify(steal && { letter: steal.stealLetter, at: stolenAt && `${stolenAt.row},${stolenAt.col}` }));
+  const stealAsPlayer = steal && asPlayer(c, laid(steal.play), [`${steal.stealRow},${steal.stealCol}`], []);
+  ok('and banks what the same move would score for a player (21), the DL included', steal && steal.score === stealAsPlayer && stealAsPlayer === 21,
+    `AI ${steal && steal.score}, player ${stealAsPlayer}`);
 })();
 
 // ── Strength meter: searched once per turn, not once per tile ──────────────────────────
@@ -889,7 +1004,7 @@ console.log('\nStrength meter — one search per rack and board\n');
     console, setTimeout: (f) => f(), clearTimeout: () => {},
     board: Array.from({ length: 15 }, () => Array(15).fill(null)),
     playerRack: ['C','A','T','S','E','R','D'],
-    pendingRemovals: new Set(), pendingPlacements: {},
+    pendingRemovals: new Set(), pendingPlacements: {}, swapPendingPositions: new Set(),
     bestPossibleScore: null, _bestScoreTimer: null,
     _strengthWorker: { postMessage: (m) => posts.push(m) }, _strengthWorkerReady: true,
     _strengthReqId: 0, _strengthPending: {},

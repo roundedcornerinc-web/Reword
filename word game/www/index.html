@@ -5065,7 +5065,10 @@ function findAIMove(rackOverride = null) {
 
 // Find best play given an arbitrary rack on an arbitrary board state.
 // Used by the swap move finder so it can evaluate plays after a hypothetical swap.
-function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRackIndices = new Set(), withBonus = false) {
+// swapKeys: squares swapped this turn (the strength meter's search only). boardState already shows their new
+// letter, but a play through one scores it as the commit does: no letter bonus, word multiplier kept. Treated
+// as old tiles instead, a DW/TW under a swap never counted and the player's own play beat "best possible".
+function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRackIndices = new Set(), withBonus = false, swapKeys = new Set()) {
   const candidates = [];
   const maxLen = aiSkill === 'hard' ? 15 : 12;
 
@@ -5109,9 +5112,11 @@ function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRa
     if (words.length === 0) return;
     for (const {word:w} of words) if (!WORDS.has(w.toUpperCase())) return;
     const noScorePos = new Set(placements.filter(p => noScoreRackIndices.has(p.rackIdx)).map(p => `${p.row},${p.col}`));
+    const newKeys = new Set(Object.keys(pMap));
+    for (const k of swapKeys) { newKeys.add(k); noScorePos.add(k); }
     // withBonus: the strength meter compares against the player's score, which includes the
     // all-tiles bonus. Without it a 7-tile play beats "best possible" and the meter blanks.
-    const score = scoreWords(words, new Set(Object.keys(pMap)), noScorePos) +
+    const score = scoreWords(words, newKeys, noScorePos) +
       (withBonus && placements.length === rack.length && rack.length >= 7 ? 35 : 0);
     candidates.push({score, word, placements, words});
   };
@@ -5180,7 +5185,9 @@ function findAISwapMove(rackOverride = null) {
     if (!swapValid) return;
     const newRack = [...rack];
     newRack[ri] = boardLetter;
-    const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set([ri]));
+    // Scored by the player's rules: the swap square keeps its word multiplier but not its letter bonus, and the
+    // tile taken off it scores in full wherever it is played. The AI banks this score as it stands.
+    const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set(), false, new Set([`${r},${c}`]));
     if (!play || play.score <= 0) return;
     if (!play.placements.some(p => p.rackIdx === ri)) return;
     if (play.score > best.score) {
@@ -5262,11 +5269,11 @@ function findAIStealMove(rackOverride = null) {
       tempBoard[r][c] = null;
       if (!isBoardConnected(tempBoard)) continue;
 
-      // Find best play with the stolen tile added to rack
-      // The stolen square [r,c] must remain blocked — mark it so findBestPlayWithRack skips it
+      // Find best play with the stolen tile added to rack. It scores in full, bonus squares included, as a
+      // player's stolen tile does. The stolen square [r,c] must stay empty this turn — checked below.
       const newRack = [...rack, boardLetter];
       const stolenRackIdx = newRack.length - 1;
-      const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS, new Set([stolenRackIdx]));
+      const play = findBestPlayWithRack(newRack, tempBoard, AI_WORDS);
       if (!play || play.score <= 0) continue;
       if (!play.placements.some(p => p.rackIdx === stolenRackIdx)) continue;
       // Double-check: AI must not play back into the stolen square
@@ -6576,7 +6583,7 @@ function _strengthWorkerMain() {
             }
           }
         } else {
-          var r = findBestPlayWithRack(d.rack, d.board, WORDS, new Set(), true);
+          var r = findBestPlayWithRack(d.rack, d.board, WORDS, new Set(), true, new Set(d.swapKeys || []));
           best = r ? r.score : 0;
         }
       } catch (err) {}
@@ -6658,7 +6665,8 @@ function _bestScoreKey(rack) {
     _bestScoreCache.clear(); _bestScoreBoardSig = committedSig; _bestScoreInFlight = null;
   }
   const searchSig = _searchBoard().map(r => r.map(c => c || '.').join('')).join('');
-  return [...rack].sort().join('') + '|' + searchSig;
+  // Where the swaps are matters as well as what they spell: a swap square keeps its word multiplier.
+  return [...rack].sort().join('') + '|' + searchSig + '|' + [...(swapPendingPositions || [])].sort().join(';');
 }
 
 function resetBestScore() {
@@ -6704,7 +6712,7 @@ function computeBestScore() {
         if (best > 0) _bestScoreCache.set(key, value);
         if (_bestScoreKey([...playerRack]) === key) { bestPossibleScore = value; updateStrengthBar(); }
       };
-      _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: _searchBoard() });
+      _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: _searchBoard(), swapKeys: [...swapPendingPositions] });
       return;
     }
     // No worker (dictionary still loading, or dead on this device). Not cached, so the
@@ -6780,7 +6788,7 @@ function _bestScoreOnThread(rack) {
       // gets too expensive — see FULL_DICT_TILE_LIMIT. Swap/steal loops are skipped either
       // way: they call findBestPlayWithRack hundreds of times and block for seconds.
       const boardCopy = board.map(r => [...r]);
-      const best = findBestPlayWithRack(rack, boardCopy, wordSource, new Set(), true);
+      const best = findBestPlayWithRack(rack, boardCopy, wordSource, new Set(), true, new Set(swapPendingPositions));
       bestScore = best ? best.score : 0;
     }
 

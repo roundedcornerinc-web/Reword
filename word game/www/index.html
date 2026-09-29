@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Reword">
 <meta name="apple-itunes-app" content="app-id=6748162685">
 <link rel="apple-touch-icon" href="icons/icon-1024.png">
-<meta name="description" content="Like Scrabble, but the board's in play. Swap and steal tiles straight off the board to build new words.">
+<meta name="description" content="A crossword tile game where the board's in play. Swap and steal tiles straight off the board to build new words.">
 <!-- Open Graph — every challenge is shared as a link, so this is the preview card that
      appears in iMessage, WhatsApp and anywhere else a game link gets pasted. -->
 <meta property="og:type" content="website">
@@ -816,7 +816,7 @@ body {
 }
 #btn-play:active { transform: scale(0.97); }
 
-/* Play, counting down: the button is Undo, red, and its fill drains over the three seconds the play
+/* Play, counting down: the button is Undo, red, and its fill drains over the two seconds the play
    is held. Everything else on the game screen is locked and dimmed until it goes through or is undone. */
 #btn-play.counting {
   position: relative;
@@ -830,7 +830,7 @@ body {
   position: absolute; inset: 0;
   background: rgba(255,255,255,0.16);
   transform-origin: left center;
-  animation: play-drain 3s linear forwards;
+  animation: play-drain 2s linear forwards;   /* = PLAY_COUNTDOWN_MS */
 }
 @keyframes play-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 #btn-play .undo-lbl, #btn-play .undo-count { position: relative; text-shadow: 0 1px 2px rgba(0,0,0,0.25); }
@@ -2502,7 +2502,7 @@ body {
 <div id="welcome-overlay">
   <div id="welcome-card">
     <h2>Welcome to Reword</h2>
-    <p>Reword is like Scrabble—but you can <strong>swap</strong> or <strong>steal</strong> tiles from the board to build new words.</p>
+    <p>Reword is a crossword tile game—but you can <strong>swap</strong> or <strong>steal</strong> tiles from the board to build new words.</p>
     <p>This quick tutorial shows you the basics.</p>
     <button id="btn-lets-go" onclick="welcomeStartTutorial()">LET'S GO</button>
     <button id="btn-no-thanks" onclick="welcomeSkipTutorial()">No thanks. I know how to play.</button>
@@ -2702,7 +2702,7 @@ const VAL = {A:1,B:3,C:6,D:3,E:1,F:5,G:3,H:5,I:1,J:8,K:6,L:1,M:3,N:1,O:1,P:3,Q:1
 const DIST = {A:9,B:2,C:2,D:4,E:12,F:2,G:3,H:2,I:9,J:1,K:1,L:4,M:2,N:6,O:8,P:2,Q:1,R:6,S:4,T:6,U:4,V:2,W:2,X:1,Y:2,Z:1};
 
 // ═══════════════════════════════════════════════════════
-//  DICTIONARY  (curated Scrabble-valid word list)
+//  DICTIONARY  (curated word list)
 // ═══════════════════════════════════════════════════════
 const WORD_DATA = `AA AB AD AE AG AH AI AL AM AN AR AS AT AW AX AY BA BE BI BO BY DA DE DO ED EF EH EL EM EN ER ES ET EW EX FA FE GI GO HA HE HI HM HO ID IF IN IS IT JO KA KI LA LI LO MA ME MI MM MO MU MY NA NE NO NU OD OE OF OH OI OM ON OP OR OS OW OX OY PA PE PI PO QI RE SH SI SO TA TI TO UH UM UN UP UT WE WO XI XU YA YE YO ZA
 AAH AAL AAS ABA ABO ABS ABY ACE ACT ADD ADO ADS ADZ AFF AFT AGA AGE AGO AGS AHA AID AIM AIN AIR AIS AIT ALA ALB ALE ALT AMI AMP AMU ANA AND ANE ANI ANT ANY APE APO APT ARB ARC ARE ARF ARK ARM ARS ART ASH ASK ASP ASS ATE ATT AUK AVA AVE AVO AWA AWE AWL AWN AXE AYS AZO BAA BAD BAG BAH BAL BAM BAN BAP BAR BAS BAT BAY BED BEG BEL BES BET BEY BIB BID BIG BIN BIO BIS BIT BIZ BOA BOB BOD BOG BOO BOP BOT BOW BOX BOY BRA BRO BRR BUB BUD BUG BUM BUN BUR BUS BUT BUY CAB CAD CAM CAN CAP CAR CAT CAW CAY CEE CEL CEP CHI CIG COB COD COG COL CON COO COP COT COW COX COY COZ CRY CUB CUD CUE CUR CUT DAB DAD DAG DAH DAK DAL DAM DAP DAW DAY DEB DEE DEL DEN DEW DEX DEY DIG DIM DIN DIP DIT DOC DOE DOG DOM DON DOP DOT DOW DRY DUB DUD DUG DUN DUO DUP EAR EAT EEK EEL EFF EGG EGO ELK ELL ELM ELS EME EMF EMS EMU END ENG EON ERA ERE ERG ERN ERR ERS ESS ETA ETH EVE EWE EYE FAB FAD FAG FAN FAR FAT FAX FAY FED FEH FEM FEN FEW FEY FEZ FIB FID FIG FIN FIR FIT FIX FIZ FLY FOB FOE FOG FOP FOR FOY FRO FRY FUB FUD FUN FUR GAB GAG GAL GAM GAP GAR GAS GAY GEL GEM GET GEY GIG GIN GNU GOA GOB GOD GOO GOP GOT GOY GUL GUM GUN GUT GUY GYM GYP HAD HAE HAG HAH HAJ HAM HAP HAS HAT HAW HAY HEH HEM HEN HEP HER HES HET HEW HEX HEY HID HIE HIM HIN HIP HIS HIT HOB HOD HOE HOG HOM HOP HOT HOW HOY HUB HUE HUG HUH HUM HUT ICE ICK ICY IDS ILL IMP INK INN INS ION IRE IRK ISM ITS JAB JAG JAM JAP JAR JAW JAY JEE JET JEU JEW JIB JIG JIN JOB JOE JOG JOT JOY JUG JUS JUT KAB KAE KAF KAS KAT KAY KEA KED KEF KEG KEN KEP KEX KEY KHI KID KIF KIN KIP KIR KIT LAB LAC LAD LAG LAM LAP LAR LAS LAT LAV LAW LAX LAY LEA LED LEE LEG LET LEU LEV LEX LEY MAB MAD MAE MAG MAN MAP MAR MAS MAT MAW MAX MAY MED MEL MEM MEN MET MEW MHO MIB MID MIG MIM MIR MIS MIX MOB MOD MOO MOP MOR MOT MOW MUD MUG MUM MUN NAB NAE NAG NAH NAP NAW NAY NEF NET NEW NIB NIM NIP NIT NIX NOB NOD NOM NOR NOS NOT NOW NTH NUB NUN NUT OAF OAK OAR OAT OBE OBI OCA ODD ODS OES OFF OFT OOH OPE OPS OPT ORA ORB ORC ORE ORS ORT OUR OUT OVA OWE OWL OWN PAC PAD PAH PAL PAM PAP PAR PAS PAT PAW PAX PAY PEA PEC PED PEE PEG PEH PEN PEP PER PES PEW PHO PIA PIC PIE PIG PIN PIP PIS PIX PLY POD POM POP POT POW POX RAG RAH RAJ RAM RAN RAP RAS RAT RAW RAY REC RED REF REI REM REP RES RET REV REX RHO RIB RID RIF RIG RIM RIN RIP ROB ROC ROD ROE ROM ROT ROW RUB RUG RUM RUN RUT SAC SAD SAG SAL SAP SAT SAW SAX SAY SEA SEC SEE SEG SEI SEN SET SEW SEX SHA SHE SHH SHY SIN SIP SIR SIS SIT SKI SKY SLY SOB SOD SON SOP SOT SOW SOX SOY SPA SPY STY SUB SUE SUM SUN SUP TAB TAD TAJ TAM TAN TAO TAP TAR TAS TAT TAV TAW TAX TEA TED TEE TEG TEN TET TEW THE THO TIC TIE TIL TIN TIP TIS TOD TOE TOG TOM TON TOO TOP TOR TOT TOW TOY TRY TSK TUB TUG TUI TUN TUP TUX TWA TWO UDO UGH ULU UMP UNS UPO URB URD USE UTE VAC VAN VAR VAS VAT VAU VAV VAW VEX VIE VIM VIS VOE VOW WAB WAD WAE WAG WAN WAP WAR WAS WAT WAW WAX WAY WEB WED WEE WEN WET WHO WHY WIG WIN WIS WIT WIZ WOE WOG WOK WON WOO WOP WOT WOW YAH YAK YAM YAP YAR YAW YEA YEH YEN YEP YES YEW YIN YOD YOM YON ZAP ZAX ZED ZEK ZEN ZIP ZIT ZOA ZOO
@@ -2726,12 +2726,12 @@ const AI_WORDS = new Set([
 // Only used for player word validation — never for the AI search loop.
 let WORDS = new Set(AI_WORDS);
 
-// Fetch the full NWL2020 Scrabble dictionary in the background.
-// Each line has the format: "WORD definition [...]" — we take only the first token.
-// Falls back silently to the curated list above if offline.
+// Load the full dictionary in the background. It ships with the app (dictionary.txt, one word per
+// line, beside this page), so it no longer depends on someone else's GitHub repo being up.
+// Falls back silently to the curated list above if it cannot be read.
 (async () => {
   try {
-    const res = await fetch('https://raw.githubusercontent.com/scrabblewords/scrabblewords/main/words/North-American/NWL2020.txt');
+    const res = await fetch('dictionary.txt');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
     // Process in 5000-word batches via setTimeout so we never block the main thread
@@ -3401,11 +3401,11 @@ function validatePlay(placements, swapKeys = new Set()) {
 // ═══════════════════════════════════════════════════════
 
 // ── Play confirmation ── Play does not go through at once. The button turns into Undo and counts
-// down from 3; the play is made when it reaches 0, or the moment the player leaves the app. A stray
+// down from 2; the play is made when it reaches 0, or the moment the player leaves the app. A stray
 // tap on Play used to be a move that could not be taken back. While it counts, the board, the rack
 // and the other buttons are locked (see .play-pending), so the play that goes through is the one
 // that was on screen when Play was tapped.
-const PLAY_COUNTDOWN_MS = 3000;
+const PLAY_COUNTDOWN_MS = 2000;
 const PLAY_CANCEL_GUARD_MS = 300;   // a second tap this soon is a double-tap on Play, not a change of mind
 let _playCountdown = null;          // { startedAt, deadline, sig, timer } while a play is waiting to go through
 
@@ -3593,7 +3593,7 @@ function submitPlay(dryRun) {
   // All-tiles bonus — fires when every rack tile was placed this turn
   if (usedAllTiles) {
     playerScore += 35;
-    setTimeout(() => showMsg(`You played ${mainWord} for ${lastPlayScore} pts! (+35 bonus)`, 'good'), 1000);
+    setTimeout(() => showMsg(`You played ${mainWord} for ${lastPlayScore} pts!`, 'good'), 1000);
   } else {
     showMsg(`You played ${mainWord} for ${lastPlayScore} pts!`, 'good');
   }
@@ -3808,6 +3808,7 @@ function reorderRackTile(from, to) {
   const moved = playerRack.splice(from, 1)[0];
   playerRack.splice(to, 0, moved);
   renderRack();
+  haptic('MEDIUM');   // the tile settled in its new place in the rack
 }
 
 // ── Rack slide helpers ──────────────────────────────────
@@ -4039,7 +4040,7 @@ function endGame(reason) {
   const aiDeduct     = aiRack.reduce((s,l)=>(s + (VAL[l]||0)), 0);
   playerScore -= playerDeduct;
   aiScore     -= aiDeduct;
-  // Player who goes out gains the opponent's remaining tile values (standard Scrabble rule)
+  // Player who goes out gains the opponent's remaining tile values (standard word-game rule)
   if (playerRack.length === 0 && aiDeduct > 0) playerScore += aiDeduct;
   else if (aiRack.length === 0 && playerDeduct > 0) aiScore += playerDeduct;
   const opLabel = isOnlineMode ? opponentOnlineName : 'AI';
@@ -4378,6 +4379,7 @@ function onPendingTileDrop(r, c, fromKey) {
   }
   computeBestScore();
   updateUI();
+  haptic('MEDIUM');   // it landed on its new square
   // A blank moved to another square is asked for its letter again: the one it had was chosen for the old square.
   if (moving.isBlank && !window.tutorialMode) repickBlank(toKey);
 }
@@ -4674,7 +4676,7 @@ function doPlayerAiTurn() {
       lastPlayScore = play.score + bonus;
       passCount = 0;
       const avAiSwapWord = (play.words&&play.words.length?play.words.reduce((a,b)=>a.word.length>=b.word.length?a:b).word:play.word).toUpperCase();
-      showMsg(`AI-1 swapped ${swapBoardLetter.toUpperCase()} → played ${avAiSwapWord} for ${play.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
+      showMsg(`AI-1 swapped ${swapBoardLetter.toUpperCase()} → played ${avAiSwapWord} for ${play.score + bonus} pts.`, 'info');
     } else if (moveType === 'steal') {
       const { stealRow, stealCol, stealLetter, stolenRackIdx, play } = stealMove;
       board[stealRow][stealCol] = null;
@@ -4704,7 +4706,7 @@ function doPlayerAiTurn() {
       lastPlayScore = play.score + bonus;
       passCount = 0;
       const stealWord =(play.words&&play.words.length?play.words.reduce((a,b)=>a.word.length>=b.word.length?a:b).word:play.word).toUpperCase();
-      showMsg(`AI-1 stole ${stealLetter.toUpperCase()} → played ${stealWord} for ${play.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
+      showMsg(`AI-1 stole ${stealLetter.toUpperCase()} → played ${stealWord} for ${play.score + bonus} pts.`, 'info');
     } else if (normalMove) {
       boardSwapPositions = new Set();
       const usedIdx = new Set();
@@ -4724,7 +4726,7 @@ function doPlayerAiTurn() {
       lastPlayScore = normalMove.score + bonus;
       passCount = 0;
       const avAiNormalWord = (normalMove.words&&normalMove.words.length?normalMove.words.reduce((a,b)=>a.word.length>=b.word.length?a:b).word:normalMove.word).toUpperCase();
-      showMsg(`AI-1 played ${avAiNormalWord} for ${normalMove.score + bonus} pts${bonus?' (+35 bonus)':''}.`, 'info');
+      showMsg(`AI-1 played ${avAiNormalWord} for ${normalMove.score + bonus} pts.`, 'info');
     } else {
       boardSwapPositions = new Set();
       passCount++;
@@ -4849,7 +4851,7 @@ function doAiTurn() {
       aiNoMoveCount = 0;
       const swapMainWord = (play.words && play.words.length ? play.words.reduce((a,b) => a.word.length >= b.word.length ? a : b).word : play.word).toUpperCase();
       showMsg(
-        `AI swapped ${swapBoardLetter.toUpperCase()} off the board and played ${swapMainWord} for ${play.score + aiBonus} points${aiBonus ? ' (+35 bonus)' : ''}!`,
+        `AI swapped ${swapBoardLetter.toUpperCase()} off the board and played ${swapMainWord} for ${play.score + aiBonus} points!`,
         'info'
       );
 
@@ -4894,7 +4896,7 @@ function doAiTurn() {
       aiNoMoveCount = 0;
       const stealMainWord =(play.words && play.words.length ? play.words.reduce((a,b) => a.word.length >= b.word.length ? a : b).word : play.word).toUpperCase();
       showMsg(
-        `AI stole ${stealLetter.toUpperCase()} from the board and played ${stealMainWord} for ${play.score + aiBonus} points${aiBonus ? ' (+35 bonus)' : ''}!`,
+        `AI stole ${stealLetter.toUpperCase()} from the board and played ${stealMainWord} for ${play.score + aiBonus} points!`,
         'info'
       );
 
@@ -4921,7 +4923,7 @@ function doAiTurn() {
       passCount = 0;
       aiNoMoveCount = 0;
       const normalMainWord = (normalMove.words && normalMove.words.length ? normalMove.words.reduce((a,b) => a.word.length >= b.word.length ? a : b).word : normalMove.word).toUpperCase();
-      showMsg(`AI played ${normalMainWord} for ${normalMove.score + aiBonus} points${aiBonus ? ' (+35 all-tiles bonus)' : ''}.`, 'info');
+      showMsg(`AI played ${normalMainWord} for ${normalMove.score + aiBonus} points.`, 'info');
 
     } else {
       // ── No move found — pass ─────────────────────────────────
@@ -6059,7 +6061,7 @@ function blip(ctx, freq, t0, dur, gain, type) {
 }
 
 async function playPickup() {
-  haptic('LIGHT');   // little bump when a tile is grabbed
+  haptic('MEDIUM');   // bump when a tile is grabbed
   if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
@@ -6080,7 +6082,7 @@ async function playPickup() {
 }
 
 async function playDrop() {
-  haptic('LIGHT');   // little bump when a tile is placed
+  haptic('MEDIUM');   // bump when a tile is placed
   if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
@@ -6102,6 +6104,7 @@ async function playDrop() {
 
 // Recall — a swish downward, then the tile lands in the rack (recallSlide, below)
 async function playRecall() {
+  haptic('MEDIUM');   // tiles landing back in the rack
   if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
@@ -6999,7 +7002,7 @@ function updatePlayButton() {
       playBtn.classList.remove('tiles-placed');
       playBtn.classList.add('counting');
       playBtn.innerHTML = '<span class="undo-lbl">Undo</span><span class="undo-count"></span>';
-      playBtn.setAttribute('aria-label', 'Undo play. It goes through in 3 seconds.');
+      playBtn.setAttribute('aria-label', `Undo play. It goes through in ${PLAY_COUNTDOWN_MS / 1000} seconds.`);
     }
     playBtn.querySelector('.undo-count').textContent = Math.max(1, Math.ceil((_playCountdown.deadline - Date.now()) / 1000));
     playBtn.onclick = onPlayButton;
@@ -7249,7 +7252,7 @@ function celebrateScore(pts) {
   if (pts < 30) return;
   const tier = pts >= 100 ? 4 : pts >= 75 ? 3 : pts >= 50 ? 2 : 1;
   // Celebratory haptic, scaled to the scoring tier
-  if (tier >= 3) hapticNotify('SUCCESS'); else haptic('MEDIUM');
+  if (tier >= 3) hapticNotify('SUCCESS'); else haptic('HEAVY');
   const labels = { 1: '30+', 2: '50+', 3: '75+', 4: '100+' };
   const counts = { 1: 40, 2: 90, 3: 130, 4: 160 };
   const durations = { 1: 2200, 2: 3000, 3: 3400, 4: 3800 };
@@ -9431,7 +9434,7 @@ async function sendNudge(gameId, myRole, btn) {
     // Left disabled: the nudge landed, and a second one adds nothing but noise. The next
     // home render (any Firestore change) brings the button back.
     if (btn) btn.textContent = 'NUDGED';
-    haptic('LIGHT');
+    haptic('MEDIUM');
     showHomeToast('Nudge sent!');
   } else {
     if (btn) { btn.disabled = false; btn.textContent = 'NUDGE'; }
@@ -10406,7 +10409,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
       '<div class="tut-card">' +
         '<button class="tut-card-close" onclick="closeTutorial()" title="Exit tutorial">✕</button>' +
         '<h2>Welcome to Reword!</h2>' +
-        '<p>Reword is like Scrabble — but you can <strong>swap or steal</strong> ' +
+        '<p>Reword is a crossword tile game — but you can <strong>swap or steal</strong> ' +
           'tiles from the board to build new words.</p>' +
         '<p>This quick tutorial shows you the basics.</p>' +
         '<button class="tut-btn" onclick="tutorialAdvance()">Let\'s Go →</button>' +
@@ -11793,7 +11796,7 @@ function initPullToRefresh() {
     if (triggered) return;
     triggered = true;
     clearTimeout(holdTimer); holdTimer = null;
-    haptic('MEDIUM');                                        // tactile confirmation
+    haptic('HEAVY');                                         // tactile confirmation
     indicator.classList.add('refreshing');                  // spinner starts spinning
     loadHomeGames().then(() => setTimeout(reset, 500));
   }

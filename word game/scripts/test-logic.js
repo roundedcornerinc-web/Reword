@@ -1046,6 +1046,36 @@ inSequence(async function () {
   ok('a game that ends normally says nothing about resigning', /You Won!/.test(h) && !/resign/i.test(h), h.slice(0, 120));
 });
 
+// ── Haptics: firmer, and on every tile that lands ─────────────────────────────────────────
+// Braden asked for a little more haptic feedback, and for it when a tile is placed or released on the board or in a
+// new place in the rack. Every tap went up one step (light to medium, medium to heavy); moving a placed tile, dropping
+// a rack tile in a new position and tiles landing back in the rack now vibrate too.
+console.log('\nHaptics — firmer, and on every tile that lands\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const felt = [];
+  const c = { console, playerRack: ['A', 'B', 'C', 'D'], pendingPlacements: { '7,7': { letter: 'B', rackIdx: 1 } },
+    swappedRackIndices: new Set(), pendingRemovalInfo: {}, renderRack() {}, haptic: s => felt.push(s) };
+  vm.createContext(c);
+  vm.runInContext(grabFunction('reorderRackTile'), c);
+  c.reorderRackTile(0, 3);
+  ok('dropping a rack tile in a new position gives a tap', felt.join() === 'MEDIUM' && c.playerRack.join('') === 'BCDA', `${felt.join()} / ${c.playerRack.join('')}`);
+  felt.length = 0; c.reorderRackTile(2, 2);
+  ok('putting it back where it was does not', felt.length === 0, felt.join());
+
+  const style = fn => (/haptic\('(\w+)'\)/.exec(grabFunction(fn)) || [])[1];
+  ok('picking up a tile is a medium tap (was light)', style('playPickup') === 'MEDIUM', String(style('playPickup')));
+  ok('placing a tile on the board is a medium tap (was light)', style('playDrop') === 'MEDIUM', String(style('playDrop')));
+  ok('tiles landing back in the rack (Recall, Reset, a tile sent home) give a medium tap', style('playRecall') === 'MEDIUM', String(style('playRecall')));
+  ok('the haptics switch in Settings still turns every one of them off', /if \(!hapticsEnabled\(\)\) return;/.test(grabFunction('haptic')), 'haptic() no longer checks the setting');
+})();
+
 // ── Blanks: the picker slides up for every blank on the board ────────────────────────────
 // A blank going on the board brings up the letter picker (sliding up over the mask, the square ringed); Cancel sends
 // it back to the rack. Tapping a placed blank, or dragging it to another square, brings the picker back up to
@@ -1077,6 +1107,7 @@ console.log('\nBlanks — the picker comes up for every blank on the board\n');
         querySelector: () => cell, querySelectorAll: () => [],
       },
       playPickup: () => w.sounds.push('pickup'), playDrop: () => w.sounds.push('drop'), playRecall: () => w.sounds.push('recall'),
+      haptic: style => w.sounds.push('haptic ' + style),
       computeBestScore() {}, updateUI() {}, showMsg() {}, clearCellSelection() {}, zoomToCell() {},
     };
     vm.createContext(c);
@@ -1122,6 +1153,7 @@ console.log('\nBlanks — the picker comes up for every blank on the board\n');
   ok('Cancel after a drag sends the blank back to the rack', !w.c.pendingPlacements['9,9'] && !w.c.pendingPlacements['7,7'], w.placed());
   w = withBlank(); w.c.onPendingTileDrop(9, 9, '7,8');
   ok('dragging any other tile just moves it', w.c.pendingPlacements['9,9']?.letter === 'T' && !w.open(), w.placed());
+  ok('and you feel it land on the new square', w.sounds.includes('haptic MEDIUM'), w.sounds.join());
 
   // The turn cleared while the sheet is up (Reset, the opponent's move): picking does nothing, and nothing breaks.
   w = withBlank(); w.c.tapPendingTile('7,7'); w.c.pendingPlacements = {}; let threw = null;
@@ -1724,7 +1756,7 @@ inSequence(async function () {
 
   // The sounds themselves, against a strict stand-in for the audio context.
   const sound = () => {
-    const c = { console, soundEnabled: () => c.enabled, enabled: true, acCalls: 0, made: null };
+    const c = { console, soundEnabled: () => c.enabled, enabled: true, acCalls: 0, made: null, haptic() {} };
     c.getAC = async () => { c.acCalls++; return c.made.ctx; };
     vm.createContext(c);
     vm.runInContext([
@@ -1768,12 +1800,12 @@ inSequence(async function () {
   ok('two shuffles are two different takes', a1 !== a2, 'both made the same clicks');
 });
 
-// ── Play: held for three seconds before it goes through ─────────────────────────────────────
+// ── Play: held for two seconds before it goes through ─────────────────────────────────────
 // One of the opponents reported hitting Play by accident, and a play cannot be taken back. Play now turns into
 // Undo and counts down from 3; the play is made when the count ends, or the moment the app is left (iOS freezes
 // timers in the background, so a play left counting would hang). While it counts, the play must not be able to
 // change, and if anything does change it the countdown is dropped rather than submitting something else.
-console.log('\nPlay — held for three seconds before it goes through\n');
+console.log('\nPlay — held for two seconds before it goes through\n');
 
 (function () {
   const ok = (name, cond, detail) => {
@@ -1837,26 +1869,28 @@ console.log('\nPlay — held for three seconds before it goes through\n');
     return w;
   }
   const WINDOW_MS = vm.runInContext('PLAY_COUNTDOWN_MS', world().c), GUARD_MS = vm.runInContext('PLAY_CANCEL_GUARD_MS', world().c);
-  ok('the countdown is three seconds', WINDOW_MS === 3000, String(WINDOW_MS));
+  ok('the countdown is two seconds', WINDOW_MS === 2000, String(WINDOW_MS));
+  const drain = /animation:\s*play-drain\s+([\d.]+)s/.exec(src);
+  ok('the button\'s draining fill lasts as long as the countdown', !!drain && Number(drain[1]) * 1000 === WINDOW_MS, drain ? `drain ${drain[1]}s, countdown ${WINDOW_MS}ms` : 'no play-drain animation');
 
   // Tapping Play: check the play (without making it), then count.
   let w = world(); w.press();
   ok('tapping Play checks the play but does not make it', w.calls.join() === 'check', w.calls.join());
-  ok('and the button becomes Undo, showing 3', label(w.btn) === 'Undo 3', label(w.btn));
+  ok('and the button becomes Undo, showing 2', label(w.btn) === 'Undo 2', label(w.btn));
   ok('and the screen is locked', w.screen.classList.contains('play-pending'), 'no play-pending class');
 
   w = world(); w.valid = false; w.press();
   ok('a play that is not legal does not start a countdown (the reason is already on screen)', !w.counting() && !w.screen.classList.contains('play-pending'), 'it counted anyway');
-  ok('and the button is left as Play', label(w.btn) !== 'Undo 3' && !w.btn.classList.contains('counting'), label(w.btn));
+  ok('and the button is left as Play', label(w.btn) !== 'Undo 2' && !w.btn.classList.contains('counting'), label(w.btn));
 
   // The count, and when the play goes through.
   w = world(); w.press();
-  const seen = []; for (let t = 0; t < 2900; t += 100) { w.advance(100); const n = w.btn.count.textContent; if (seen[seen.length - 1] !== n) seen.push(n); }
-  ok('the number falls 3, 2, 1, a second each', seen.join() === '3,2,1', seen.join());
+  const seen = []; for (let t = 0; t < 1900; t += 100) { w.advance(100); const n = w.btn.count.textContent; if (seen[seen.length - 1] !== n) seen.push(n); }
+  ok('the number falls 2, 1, a second each', seen.join() === '2,1', seen.join());
   ok('the button is drawn once, so the draining fill is not restarted every tick', w.btn.writes === 1, `redrawn ${w.btn.writes} times`);
-  ok('nothing is submitted before three seconds are up', w.submits() === 0 && w.counting(), `${w.submits()} submit(s) at 2.9 s`);
+  ok('nothing is submitted before two seconds are up', w.submits() === 0 && w.counting(), `${w.submits()} submit(s) at 1.9 s`);
   w.advance(100);
-  ok('the play goes through when they are', w.submits() === 1 && !w.counting(), `${w.submits()} submit(s) at 3.0 s`);
+  ok('the play goes through when they are', w.submits() === 1 && !w.counting(), `${w.submits()} submit(s) at 2.0 s`);
   ok('and the lock is gone and the button is Play again', !w.screen.classList.contains('play-pending') && label(w.btn) === 'Play', label(w.btn));
   w.advance(1000);
   ok('and it is made only once', w.submits() === 1, `${w.submits()} submits`);
@@ -1866,7 +1900,7 @@ console.log('\nPlay — held for three seconds before it goes through\n');
   ok('tapping Undo stops the countdown', !w.counting() && !w.screen.classList.contains('play-pending') && label(w.btn) === 'Play', label(w.btn));
   w.advance(5000);
   ok('and the play is never made', w.submits() === 0, `${w.submits()} submits`);
-  w.press(); ok('and Play can be tapped again afterwards', w.counting() && label(w.btn) === 'Undo 3', label(w.btn));
+  w.press(); ok('and Play can be tapped again afterwards', w.counting() && label(w.btn) === 'Undo 2', label(w.btn));
 
   w = world(); w.press(); w.advance(GUARD_MS - 100); w.press();
   ok('a second tap right after the first (a double-tap) does not cancel', w.counting(), 'it cancelled');
@@ -1986,6 +2020,38 @@ console.log('\nPlay — held for three seconds before it goes through\n');
   const u = ui(); let uiError = null;
   try { u.updateUI(); } catch (e) { uiError = e; }
   ok('updateUI runs to the end and refreshes the Play button', !uiError && u.ran.includes('updatePlayButton'), uiError ? String(uiError) : u.ran.join());
+})();
+
+// ── App Store readiness ───────────────────────────────────────────────────────────────────
+// Before the first public release: the dictionary ships inside the app instead of being fetched from someone else's
+// GitHub repo at launch, no other company's trademark appears in the app's text, and the upload declares that the app
+// uses no non-exempt encryption (otherwise App Store Connect asks on every build).
+console.log('\nApp Store readiness\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const root = path.join(__dirname, '..');
+  const read = f => { try { return fs.readFileSync(path.join(root, f), 'utf8'); } catch (e) { return ''; } };
+
+  const fetches = [...src.matchAll(/fetch\(\s*['"`]([^'"`]+)['"`]/g)].map(m => m[1]);
+  ok('the dictionary is loaded from the app\'s own dictionary.txt', fetches.includes('dictionary.txt'), 'fetches: ' + fetches.join(', '));
+  ok('and nothing is fetched from GitHub', !fetches.some(u => /github/i.test(u)), fetches.filter(u => /github/i.test(u)).join(', '));
+  const words = read('dictionary.txt').split('\n').filter(Boolean);
+  ok('dictionary.txt holds the full list, one word per line', words.length > 150000 && words.every(w => /^[A-Z]{2,}$/.test(w)),
+    `${words.length} lines; first bad one: ${words.find(w => !/^[A-Z]{2,}$/.test(w))}`);
+  ok('and it knows ordinary words and rejects nonsense', ['QI', 'ZA', 'REWORD', 'STEAL'].every(w => words.includes(w)) && !words.includes('QZX'), 'a sample word is missing');
+  ok('the build ships the dictionary: sync copies dictionary.txt into www/',
+    /"sync":\s*"cp [^&\n]*\bdictionary\.txt\b[^&\n]* www\//.test(read('package.json')), 'package.json "sync" does not copy dictionary.txt — the app would fall back to the short list');
+
+  const tm = ['index.html', 'manifest.json'].filter(f => /scrabble/i.test(read(f)));
+  ok('no "Scrabble" in the page or the web manifest (Hasbro/Mattel trademark)', tm.length === 0, 'found in ' + tm.join(', '));
+  ok('Info.plist says the app uses no non-exempt encryption',
+    /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\/>/.test(read('ios/App/App/Info.plist')), 'ITSAppUsesNonExemptEncryption missing or not false');
 })();
 
 asyncChain.then(() => {

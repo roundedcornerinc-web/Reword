@@ -8,6 +8,9 @@
       ]
     }
   ],
+  "redirects": [
+    { "source": "/staging", "destination": "/staging/", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/(.*)", "destination": "/word game/$1" }

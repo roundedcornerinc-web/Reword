@@ -10,8 +10,8 @@
 <meta property="og:title" content="Reword — The Board’s in Play">
 <meta property="og:description" content="Swap and steal tiles straight off the board to build new words.">
 <meta property="og:image" content="https://www.rewordgame.app/og-card.png">
-<link rel="icon" href="/icons/icon-192.png">
-<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/icon-192.png">
 <!-- The design's headline face is New Atten Round ExtraBold, which has no web licence here yet; Nunito Black stands in. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,15 +70,18 @@
   .badges img { height: 35px; width: auto; }
 
   /* The phone: an upright frame with the real screenshot on it, turned 8.6° like the PSD's placed layers. */
+  /* Sizes inside it are fractions of the frame, so the whole phone scales from its width alone. */
   .phone {
     position: absolute;
     left: 615px; top: 40px;
-    width: 264.4px; height: 541.5px;
+    width: 264.4px; aspect-ratio: 264.4 / 541.5;
     transform: rotate(8.61deg);
   }
   .phone img { position: absolute; }
   .phone .frame { inset: 0; width: 100%; height: 100%; }
-  .phone .screen { left: 8.83px; top: 6.51px; width: 246.7px; height: 498.5px; }
+  .phone .screen { left: 3.34%; top: 1.202%; width: 93.31%; height: 92.06%; }
+  .h1-br { display: none; }   /* the headline breaks after BOARD'S on phones only */
+  .lede-short { display: none; }   /* phones get the shorter intro */
 
   /* ── Welcome ──────────────────────────────────────────────────────── */
   .welcome { text-align: center; padding: 78px 16px 0; }
@@ -101,10 +104,27 @@
   .card.flip .text { order: -1; }
   .card h3 { color: var(--purple); font-size: 18px; font-weight: 700; }
   .card p { margin-top: 5px; font-size: 16px; }
-  .art { display: flex; justify-content: center; }
+  .art { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  /* Plays the card's move. A quiet pill in the headings' purple on a pale tint: the solid, glowing version
+     (the game's own Play button) drew the eye away from the tiles. */
+  .demo-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 14px;
+    height: 30px; padding: 0 16px 0 13px;
+    border: none; border-radius: 15px;
+    background: #ece5f9; color: var(--purple);
+    font-family: inherit; font-size: 13px; font-weight: 600; line-height: 1; letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s, background 0.15s;
+  }
+  .demo-btn svg { width: 11px; height: 11px; }
+  @media (hover: hover) { .demo-btn:hover:not(:disabled) { background: #e2d8f6; } }   /* not on touch, where it sticks after a tap */
+  .demo-btn:active { transform: scale(0.96); }
+  .demo-btn:disabled { opacity: 0.45; cursor: default; }
+  .demo-btn:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; }
 
   /* A word on the board, and a rack beneath it */
-  .play { display: inline-flex; flex-direction: column; align-items: flex-end; }
+  .play { position: relative; display: inline-flex; flex-direction: column; align-items: flex-end; }
   .card.flip .play { align-items: flex-start; }
   .word { display: flex; gap: 2px; }
   .word img { width: 49px; height: 52px; }
@@ -126,6 +146,12 @@
     content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 24px;
     background: linear-gradient(90deg, #f6f5f5 15%, rgba(246,245,245,0));
   }
+  /* A tile in flight during a swap or a steal (added by the script at the bottom) */
+  .fly {
+    position: absolute; z-index: 2; pointer-events: none;
+    transform-origin: 50% 50%;
+    filter: drop-shadow(0 5px 6px rgba(44, 26, 0, 0.28));
+  }
   .card.flip .rack { justify-content: flex-start; }
   .card.flip .rack::after { left: auto; right: 0; background: linear-gradient(270deg, #f6f5f5 15%, rgba(246,245,245,0)); }
 
@@ -139,21 +165,48 @@
   .closing p { max-width: 606px; margin: 8px auto 0; font-size: 16px; }
   .closing .badges { justify-content: center; margin-top: 38px; }
 
-  /* ── Narrow screens: one column, art above its words ──────────────── */
+  /* ── Narrow screens ───────────────────────────────────────────────────
+     Hero: the copy on the left, a smaller phone beside it on the right.
+     Cards: one column, the tiles centred above centred copy. */
   @media (max-width: 900px) {
-    .hero .wrap { height: auto; padding: 44px 16px 0; }
-    .hero-copy { position: static; width: auto; max-width: 480px; margin: 0 auto; }
-    h1 { white-space: normal; }
-    .phone-well { position: relative; height: 330px; margin-top: 36px; }
-    .phone { left: 50%; top: 18px; margin-left: -132.2px; }
-    .card, .card.flip { grid-template-columns: 1fr; padding: 32px 24px; gap: 24px; justify-items: center; text-align: left; }
+    /* --pw: the phone's width. --keep: how much of its height shows, down to just under the game's Play button
+       (that button ends 85.7% down the screenshot; this keeps 60 screenshot px below it). The hero is at least tall
+       enough to show that much with room above. */
+    .hero .wrap {
+      --pw: clamp(150px, 46vw, 260px); --keep: 0.824;
+      height: auto; min-height: calc(var(--pw) * 2.048 * var(--keep) + 32px);
+      padding: 36px 16px 0; display: flex; gap: 14px;
+    }
+    .hero-copy { position: static; width: auto; flex: 0 0 54%; max-width: 440px; padding-bottom: 40px; }
+    .logo { width: 190px; }
+    h1 { margin-top: 22px; font-size: 30px; white-space: normal; }
+    .h1-br { display: inline; }
+    .lede-long { display: none; }
+    .hero-copy p.lede-short { display: block; }
+    .hero-copy p.lede { margin-top: 14px; font-size: 16px; }
+    .cta-label { margin-top: 24px; font-size: 12px; }
+    .badges { gap: 10px; }
+    .hero-copy .badges img { height: 30px; }
+    /* The phone stands upright on the hero's bottom edge, cut off just under its Play button. It may run past
+       the right edge of the screen; the hero clips it. */
+    .phone-well { position: relative; flex: 1 1 0; min-width: 0; }
+    .phone {
+      left: 0; top: auto; bottom: calc(var(--pw) * -2.048 * (1 - var(--keep)));
+      width: var(--pw); margin: 0; transform: none;
+    }
+
+    .card, .card.flip { grid-template-columns: 1fr; padding: 32px 24px; gap: 22px; justify-items: center; text-align: center; }
     .card.flip .text { order: 0; }
     .card .text { max-width: 440px; }
+    .play, .card.flip .play { align-items: center; }
   }
-  @media (max-width: 420px) {
-    .logo { width: 200px; }
-    h1 { font-size: 8.2vw; margin-top: 28px; }   /* one line down to 320 px wide */
-    .hero-copy p.lede { font-size: 17px; }
+  @media (max-width: 480px) {
+    .logo { width: 150px; }
+    h1 { margin-top: 16px; font-size: 25px; }
+    .hero-copy p.lede { margin-top: 12px; font-size: 14px; line-height: 1.3; }
+    .cta-label { margin-top: 20px; font-size: 11px; }
+    .badges { gap: 8px; }
+    .hero-copy .badges img { height: 26px; }
     .word img { width: 44px; height: 47px; }
     .welcome h2, .closing h2 { font-size: 22px; }
   }
@@ -164,19 +217,20 @@
 <header class="hero">
   <div class="wrap">
     <div class="hero-copy">
-      <img class="logo" src="/staging/img/logo.png" width="238" height="63" alt="Reword">
-      <h1>The Board’s in Play</h1>
-      <p class="lede">Reword may look like the same old word game, but we’ve added a generous helping of special sauce and cranked it up to 11. Yeah, we’re mixing metaphors, but that’s what happens when you’re describing a game that lets players <strong>swap or steal tiles from the board</strong> and drop a massive word bomb on their opponent. BOOM!</p>
+      <img class="logo" src="img/logo.png" width="238" height="63" alt="Reword">
+      <h1>The Board’s<br class="h1-br"> in Play</h1>
+      <p class="lede lede-long">Reword may look like the same old word game, but we’ve added a generous helping of special sauce and cranked it up to 11. Yeah, we’re mixing metaphors, but that’s what happens when you’re describing a game that lets players <strong>swap or steal tiles from the board</strong> and drop a massive word bomb on their opponent. BOOM!</p>
+      <p class="lede lede-short">The game has changed! Reword lets players <strong>swap or steal tiles from the board</strong> to make bigger plays and drop a massive word bomb on their opponent. BOOM!</p>
       <p class="cta-label">You’d best get it now!</p>
       <div class="badges">
-        <a href="#" aria-label="Download on the App Store"><img src="/staging/img/app-store.png" width="114" height="35" alt=""></a>
-        <a href="#" aria-label="Get it on Google Play"><img src="/staging/img/google-play.png" width="114" height="35" alt=""></a>
+        <a href="#" aria-label="Download on the App Store"><img src="img/app-store.png" width="114" height="35" alt=""></a>
+        <a href="#" aria-label="Get it on Google Play"><img src="img/google-play.png" width="114" height="35" alt=""></a>
       </div>
     </div>
     <div class="phone-well">
       <div class="phone" aria-hidden="true">
-        <img class="frame" src="/staging/img/phone-frame.png" alt="">
-        <img class="screen" src="/staging/img/phone-screen.webp" alt="">
+        <img class="frame" src="img/phone-frame.png" alt="">
+        <img class="screen" src="img/phone-screen.webp" alt="">
       </div>
     </div>
   </div>
@@ -191,11 +245,11 @@
   <div class="cards">
     <section class="card">
       <div class="art" aria-hidden="true">
-        <div class="play">
-          <div class="word"><img src="/tiles/tile-C.svg" alt=""><img src="/tiles/tile-R.svg" alt=""><img src="/tiles/tile-A.svg" alt=""><img src="/tiles/tile-Z.svg" alt=""><img src="/tiles/tile-E.svg" alt=""></div>
+        <div class="play" data-swap="3,1">
+          <div class="word"><img src="../tiles/tile-C.svg" alt=""><img src="../tiles/tile-R.svg" alt=""><img src="../tiles/tile-A.svg" alt=""><img src="../tiles/tile-Z.svg" alt=""><img src="../tiles/tile-E.svg" alt=""></div>
           <div class="rack-line">
             <span class="rack-label">Player Rack</span>
-            <div class="rack"><img src="/tiles/tile-U.svg" alt=""><img src="/tiles/tile-N.svg" alt=""><img src="/tiles/tile-I.svg" alt=""><img src="/tiles/tile-P.svg" alt=""></div>
+            <div class="rack"><img src="../tiles/tile-U.svg" alt=""><img src="../tiles/tile-N.svg" alt=""><img src="../tiles/tile-I.svg" alt=""><img src="../tiles/tile-P.svg" alt=""></div>
           </div>
         </div>
       </div>
@@ -207,10 +261,10 @@
 
     <section class="card flip">
       <div class="art" aria-hidden="true">
-        <div class="play">
-          <div class="word"><img src="/tiles/tile-M.svg" alt=""><img src="/tiles/tile-O.svg" alt=""><img src="/tiles/tile-W.svg" alt=""><img src="/tiles/tile-N.svg" alt=""></div>
+        <div class="play" data-swap="2,1">
+          <div class="word"><img src="../tiles/tile-M.svg" alt=""><img src="../tiles/tile-O.svg" alt=""><img src="../tiles/tile-W.svg" alt=""><img src="../tiles/tile-N.svg" alt=""></div>
           <div class="rack-line">
-            <div class="rack"><img src="/tiles/tile-A.svg" alt=""><img src="/tiles/tile-O.svg" alt=""><img src="/tiles/tile-I.svg" alt=""><img src="/tiles/tile-U.svg" alt=""></div>
+            <div class="rack"><img src="../tiles/tile-A.svg" alt=""><img src="../tiles/tile-O.svg" alt=""><img src="../tiles/tile-I.svg" alt=""><img src="../tiles/tile-U.svg" alt=""></div>
             <span class="rack-label">Player Rack</span>
           </div>
         </div>
@@ -223,11 +277,11 @@
 
     <section class="card">
       <div class="art" aria-hidden="true">
-        <div class="play">
-          <div class="word"><img src="/tiles/tile-G.svg" alt=""><img src="/tiles/tile-A.svg" alt=""><img src="/tiles/tile-M.svg" alt=""><img src="/tiles/tile-E.svg" alt=""><img src="/tiles/tile-D.svg" alt=""></div>
+        <div class="play" data-steal="4">
+          <div class="word"><img src="../tiles/tile-G.svg" alt=""><img src="../tiles/tile-A.svg" alt=""><img src="../tiles/tile-M.svg" alt=""><img src="../tiles/tile-E.svg" alt=""><img src="../tiles/tile-D.svg" alt=""></div>
           <div class="rack-line">
             <span class="rack-label">Player Rack</span>
-            <div class="rack"><img src="/tiles/tile-B.svg" alt=""><img src="/tiles/tile-O.svg" alt=""><img src="/tiles/tile-I.svg" alt=""><img src="/tiles/tile-Y.svg" alt=""></div>
+            <div class="rack"><img src="../tiles/tile-B.svg" alt=""><img src="../tiles/tile-O.svg" alt=""><img src="../tiles/tile-I.svg" alt=""><img src="../tiles/tile-Y.svg" alt=""></div>
           </div>
         </div>
       </div>
@@ -259,10 +313,136 @@
   <h2>Keeping you in the game until the last letter</h2>
   <p>Reword’s unique gameplay means more strategy, more chaos, and far fewer games where one player gets ahead and spends the next 20 minutes polishing their victory speech. Leads can evaporate, tables can turn, and that smug letter wrangler on the other end of the screen may end up eating their... well... words.</p>
   <div class="badges">
-    <a href="#" aria-label="Download on the App Store"><img src="/staging/img/app-store.png" width="114" height="35" alt=""></a>
-    <a href="#" aria-label="Get it on Google Play"><img src="/staging/img/google-play.png" width="114" height="35" alt=""></a>
+    <a href="#" aria-label="Download on the App Store"><img src="img/app-store.png" width="114" height="35" alt=""></a>
+    <a href="#" aria-label="Get it on Google Play"><img src="img/google-play.png" width="114" height="35" alt=""></a>
   </div>
 </footer>
+
+<script>
+// The first three cards act out their move, the way the game does it: a tile lifts, travels to its new place, and
+// every tile that changed hands turns purple. SWAP: N for the Z in CRAZE (CRANE), O for the W in MOWN (MOON).
+// STEAL: the D off GAMED (GAME) into the rack, which slides over to make room. Nothing moves until the card's Play
+// button is tapped (three playing at once on a tall screen was too much); the result then stays, and the button
+// becomes Replay. The button is added here, so a browser that cannot animate never shows one.
+(() => {
+  if (!('animate' in Element.prototype)) return;
+
+  const VAL = { A:1,B:3,C:6,D:3,E:1,F:5,G:3,H:5,I:1,J:8,K:6,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:2,V:6,W:5,X:8,Y:5,Z:10 };
+  const FONT = "'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif";
+  // tiles/tile-X.svg in the purple a swapped or stolen tile wears
+  const purple = l => 'data:image/svg+xml,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 128" width="120" height="128">` +
+    `<rect y="8" width="120" height="120" rx="9" fill="#8528ff"/><rect width="120" height="120" rx="9" fill="#de9dff"/>` +
+    `<text x="60" y="52.2" font-family="${FONT}" font-size="70.6" font-weight="900" fill="#2f1900" text-anchor="middle" dominant-baseline="central">${l}</text>` +
+    `<text x="111" y="111" font-family="${FONT}" font-size="25.1" font-weight="700" fill="#2f1900" fill-opacity="0.7" text-anchor="end">${VAL[l]}</text></svg>`);
+  const letterOf = img => /tile-([A-Z])\.svg/.exec(img.getAttribute('src'))[1];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const ready = img => (img.decode ? img.decode() : Promise.resolve()).catch(() => {});
+
+  // Where an element sits inside the card's tile block
+  const box = (el, root) => {
+    const a = el.getBoundingClientRect(), b = root.getBoundingClientRect();
+    return { x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height };
+  };
+  // A copy of a tile that travels over the card while the real one waits, hidden, where it will land
+  const flyer = (play, src, at) => {
+    const f = new Image(); f.src = src; f.alt = ''; f.className = 'fly';
+    Object.assign(f.style, { left: at.x + 'px', top: at.y + 'px', width: at.w + 'px', height: at.h + 'px' });
+    play.appendChild(f);
+    return f;
+  };
+  const move = (from, to, lift, k) =>
+    `translate(${to.x + to.w / 2 - from.x - from.w / 2}px, ${to.y + to.h / 2 - from.y - from.h / 2 - lift}px) scale(${to.w / from.w * k}, ${to.h / from.h * k})`;
+  // Lift, travel, set down
+  const travel = (f, from, to, delay) => f.animate([
+    { transform: 'none' },
+    { transform: 'translateY(-10px) scale(1.1)', offset: 0.2 },
+    { transform: move(from, to, 10, 1.1), offset: 0.8 },
+    { transform: move(from, to, 0, 1) },
+  ], { duration: 950, delay, easing: 'ease-in-out', fill: 'both' });
+  // The real tile, already purple, shows through as the travelling (still tan) copy fades away
+  const land = (img, f) => {
+    img.style.visibility = '';
+    f.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, fill: 'forwards' }).finished.then(() => f.remove());
+  };
+
+  async function swap(play, bi, ri) {
+    const b = play.querySelectorAll('.word img')[bi], r = play.querySelectorAll('.rack img')[ri];
+    const bSrc = b.getAttribute('src'), rSrc = r.getAttribute('src'), bL = letterOf(b), rL = letterOf(r);
+    const pb = box(b, play), pr = box(r, play);
+    const up = flyer(play, rSrc, pr), down = flyer(play, bSrc, pb);
+    b.style.visibility = r.style.visibility = 'hidden';
+    b.src = purple(rL); r.src = purple(bL);
+    await Promise.all([ready(b), ready(r)]);
+    const a1 = travel(up, pr, pb, 0), a2 = travel(down, pb, pr, 250);
+    await a1.finished; land(b, up);
+    await a2.finished; land(r, down);
+    return () => { b.src = bSrc; r.src = rSrc; };
+  }
+
+  async function steal(play, bi) {
+    const b = play.querySelectorAll('.word img')[bi], rack = play.querySelector('.rack');
+    const tiles = [...rack.querySelectorAll('img')], before = tiles.map(t => t.getBoundingClientRect().left);
+    const pb = box(b, play), f = flyer(play, b.getAttribute('src'), pb);
+    b.style.visibility = 'hidden';
+    const n = new Image(); n.src = purple(letterOf(b)); n.alt = ''; n.style.visibility = 'hidden';
+    await ready(n);
+    rack.appendChild(n);
+    // The rack makes room: its tiles slide over from where they were
+    tiles.forEach((t, k) => {
+      const dx = before[k] - t.getBoundingClientRect().left;
+      t.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 500, delay: 300, easing: 'ease-in-out', fill: 'backwards' });
+    });
+    await travel(f, pb, box(n, play), 0).finished;
+    land(n, f);
+    return () => { n.remove(); b.style.visibility = ''; };
+  }
+
+  const PLAY = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor"/></svg>';
+  const REPLAY = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.75a4.25 4.25 0 1 1-4.02 2.87" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M1.2 1.6l.9 3.3 3.2-1.1z" fill="currentColor"/></svg>';
+
+  document.querySelectorAll('.play[data-swap], .play[data-steal]').forEach(play => {
+    const what = play.dataset.swap ? 'swap' : 'steal';
+    const act = what === 'swap'
+      ? () => swap(play, ...play.dataset.swap.split(',').map(Number))
+      : () => steal(play, Number(play.dataset.steal));
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'demo-btn';
+    const label = replay => {
+      btn.innerHTML = (replay ? REPLAY : PLAY) + `<span>${replay ? 'Replay' : 'Play'}</span>`;
+      btn.setAttribute('aria-label', `${replay ? 'Replay' : 'Play'} the ${what}`);
+    };
+    label(false);
+    // Inside the tile block, so it lines up with the tiles' edge on desktop (right, or left on the flipped card)
+    // and is centred under them on phones.
+    play.appendChild(btn);
+
+    // The word and the rack fade out and back while the card resets; the button stays put.
+    const tiles = [...play.querySelectorAll('.word, .rack-line')];
+    const fade = async (a, b) => {
+      const anims = tiles.map(t => t.animate([{ opacity: a }, { opacity: b }], { duration: 250, fill: 'forwards' }));
+      await Promise.all(anims.map(x => x.finished));
+      return anims;
+    };
+
+    let undo = null;
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      if (undo) {   // back to the start first, out of sight
+        const out = await fade(1, 0);
+        undo(); undo = null;
+        const back = await fade(0, 1);
+        [...out, ...back].forEach(x => x.cancel());
+        await sleep(250);
+      }
+      undo = await act();
+      await sleep(300);
+      label(true);
+      btn.disabled = false;
+    });
+  });
+})();
+</script>
 
 </body>
 </html>

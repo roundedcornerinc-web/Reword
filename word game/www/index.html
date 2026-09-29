@@ -3600,7 +3600,7 @@ function submitPlay(dryRun) {
 
   auditTiles('commitPlay');
   checkGameOver();
-  if (isOnlineMode) { saveOnlineState({ role: myOnlineRole, type: 'play', score: lastPlayScore }); return; }
+  if (isOnlineMode) { saveOnlineState({ role: myOnlineRole, type: 'play', score: lastPlayScore, word: mainWord }); return; }
   saveAiGameState();
   if (!gameOver) scheduleAiTurn(1200);
 }
@@ -6302,6 +6302,7 @@ function shuffleRiffle(ctx, level, seed) {
   sfxSwoosh(ctx, out, t + 0.22, 2600, 1100, 0.09, 0.25, 1.2);
 }
 async function playShuffle() {
+  haptic('MEDIUM');   // the rack being shuffled
   if (!soundEnabled()) return;
   try {
     const ctx = await getAC();
@@ -8657,9 +8658,13 @@ let _lastAppliedUpdate = 0;
 // unless that turn was actually theirs — a turn taken by the other player is their business
 // to be told about, not ours to narrate, and inventing a line for it is how "Mohan scored 36"
 // came to describe the reader's own word.
+// A play names its main word ("Mohan played QUIZ for 36 points."). A play saved by an older
+// version of the app carries no word, so it keeps the old "scored" line.
 function describeLastAction(action, role, who) {
   if (!action || action.role !== role) return '';
-  if (action.type === 'play' && action.score != null) return ` ${who} scored ${action.score} pts.`;
+  if (action.type === 'play' && action.score != null) {
+    return action.word ? ` ${who} played ${action.word} for ${action.score} points.` : ` ${who} scored ${action.score} pts.`;
+  }
   if (action.type === 'pass') return ` ${who} passed.`;
   if (action.type === 'exchange') {
     const n = action.count;
@@ -8734,7 +8739,10 @@ function applyOnlineState(data) {
     window._suppressWinnerModal = false;
     if (data.currentTurn === myOnlineRole) {
       const opName = opponentOnlineName || 'Opponent';
-      showMsg(`Your turn!${describeLastAction(data.lastAction, opRole, opName)}`, 'good');
+      const told = describeLastAction(data.lastAction, opRole, opName);
+      // The opponent's play, with its word, is the whole line; anything else still leads with "Your turn!".
+      const namedPlay = data.lastAction?.type === 'play' && data.lastAction.word && told;
+      showMsg(namedPlay ? told.trim() : `Your turn!${told}`, 'good');
       notifyYourTurn(opName);
       document.title = '🔔 Your Turn — Reword';
     } else {

@@ -751,6 +751,23 @@ console.log('\nTurn narration — only report a turn to the player whose turn it
     ctx.describeLastAction(undefined, 'p2', 'Mohan'), '');
   ok('a null action says nothing',
     ctx.describeLastAction(null, 'p2', 'Mohan'), '');
+
+  // Braden, 2026-09-29: after the opponent's turn the feed says "<name> played <word> for <n> points".
+  const named = { role: 'p2', type: 'play', score: 36, word: 'QUIZ' };
+  ok('the opponent\'s play is named with its word',
+    ctx.describeLastAction(named, 'p2', 'Mohan'), ' Mohan played QUIZ for 36 points.');
+  ok('and it is still not read back to the other player as theirs',
+    ctx.describeLastAction(named, 'p1', 'You'), '');
+  ok('a play saved by an older app (no word) keeps the old line',
+    ctx.describeLastAction({ role: 'p2', type: 'play', score: 36 }, 'p2', 'Mohan'), ' Mohan scored 36 pts.');
+
+  const commit = grabFunction('submitPlay');
+  ok('a play saves its main word for the opponent to be told',
+    /saveOnlineState\(\{ role: myOnlineRole, type: 'play', score: lastPlayScore, word: mainWord \}\)/.test(commit), true);
+  const apply = grabFunction('applyOnlineState');
+  ok('on your turn, a named play is the whole line (no "Your turn!" in front of it)',
+    /namedPlay = data\.lastAction\?\.type === 'play' && data\.lastAction\.word && told;/.test(apply) &&
+    /showMsg\(namedPlay \? told\.trim\(\) : `Your turn!\$\{told\}`, 'good'\)/.test(apply), true);
 })();
 
 // ── The More menu opens only when asked ──────────────────────────────────────
@@ -1073,6 +1090,12 @@ console.log('\nHaptics — firmer, and on every tile that lands\n');
   ok('picking up a tile is a medium tap (was light)', style('playPickup') === 'MEDIUM', String(style('playPickup')));
   ok('placing a tile on the board is a medium tap (was light)', style('playDrop') === 'MEDIUM', String(style('playDrop')));
   ok('tiles landing back in the rack (Recall, Reset, a tile sent home) give a medium tap', style('playRecall') === 'MEDIUM', String(style('playRecall')));
+  // Braden, 2026-09-29: Shuffle vibrates too, like Recall, and with sound switched off as well.
+  const sh = { console, felt: [], haptic(s) { sh.felt.push(s); }, soundEnabled: () => false, getAC() { throw new Error('no sound wanted'); } };
+  vm.createContext(sh);
+  vm.runInContext('async ' + grabFunction('playShuffle'), sh);
+  sh.playShuffle();
+  ok('Shuffle gives a medium tap, even with sound off', sh.felt.join() === 'MEDIUM', sh.felt.join() || 'no tap');
   ok('the haptics switch in Settings still turns every one of them off', /if \(!hapticsEnabled\(\)\) return;/.test(grabFunction('haptic')), 'haptic() no longer checks the setting');
 })();
 

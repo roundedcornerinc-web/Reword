@@ -199,6 +199,9 @@
     .card.flip .text { order: 0; }
     .card .text { max-width: 440px; }
     .play, .card.flip .play { align-items: center; }
+    /* The on-loan tiles at half size: scaled as one drawing, with negative margins so the card sizes to the smaller
+       footprint (266x94 -> 133x47) */
+    .loan { transform: scale(0.5); margin: -23.5px -66.5px; }
   }
   @media (max-width: 480px) {
     .logo { width: 150px; }

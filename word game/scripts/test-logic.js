@@ -937,10 +937,63 @@ console.log('\nStrength meter — a swap square keeps its word multiplier in the
   ok('told where the swap is, the search finds the play (so the meter has a reading)', found >= actual, `best ${found}, play ${actual}`);
   ok('without it the search falls short, which is what blanked the meter', blind < actual, `best ${blind}, play ${actual}`);
   ok('the worker and the on-thread search are both told where the swaps are',
-    /findBestPlayWithRack\(d\.rack, d\.board, WORDS, new Set\(\), true, new Set\(d\.swapKeys \|\| \[\]\)\)/.test(src) &&
+    /findBestPlayWithRack\(d\.rack, d\.board, WORDS, new Set\(\), true, new Set\(d\.swapKeys \|\| \[\]\)[,)]/.test(src) &&
     /swapKeys: \[\.\.\.swapPendingPositions\]/.test(src) &&
-    /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapPendingPositions\)\)/.test(src),
+    /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapPendingPositions\)[,)]/.test(src),
     'one of the meter\'s searches is still blind to this turn\'s swaps');
+})();
+
+// ── The meter never plays into the square a tile was stolen from ──────────────────────────
+// Braden, 2026-10-01 (Brady vs Aaron): he stole the C of CODA off a TL and asked whether the meter's "best" was
+// using that square. The game blocks it for the rest of the turn (the X), but the meter searched a board with
+// the square simply emptied, so a word through it counted. On his board the best (RECEIVE, 92 — his CREEK 63
+// read 68%) happened not to use it; a rack that can rebuild CODA across that TL shows what it could do.
+console.log('\nStrength meter — the stolen square is off limits\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const c = { BS: 15, aiSkill: 'hard', AI_WORDS: null, console,
+    WORDS: new Set(['ODA', 'CODA', 'AGORA', 'OUTDRIVE', 'RECEIVE', 'CREEK', 'MAGIC', 'MA']) };
+  c.AI_WORDS = c.WORDS;
+  vm.createContext(c);
+  vm.runInContext([
+    grabLines('const PREMIUM = {}', "PREMIUM['7,7']"),
+    grabLines('const VAL = {', 'const VAL = {'),
+    grabFunction('getWordAt'), grabFunction('getWordsFormed'), grabFunction('hasAdjacentTile'),
+    grabFunction('scoreWords'), grabFunction('canSpell'), grabFunction('findBestPlayWithRack'),
+  ].join('\n'), c);
+
+  // His board as the meter searches it: CODA with the C stolen from (4,4), AGORA, OUTDRIVE.
+  const board = Array.from({ length: 15 }, () => Array(15).fill(null));
+  const put = (r, col, s, dr, dc) => [...s].forEach((l, i) => { board[r + i * dr][col + i * dc] = l; });
+  put(5, 4, 'ODA', 1, 0); put(7, 4, 'AGORA', 0, 1); put(7, 6, 'OUTDRIVE', 1, 0);
+  const stolen = new Set(['4,4']);
+  const search = (rack, blocked) => c.findBestPlayWithRack(rack, board.map(r => [...r]), c.WORDS, new Set(), true, new Set(), blocked);
+  const usesStolen = play => !!play && play.placements.some(p => p.row === 4 && p.col === 4);
+
+  const his = search([...'CREKEIIE'], stolen);
+  ok('his board: the best play is RECEIVE for 92 (so CREEK 63 reads 68%)', his && his.word === 'RECEIVE' && his.score === 92,
+    his ? `${his.word} ${his.score}` : 'nothing');
+
+  const rack = [...'CMAGIEE'];
+  const open = search(rack, new Set()), blocked = search(rack, stolen);
+  ok('with the square open, MAGIC rebuilds CODA on its TL — the play the meter used to count', usesStolen(open) && open.word === 'MAGIC',
+    open ? `${open.word} ${open.score}` : 'nothing');
+  ok('told the square is blocked, the search never plays into it', !usesStolen(blocked),
+    blocked ? `${blocked.word} at ${blocked.placements.map(p => p.row + ',' + p.col).join(' ')}` : 'nothing');
+  ok('and it still finds the best legal play instead of giving up', !!blocked && blocked.score > 0 && blocked.score < open.score,
+    blocked ? `${blocked.word} ${blocked.score} vs ${open.score}` : 'nothing');
+
+  ok('both of the meter\'s searches are told which squares this turn\'s steals blocked',
+    /blocked: \[\.\.\.pendingRemovals\]/.test(src) &&
+    /findBestPlayWithRack\(d\.rack, d\.board, WORDS, new Set\(\), true, new Set\(d\.swapKeys \|\| \[\]\), new Set\(d\.blocked \|\| \[\]\)\)/.test(src) &&
+    /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapPendingPositions\), new Set\(pendingRemovals\)\)/.test(src),
+    'a meter search is still free to play into a stolen square');
 })();
 
 // ── The AI's swaps and steals score by the player's rules ────────────────────────────────

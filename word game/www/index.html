@@ -441,21 +441,11 @@ body {
   flex-shrink: 0;
   font-weight: 700;
 }
-#strength-icon {
-  flex-shrink: 0;
-  opacity: 0.8;
-  display: flex;
-  align-items: center;
-  width: 16px;
-  height: 12px;
-  color: #bbb;
-}
-#strength-icon svg { width: 16px; height: 12px; }
 #strength-track {
   flex: 1;
-  height: 5px;
+  height: 13px;
   background: rgba(255,255,255,0.12);
-  border-radius: 3px;
+  border-radius: 7px;
   overflow: hidden;
 }
 #tiles-left-inline {
@@ -469,14 +459,14 @@ body {
 #strength-fill {
   height: 100%;
   width: 0%;
-  border-radius: 3px;
+  border-radius: 7px;
   background: #555;
   transition: width 0.45s ease, background-color 0.45s ease;
 }
 #strength-pct {
-  font-size: 0.6rem;
+  font-size: 14.6px;
   color: #aaa;
-  min-width: 28px;
+  min-width: 40px;
   text-align: right;
   flex-shrink: 0;
 }
@@ -2561,7 +2551,6 @@ body {
 
 <div id="rack-area">
   <div id="strength-area">
-    <span id="strength-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.53824 16.66408" width="12"><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1="15.596" y1=".94224" x2="15.596" y2="15.72184"/><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1="10.71143" y1="15.72184" x2="10.71143" y2="5.28656"/><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1="5.82683" y1="15.72184" x2="5.82683" y2="8.03606"/><line fill="none" stroke="#818181" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.88447" x1=".94224" y1="15.72184" x2=".94224" y2="10.78556"/></svg></span>
     <span id="strength-label">Word Strength</span>
     <div id="strength-track"><div id="strength-fill"></div></div>
     <span id="strength-pct"></span>
@@ -5107,7 +5096,9 @@ function findAIMove(rackOverride = null) {
 // swapKeys: squares swapped this turn (the strength meter's search only). boardState already shows their new
 // letter, but a play through one scores it as the commit does: no letter bonus, word multiplier kept. Treated
 // as old tiles instead, a DW/TW under a swap never counted and the player's own play beat "best possible".
-function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRackIndices = new Set(), withBonus = false, swapKeys = new Set()) {
+// blockedKeys: empty squares no tile may go on — a square stolen from this turn (the X), which the search board
+// shows as empty because the stolen tile is in the rack.
+function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRackIndices = new Set(), withBonus = false, swapKeys = new Set(), blockedKeys = new Set()) {
   const candidates = [];
   const maxLen = aiSkill === 'hard' ? 15 : 12;
 
@@ -5125,6 +5116,7 @@ function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRa
         if (boardState[r][c].toUpperCase() !== ch) { valid = false; break; }
         touchesExisting = true;
       } else {
+        if (blockedKeys.has(`${r},${c}`)) { valid = false; break; }
         let foundIdx = -1;
         for (let j = 0; j < rack.length; j++) {
           if (!usedFlags[j] && rack[j] === ch) { foundIdx = j; usedFlags[j] = true; break; }
@@ -6694,7 +6686,7 @@ function _strengthWorkerMain() {
             }
           }
         } else {
-          var r = findBestPlayWithRack(d.rack, d.board, WORDS, new Set(), true, new Set(d.swapKeys || []));
+          var r = findBestPlayWithRack(d.rack, d.board, WORDS, new Set(), true, new Set(d.swapKeys || []), new Set(d.blocked || []));
           best = r ? r.score : 0;
         }
       } catch (err) {}
@@ -6823,7 +6815,8 @@ function computeBestScore() {
         if (best > 0) _bestScoreCache.set(key, value);
         if (_bestScoreKey([...playerRack]) === key) { bestPossibleScore = value; updateStrengthBar(); }
       };
-      _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: _searchBoard(), swapKeys: [...swapPendingPositions] });
+      // blocked: a stolen square is empty on the search board but off limits this turn
+      _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: _searchBoard(), swapKeys: [...swapPendingPositions], blocked: [...pendingRemovals] });
       return;
     }
     // No worker (dictionary still loading, or dead on this device). Not cached, so the
@@ -6899,7 +6892,7 @@ function _bestScoreOnThread(rack) {
       // gets too expensive — see FULL_DICT_TILE_LIMIT. Swap/steal loops are skipped either
       // way: they call findBestPlayWithRack hundreds of times and block for seconds.
       const boardCopy = board.map(r => [...r]);
-      const best = findBestPlayWithRack(rack, boardCopy, wordSource, new Set(), true, new Set(swapPendingPositions));
+      const best = findBestPlayWithRack(rack, boardCopy, wordSource, new Set(), true, new Set(swapPendingPositions), new Set(pendingRemovals));
       bestScore = best ? best.score : 0;
     }
 

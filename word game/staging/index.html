@@ -26,6 +26,7 @@
     --card: #fafafa;
     --ink: #000;
     --tile-font: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --bar: 85px;              /* the banner the logo docks onto once the page scrolls */
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -82,6 +83,22 @@
   .phone .screen { left: 3.34%; top: 1.202%; width: 93.31%; height: 92.06%; }
   .h1-br { display: none; }   /* the headline breaks after BOARD'S on phones only */
   .lede-short { display: none; }   /* phones get the shorter intro */
+
+  /* ── Docked logo ──────────────────────────────────────────────────────
+     As the page scrolls the logo rides up with the hero, shrinks by 30%, and settles on a banner across the top of the
+     screen, still on the left. The script swaps the hero's own logo for a fixed copy (so nothing shifts) and slides the
+     banner down behind it; without the script the logo simply scrolls away with the hero. */
+  .bar {
+    position: fixed; left: 0; right: 0; top: 0; z-index: 50;
+    height: var(--bar);
+    background: #120c30;   /* the hero's top colour, so the two read as one at the start */
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+    transform: translateY(-100%);
+    pointer-events: none;
+  }
+  .dock-logo { position: fixed; left: 0; top: 0; z-index: 51; display: block; transform-origin: 0 0; }
+  .dock-logo img { display: block; width: 100%; height: auto; }
+  .docked .hero .logo { visibility: hidden; }
 
   /* ── Welcome ──────────────────────────────────────────────────────── */
   .welcome { text-align: center; }
@@ -210,6 +227,7 @@
      Hero: the copy on the left, a smaller phone beside it on the right.
      Cards: one column, the tiles centred above centred copy. */
   @media (max-width: 900px) {
+    :root { --bar: 64px; }
     /* --pw: the phone's width. --keep: how much of its height shows, down to just under the game's Play button
        (that button ends 85.7% down the screenshot; this keeps 60 screenshot px below it). The hero is at least tall
        enough to show that much with room above. */
@@ -265,6 +283,8 @@
 </style>
 </head>
 <body>
+
+<div class="bar" aria-hidden="true"></div>
 
 <header class="hero">
   <div class="wrap">
@@ -395,6 +415,47 @@
     <a href="#" aria-label="Get it on Google Play"><img src="img/google-play.png" width="114" height="35" alt=""></a>
   </div>
 </footer>
+
+<script>
+// The logo docks on a banner as the page scrolls: it rides up with the hero, shrinks to 70%, and stops at the top of the
+// screen, left-aligned where it started. A fixed copy takes over from the hero's logo (which stays in place, hidden, so
+// the layout does not move), and the banner slides down behind it.
+(() => {
+  const logo = document.querySelector('.hero .logo'), bar = document.querySelector('.bar');
+  if (!logo || !bar) return;
+  const SCALE = 0.7, RANGE = 110;   // 30% smaller, done by 110px of scrolling
+  const dock = document.createElement('a');
+  dock.className = 'dock-logo'; dock.href = '#'; dock.setAttribute('aria-label', 'Reword, back to the top');
+  const img = new Image(); img.src = logo.currentSrc || logo.src; img.alt = '';
+  dock.appendChild(img);
+  document.body.appendChild(dock);
+  document.documentElement.classList.add('docked');
+
+  let x0 = 0, y0 = 0, w0 = 0, h0 = 0, barH = 85, queued = false;
+  const clamp = v => Math.min(1, Math.max(0, v));
+  const measure = () => {
+    const r = logo.getBoundingClientRect();
+    x0 = r.left + scrollX; y0 = r.top + scrollY; w0 = r.width; h0 = r.height;
+    barH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bar')) || 85;
+    dock.style.width = w0 + 'px';
+    draw();
+  };
+  function draw() {
+    const y = scrollY, t = clamp(y / RANGE), e = t * t * (3 - 2 * t);
+    const s = 1 + (SCALE - 1) * e;
+    const rest = (barH - h0 * SCALE) / 2;              // where the logo sits on the banner
+    const top = Math.max(y0 - y, rest);
+    dock.style.transform = `translate(${x0 - scrollX}px, ${top}px) scale(${s})`;
+    const b = clamp((y - 10) / (RANGE - 10));
+    bar.style.transform = `translateY(${(b - 1) * 100}%)`;
+  }
+  addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; draw(); }); } }, { passive: true });
+  addEventListener('resize', measure);
+  addEventListener('load', measure);
+  dock.addEventListener('click', e => { e.preventDefault(); scrollTo({ top: 0, behavior: 'smooth' }); });
+  measure();
+})();
+</script>
 
 <script>
 // The four gameplay features share one box that pins to the middle of the screen while the page scrolls past it.
@@ -537,7 +598,8 @@
     el.style.position = '';
     const h = el.offsetHeight;
     scrollLen = Math.round(Math.min(640, Math.max(400, vh * 0.68))) * steps.length;
-    pinTop = Math.max(12, Math.round((vh - h) / 2));
+    const bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bar')) || 0;   // the banner takes the top of the screen
+    pinTop = bar + Math.max(12, Math.round((vh - bar - h) / 2));
     features.style.height = (pinOff + h + scrollLen) + 'px';
     el.style.top = pinTop + 'px';
     ctls.forEach(c => c.measure());

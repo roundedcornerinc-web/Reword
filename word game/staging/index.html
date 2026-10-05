@@ -84,7 +84,7 @@
   .lede-short { display: none; }   /* phones get the shorter intro */
 
   /* ── Welcome ──────────────────────────────────────────────────────── */
-  .welcome { text-align: center; padding: 78px 16px 0; }
+  .welcome { text-align: center; }
   .welcome h2 { color: var(--purple); font-size: 25px; font-weight: 700; }
   .welcome p { max-width: 489px; margin: 8px auto 0; font-size: 16px; }
 
@@ -92,7 +92,8 @@
      Without the script (or with reduced motion) these are four plain cards, one under the other, showing their
      starting position. With it, the box pins in the middle of the screen and the page's scroll steps through the
      four features: the tiles move as the page scrolls, and the dots below say where you are. */
-  .features { max-width: 890px; margin: 32px auto 0; padding: 0 16px; }
+  .features { max-width: 890px; margin: 0 auto; padding: 78px 16px 0; }
+  .box { margin-top: 32px; }
   .steps { display: grid; gap: 24px; }
   .step {
     min-height: 217px;
@@ -148,6 +149,8 @@
   .loan svg { position: absolute; width: 72px; height: 77px; margin: -38.5px 0 0 -36px; }
 
   /* Pinned: all four steps share one box and take turns showing */
+  /* Pinned: on wide screens the intro above the box stays on screen with it, so the whole stage is what sticks.
+     On phones there is little room to spare, so the intro scrolls away and only the box pins. */
   .features.scrolly .stage { position: sticky; }   /* top is set by the script */
   .features.scrolly .box {
     position: relative;
@@ -241,6 +244,8 @@
        footprint (266x94 -> 133x47) */
     .loan { transform: scale(0.5); margin: -23.5px -66.5px; }
 
+    .features.scrolly .stage { position: static; display: contents; }
+    .features.scrolly .box { position: sticky; }
     .keep { padding: 56px 16px 64px; }
     .friends .wrap { height: auto; display: flex; flex-direction: column; text-align: center; }
     .friends .copy { position: static; transform: none; width: auto; max-width: 440px; margin: 0 auto; padding: 44px 24px 28px; order: -1; }   /* the words first, the photo standing on the band's bottom edge */
@@ -284,13 +289,12 @@
 </header>
 
 <main>
-  <section class="welcome">
-    <h2>Welcome to the next level of wordplay</h2>
-    <p>Reword starts like a familiar word game but after the first move, things get interesting. Tiles on the board can be swapped, stolen, and reused, giving you more opportunities to put up big numbers.</p>
-  </section>
-
   <section class="features" id="features" aria-label="How Reword plays">
     <div class="stage">
+      <div class="welcome">
+        <h2>Welcome to the next level of wordplay</h2>
+        <p>Reword starts like a familiar word game but after the first move, things get interesting. Tiles on the board can be swapped, stolen, and reused, giving you more opportunities to put up big numbers.</p>
+      </div>
       <div class="box">
         <div class="steps">
           <article class="step on">
@@ -515,15 +519,27 @@
   });
 
   // ── the scroll ──────────────────────────────────────────────────────
-  const STEP = 0.1, RUN = 0.55;   // a step's tiles start moving a tenth of the way in, and are home by 65%
-  let scrollLen = 1, pinTop = 0, active = 0, last = [];
+  // A step's tiles start moving 8% of the way in and are home by 53%; the rest of the step is a rest, with the
+  // finished words showing, before the next feature appears.
+  const STEP = 0.08, RUN = 0.45;
+  const wide = matchMedia('(min-width: 901px)');
+  let scrollLen = 1, pinTop = 0, pinOff = 0, active = 0, last = [];
+
+  // What sticks: on wide screens the whole stage, so the intro above the box stays up with it; on phones just the box.
+  const pinned = () => wide.matches ? stage : box;
 
   const layout = () => {
-    const vh = innerHeight, h = box.offsetHeight;
-    scrollLen = Math.round(Math.min(560, Math.max(340, vh * 0.58))) * steps.length;
+    const vh = innerHeight, el = pinned();
+    stage.style.top = box.style.top = '';
+    // Where it sits before it sticks, measured with it taken out of the sticky
+    el.style.position = 'relative';
+    pinOff = el.getBoundingClientRect().top - features.getBoundingClientRect().top;
+    el.style.position = '';
+    const h = el.offsetHeight;
+    scrollLen = Math.round(Math.min(640, Math.max(400, vh * 0.68))) * steps.length;
     pinTop = Math.max(12, Math.round((vh - h) / 2));
-    features.style.height = (h + scrollLen) + 'px';
-    stage.style.top = pinTop + 'px';
+    features.style.height = (pinOff + h + scrollLen) + 'px';
+    el.style.top = pinTop + 'px';
     ctls.forEach(c => c.measure());
     last = [];
     update();
@@ -534,7 +550,7 @@
     steps.forEach((s, k) => s.classList.toggle('on', k === i));
     dots.forEach((d, k) => d.setAttribute('aria-current', k === i ? 'true' : 'false'));
   };
-  const progress = () => clamp((pinTop - features.getBoundingClientRect().top) / scrollLen) * steps.length;
+  const progress = () => clamp((pinTop - features.getBoundingClientRect().top - pinOff) / scrollLen) * steps.length;
   function update() {
     const x = progress(), i = Math.min(steps.length - 1, Math.floor(x));
     if (i !== active) setActive(i);
@@ -554,13 +570,14 @@
     w0 = innerWidth; h0 = innerHeight; layout();
   });
   if ('ResizeObserver' in window) new ResizeObserver(layout).observe(box);
+  wide.addEventListener('change', layout);
   addEventListener('load', layout);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
 
   // A dot scrolls to the end of its step: the tiles home, the words showing
   dots.forEach((d, k) => d.addEventListener('click', () => {
-    const top = scrollY + features.getBoundingClientRect().top;
-    const x = k + STEP + RUN + 0.08;
+    const top = scrollY + features.getBoundingClientRect().top + pinOff;
+    const x = k + STEP + RUN + 0.1;
     scrollTo({ top: top + (x / steps.length) * scrollLen - pinTop, behavior: 'smooth' });
   }));
 

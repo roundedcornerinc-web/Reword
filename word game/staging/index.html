@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Staging copy of the landing page (Braden's reword_landing_page_v2.psd). Kept out of search until it goes live. -->
+<!-- Staging copy of the landing page (Braden's reword_landing_page_v3.psd). Kept out of search until it goes live. -->
 <meta name="robots" content="noindex, nofollow">
 <title>Reword — The Board’s in Play</title>
 <meta name="description" content="Reword is a crossword tile game where the board’s in play. Swap and steal tiles straight off the board to build new words.">
@@ -88,9 +88,13 @@
   .welcome h2 { color: var(--purple); font-size: 25px; font-weight: 700; }
   .welcome p { max-width: 489px; margin: 8px auto 0; font-size: 16px; }
 
-  /* ── Feature cards ────────────────────────────────────────────────── */
-  .cards { max-width: 890px; margin: 32px auto 0; padding: 0 16px; display: grid; gap: 24px; }
-  .card {
+  /* ── Gameplay features: one box, driven by the scroll ─────────────────
+     Without the script (or with reduced motion) these are four plain cards, one under the other, showing their
+     starting position. With it, the box pins in the middle of the screen and the page's scroll steps through the
+     four features: the tiles move as the page scrolls, and the dots below say where you are. */
+  .features { max-width: 890px; margin: 32px auto 0; padding: 0 16px; }
+  .steps { display: grid; gap: 24px; }
+  .step {
     min-height: 217px;
     border: 1px solid var(--purple);
     border-radius: 29px;
@@ -100,32 +104,13 @@
     align-items: center;
     padding: 28px 38px 28px 0;
   }
-  .card.flip { grid-template-columns: 378px 1fr; padding: 28px 0 28px 29px; }
-  .card.flip .text { order: -1; }
-  .card h3 { color: var(--purple); font-size: 18px; font-weight: 700; }
-  .card p { margin-top: 5px; font-size: 16px; }
+  .step h3 { color: var(--purple); font-size: 18px; font-weight: 700; }
+  .step p { margin-top: 5px; font-size: 16px; }
   .art { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-  /* Plays the card's move. A quiet pill in the headings' purple on a pale tint: the solid, glowing version
-     (the game's own Play button) drew the eye away from the tiles. */
-  .demo-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    margin-top: 14px;
-    height: 30px; padding: 0 16px 0 13px;
-    border: none; border-radius: 15px;
-    background: #ece5f9; color: var(--purple);
-    font-family: inherit; font-size: 13px; font-weight: 600; line-height: 1; letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: opacity 0.2s, transform 0.1s, background 0.15s;
-  }
-  .demo-btn svg { width: 11px; height: 11px; }
-  @media (hover: hover) { .demo-btn:hover:not(:disabled) { background: #e2d8f6; } }   /* not on touch, where it sticks after a tap */
-  .demo-btn:active { transform: scale(0.96); }
-  .demo-btn:disabled { opacity: 0.45; cursor: default; }
-  .demo-btn:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; }
+  .dots { display: none; }
 
   /* A word on the board, and a rack beneath it */
   .play { position: relative; display: inline-flex; flex-direction: column; align-items: flex-end; }
-  .card.flip .play { align-items: flex-start; }
   .word { display: flex; gap: 2px; }
   .word img { width: 49px; height: 52px; }
   .rack-line { display: flex; align-items: center; gap: 11px; margin-top: 18px; }
@@ -140,30 +125,83 @@
     overflow: hidden;
     display: flex; align-items: center; justify-content: flex-end; gap: 1.5px;
   }
-  .rack img { width: 36px; height: 38px; flex: none; }
+  .rack img { width: 36px; height: 38px; flex: none; will-change: transform; }
   /* One tile runs off the rack's edge and fades into it */
   .rack::after {
     content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 24px;
     background: linear-gradient(90deg, #f6f5f5 15%, rgba(246,245,245,0));
   }
-  /* A tile in flight during a swap or a steal (added by the script at the bottom) */
+  /* Tiles in flight, and the purple ones that take a tile's place once it lands (both added by the script) */
   .fly {
-    position: absolute; z-index: 2; pointer-events: none;
-    transform-origin: 50% 50%;
+    position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; visibility: hidden;
+    transform-origin: 0 0;
     filter: drop-shadow(0 5px 6px rgba(44, 26, 0, 0.28));
+    /* Its own layer: without one, WebKit leaves a trail of the tile's old positions behind it while it is filtered and moving */
+    will-change: transform;
   }
-  .card.flip .rack { justify-content: flex-start; }
-  .card.flip .rack::after { left: auto; right: 0; background: linear-gradient(270deg, #f6f5f5 15%, rgba(246,245,245,0)); }
+  .fly img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+  .fly img + img { opacity: 0; }   /* the purple face, faded in as the tile lands */
+  .twin { position: absolute; z-index: 1; pointer-events: none; visibility: hidden; }
 
   /* Four tiles on loan: purple, and tipped every which way */
   .loan { position: relative; width: 266px; height: 94px; }
   .loan svg { position: absolute; width: 72px; height: 77px; margin: -38.5px 0 0 -36px; }
 
-  /* ── Closing band ─────────────────────────────────────────────────── */
-  .closing { margin-top: 78px; background: var(--night); color: #fff; text-align: center; padding: 70px 16px 73px; }
-  .closing h2 { color: var(--lilac); font-size: 25px; font-weight: 700; }
-  .closing p { max-width: 606px; margin: 8px auto 0; font-size: 16px; }
-  .closing .badges { justify-content: center; margin-top: 38px; }
+  /* Pinned: all four steps share one box and take turns showing */
+  .features.scrolly .stage { position: sticky; }   /* top is set by the script */
+  .features.scrolly .box {
+    position: relative;
+    border: 1px solid var(--purple);
+    border-radius: 29px;
+    background: var(--card);
+  }
+  .features.scrolly .steps { gap: 0; }
+  .features.scrolly .step {
+    grid-area: 1 / 1;
+    min-height: 242px;
+    border: 0; border-radius: 0; background: none;
+    padding: 20px 38px 50px 0;
+    visibility: hidden; opacity: 0;
+    transition: opacity 0.2s ease, visibility 0s 0.2s;
+  }
+  .features.scrolly .step.on { visibility: visible; opacity: 1; transition: opacity 0.3s ease 0.14s; }
+  .features.scrolly .dots {
+    display: flex; gap: 8px;
+    position: absolute; left: 0; right: 0; bottom: 21px;
+    justify-content: center;
+  }
+  .dot {
+    position: relative;
+    width: 14.4px; height: 14.4px; padding: 0;
+    border: 1px solid var(--night); border-radius: 50%;
+    background: none; cursor: pointer;
+  }
+  .dot::before { content: ''; position: absolute; inset: -9px; }   /* a bigger target for a thumb */
+  .dot::after {
+    content: ''; position: absolute; inset: 2px; border-radius: 50%;
+    background: var(--night); opacity: 0; transition: opacity 0.2s;
+  }
+  .dot[aria-current="true"]::after { opacity: 1; }
+  .dot:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; }
+
+  /* ── Keeping you in the game ──────────────────────────────────────── */
+  .keep { text-align: center; padding: 75px 16px 179px; }
+  .keep h2 { color: #5b30b8; font-size: 25px; font-weight: 700; }
+  .keep p { max-width: 606px; margin: 8px auto 0; font-size: 16px; color: var(--night); }
+
+  /* ── One player or two ────────────────────────────────────────────── */
+  .friends { background: #bdacd2; color: var(--night); overflow: hidden; }
+  .friends .wrap { height: 396px; }
+  .friends img { position: absolute; left: 117px; bottom: 0; width: 366px; height: auto; }
+  .friends .copy { position: absolute; left: 518px; top: 50%; transform: translateY(-50%); width: 365px; }
+  .friends h2 { font-size: 25px; font-weight: 700; }
+  .friends p { margin-top: 8px; font-size: 16px; }
+
+  /* ── Closing call to action ───────────────────────────────────────── */
+  .closing { background: var(--night); color: #fff; text-align: center; padding: 96px 16px 109px; }
+  .closing h2 { font-size: 25px; font-weight: 700; }
+  .closing p { margin: 4px auto 0; font-size: 16px; }
+  .closing .badges { justify-content: center; margin-top: 45px; }
 
   /* ── Narrow screens ───────────────────────────────────────────────────
      Hero: the copy on the left, a smaller phone beside it on the right.
@@ -195,13 +233,19 @@
       width: var(--pw); margin: 0; transform: none;
     }
 
-    .card, .card.flip { grid-template-columns: 1fr; padding: 32px 24px; gap: 22px; justify-items: center; text-align: center; }
-    .card.flip .text { order: 0; }
-    .card .text { max-width: 440px; }
-    .play, .card.flip .play { align-items: center; }
-    /* The on-loan tiles at half size: scaled as one drawing, with negative margins so the card sizes to the smaller
+    .step { grid-template-columns: 1fr; padding: 32px 24px; gap: 22px; justify-items: center; text-align: center; }
+    .features.scrolly .step { padding: 24px 24px 56px; gap: 18px; }
+    .step .text { max-width: 440px; }
+    .play { align-items: center; }
+    /* The on-loan tiles at half size: scaled as one drawing, with negative margins so the box sizes to the smaller
        footprint (266x94 -> 133x47) */
     .loan { transform: scale(0.5); margin: -23.5px -66.5px; }
+
+    .keep { padding: 56px 16px 64px; }
+    .friends .wrap { height: auto; display: flex; flex-direction: column; text-align: center; }
+    .friends .copy { position: static; transform: none; width: auto; max-width: 440px; margin: 0 auto; padding: 44px 24px 28px; order: -1; }   /* the words first, the photo standing on the band's bottom edge */
+    .friends img { position: static; width: min(366px, 82vw); margin: 0 auto; }
+    .closing { padding: 64px 16px 72px; }
   }
   @media (max-width: 480px) {
     .logo { width: 150px; }
@@ -211,7 +255,7 @@
     .badges { gap: 8px; }
     .hero-copy .badges img { height: 26px; }
     .word img { width: 44px; height: 47px; }
-    .welcome h2, .closing h2 { font-size: 22px; }
+    .welcome h2, .keep h2, .friends h2, .closing h2 { font-size: 22px; }
   }
 </style>
 </head>
@@ -245,76 +289,103 @@
     <p>Reword starts like a familiar word game but after the first move, things get interesting. Tiles on the board can be swapped, stolen, and reused, giving you more opportunities to put up big numbers.</p>
   </section>
 
-  <div class="cards">
-    <section class="card">
-      <div class="art" aria-hidden="true">
-        <div class="play" data-swap="3,1">
-          <div class="word"><img src="../tiles/tile-C.svg" alt=""><img src="../tiles/tile-R.svg" alt=""><img src="../tiles/tile-A.svg" alt=""><img src="../tiles/tile-Z.svg" alt=""><img src="../tiles/tile-E.svg" alt=""></div>
-          <div class="rack-line">
-            <span class="rack-label">Player Rack</span>
-            <div class="rack"><img src="../tiles/tile-U.svg" alt=""><img src="../tiles/tile-N.svg" alt=""><img src="../tiles/tile-I.svg" alt=""><img src="../tiles/tile-P.svg" alt=""></div>
+  <section class="features" id="features" aria-label="How Reword plays">
+    <div class="stage">
+      <div class="box">
+        <div class="steps">
+          <article class="step on">
+        <div class="art" aria-hidden="true">
+          <div class="play" data-swap="3,1">
+            <div class="word"><img src="../tiles/tile-C.svg" alt=""><img src="../tiles/tile-R.svg" alt=""><img src="../tiles/tile-A.svg" alt=""><img src="../tiles/tile-Z.svg" alt=""><img src="../tiles/tile-E.svg" alt=""></div>
+            <div class="rack-line">
+              <span class="rack-label">Player Rack</span>
+              <div class="rack"><img src="../tiles/tile-U.svg" alt=""><img src="../tiles/tile-N.svg" alt=""><img src="../tiles/tile-I.svg" alt=""><img src="../tiles/tile-P.svg" alt=""></div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="text">
-        <h3>No more luck of the draw</h3>
-        <p>In other games, missing out on the premium tiles can leave you watching the big points go by. Not in Reword. Swap the N in your rack for the Z in CRAZE and put that 10-point beauty to work for your own move. Because sometimes you have to make your own luck.</p>
-      </div>
-    </section>
+            <div class="text">
+              <h3>No more luck of the draw</h3>
+              <p>In other games, missing out on the premium tiles can leave you watching the big points go by. Not in Reword. Swap the N in your rack for the Z in CRAZE and put that 10-point beauty to work for your own move. Because sometimes you have to make your own luck.</p>
+            </div>
+          </article>
 
-    <section class="card flip">
-      <div class="art" aria-hidden="true">
-        <div class="play" data-swap="2,1">
-          <div class="word"><img src="../tiles/tile-M.svg" alt=""><img src="../tiles/tile-O.svg" alt=""><img src="../tiles/tile-W.svg" alt=""><img src="../tiles/tile-N.svg" alt=""></div>
-          <div class="rack-line">
-            <div class="rack"><img src="../tiles/tile-A.svg" alt=""><img src="../tiles/tile-O.svg" alt=""><img src="../tiles/tile-I.svg" alt=""><img src="../tiles/tile-U.svg" alt=""></div>
-            <span class="rack-label">Player Rack</span>
+          <article class="step">
+        <div class="art" aria-hidden="true">
+          <div class="play" data-swap="2,1">
+            <div class="word"><img src="../tiles/tile-M.svg" alt=""><img src="../tiles/tile-O.svg" alt=""><img src="../tiles/tile-W.svg" alt=""><img src="../tiles/tile-N.svg" alt=""></div>
+            <div class="rack-line">
+              <span class="rack-label">Player Rack</span>
+              <div class="rack"><img src="../tiles/tile-A.svg" alt=""><img src="../tiles/tile-O.svg" alt=""><img src="../tiles/tile-I.svg" alt=""><img src="../tiles/tile-U.svg" alt=""></div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="text">
-        <h3>Swap vowels for consonants and vice versa.</h3>
-        <p>Stuck with a rack full of vowels? Drowning in consonants? In Reword, you may have a way forward without reaching for the tile bag. Swap the O in your rack for the W in MOWN, or the R in your rack for the A in PEAK, and you’re back in business without losing a turn.</p>
-      </div>
-    </section>
+            <div class="text">
+              <h3>Swap vowels for consonants and vice versa.</h3>
+              <p>Stuck with a rack full of vowels? Drowning in consonants? In Reword, you may have a way forward without reaching for the tile bag. Swap the O in your rack for the W in MOWN, or the R in your rack for the A in PEAK, and you’re back in business without losing a turn.</p>
+            </div>
+          </article>
 
-    <section class="card">
-      <div class="art" aria-hidden="true">
-        <div class="play" data-steal="4">
-          <div class="word"><img src="../tiles/tile-G.svg" alt=""><img src="../tiles/tile-A.svg" alt=""><img src="../tiles/tile-M.svg" alt=""><img src="../tiles/tile-E.svg" alt=""><img src="../tiles/tile-D.svg" alt=""></div>
-          <div class="rack-line">
-            <span class="rack-label">Player Rack</span>
-            <div class="rack"><img src="../tiles/tile-B.svg" alt=""><img src="../tiles/tile-O.svg" alt=""><img src="../tiles/tile-I.svg" alt=""><img src="../tiles/tile-Y.svg" alt=""></div>
+          <article class="step">
+        <div class="art" aria-hidden="true">
+          <div class="play" data-steal="4">
+            <div class="word"><img src="../tiles/tile-G.svg" alt=""><img src="../tiles/tile-A.svg" alt=""><img src="../tiles/tile-M.svg" alt=""><img src="../tiles/tile-E.svg" alt=""><img src="../tiles/tile-D.svg" alt=""></div>
+            <div class="rack-line">
+              <span class="rack-label">Player Rack</span>
+              <div class="rack"><img src="../tiles/tile-B.svg" alt=""><img src="../tiles/tile-O.svg" alt=""><img src="../tiles/tile-I.svg" alt=""><img src="../tiles/tile-Y.svg" alt=""></div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="text">
-        <h3>The art of the steal</h3>
-        <p>Reword lets you steal a letter from the beginning or end of a word on the board—as long as the word you leave behind is still valid. Take the S from PLAYS or the D from GAMED and put them to work in your play.</p>
-      </div>
-    </section>
+            <div class="text">
+              <h3>The art of the steal</h3>
+              <p>Reword lets you steal a letter from the beginning or end of a word on the board—as long as the word you leave behind is still valid. Take the S from PLAYS or the D from GAMED and put them to work in your play.</p>
+            </div>
+          </article>
 
-    <section class="card flip">
-      <div class="art" aria-hidden="true">
-        <div class="loan">
-          <!-- Drawn like the tiles in tiles/, in the purple a swapped or stolen tile wears in the rack. Last listed sits on top: Z and H lie over their neighbours. -->
-          <svg viewBox="0 0 120 128" style="left:226.1px;top:51.5px;transform:rotate(7deg)"><rect y="8" width="120" height="120" rx="9" fill="#8528ff"/><rect width="120" height="120" rx="9" fill="#de9dff"/><text x="60" y="52.2" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="70.6" font-weight="900" fill="#2f1900" text-anchor="middle" dominant-baseline="central">X</text><text x="111" y="111" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="25.1" font-weight="700" fill="#2f1900" fill-opacity="0.7" text-anchor="end">8</text></svg>
-          <svg viewBox="0 0 120 128" style="left:106.2px;top:51.8px;transform:rotate(6.6deg)"><rect y="8" width="120" height="120" rx="9" fill="#8528ff"/><rect width="120" height="120" rx="9" fill="#de9dff"/><text x="60" y="52.2" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="70.6" font-weight="900" fill="#2f1900" text-anchor="middle" dominant-baseline="central">S</text><text x="111" y="111" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="25.1" font-weight="700" fill="#2f1900" fill-opacity="0.7" text-anchor="end">1</text></svg>
-          <svg viewBox="0 0 120 128" style="left:167.4px;top:42.5px;transform:rotate(-6.1deg)"><rect y="8" width="120" height="120" rx="9" fill="#8528ff"/><rect width="120" height="120" rx="9" fill="#de9dff"/><text x="60" y="52.2" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="70.6" font-weight="900" fill="#2f1900" text-anchor="middle" dominant-baseline="central">H</text><text x="111" y="111" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="25.1" font-weight="700" fill="#2f1900" fill-opacity="0.7" text-anchor="end">5</text></svg>
-          <svg viewBox="0 0 120 128" style="left:39.6px;top:44.6px;transform:rotate(-6deg)"><rect y="8" width="120" height="120" rx="9" fill="#8528ff"/><rect width="120" height="120" rx="9" fill="#de9dff"/><text x="60" y="52.2" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="70.6" font-weight="900" fill="#2f1900" text-anchor="middle" dominant-baseline="central">Z</text><text x="111" y="111" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="25.1" font-weight="700" fill="#2f1900" fill-opacity="0.7" text-anchor="end">10</text></svg>
+          <article class="step">
+            <div class="art" aria-hidden="true">
+              <div class="loan" data-loan>
+          <!-- Drawn like the tiles in tiles/, in the purple a swapped or stolen tile wears in the rack. Last listed sits on top: Z and H lie over their neighbours. data-k is the order they settle in, left to right. -->
+          <svg viewBox="0 0 120 128" data-k="3" data-r="7" style="left:226.1px;top:51.5px;transform:rotate(7deg)"><rect y="8" width="120" height="120" rx="9" fill="#8528ff"/><rect width="120" height="120" rx="9" fill="#de9dff"/><text x="60" y="52.2" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="70.6" font-weight="900" fill="#2f1900" text-anchor="middle" dominant-baseline="central">X</text><text x="111" y="111" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="25.1" font-weight="700" fill="#2f1900" fill-opacity="0.7" text-anchor="end">8</text></svg>
+          <svg viewBox="0 0 120 128" data-k="1" data-r="6.6" style="left:106.2px;top:51.8px;transform:rotate(6.6deg)"><rect y="8" width="120" height="120" rx="9" fill="#8528ff"/><rect width="120" height="120" rx="9" fill="#de9dff"/><text x="60" y="52.2" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="70.6" font-weight="900" fill="#2f1900" text-anchor="middle" dominant-baseline="central">S</text><text x="111" y="111" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="25.1" font-weight="700" fill="#2f1900" fill-opacity="0.7" text-anchor="end">1</text></svg>
+          <svg viewBox="0 0 120 128" data-k="2" data-r="-6.1" style="left:167.4px;top:42.5px;transform:rotate(-6.1deg)"><rect y="8" width="120" height="120" rx="9" fill="#8528ff"/><rect width="120" height="120" rx="9" fill="#de9dff"/><text x="60" y="52.2" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="70.6" font-weight="900" fill="#2f1900" text-anchor="middle" dominant-baseline="central">H</text><text x="111" y="111" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="25.1" font-weight="700" fill="#2f1900" fill-opacity="0.7" text-anchor="end">5</text></svg>
+          <svg viewBox="0 0 120 128" data-k="0" data-r="-6" style="left:39.6px;top:44.6px;transform:rotate(-6deg)"><rect y="8" width="120" height="120" rx="9" fill="#8528ff"/><rect width="120" height="120" rx="9" fill="#de9dff"/><text x="60" y="52.2" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="70.6" font-weight="900" fill="#2f1900" text-anchor="middle" dominant-baseline="central">Z</text><text x="111" y="111" font-family="'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="25.1" font-weight="700" fill="#2f1900" fill-opacity="0.7" text-anchor="end">10</text></svg>
+              </div>
+            </div>
+            <div class="text">
+              <h3>No hoarding allowed</h3>
+              <p>You can swap or steal up to four letters each turn, but no saving them for a rainy play. Swapped and stolen tiles turn purple in your rack so you know they’re on loan and need to go back on the board in your move.</p>
+            </div>
+          </article>
+        </div>
+        <div class="dots" role="group" aria-label="Gameplay features">
+          <button class="dot" type="button" aria-label="No more luck of the draw" aria-current="true"></button>
+          <button class="dot" type="button" aria-label="Swap vowels for consonants and vice versa" aria-current="false"></button>
+          <button class="dot" type="button" aria-label="The art of the steal" aria-current="false"></button>
+          <button class="dot" type="button" aria-label="No hoarding allowed" aria-current="false"></button>
         </div>
       </div>
-      <div class="text">
-        <h3>No hoarding allowed</h3>
-        <p>You can swap or steal up to four letters each turn, but no saving them for a rainy play. Swapped and stolen tiles turn purple in your rack so you know they’re on loan and need to go back on the board in your move.</p>
+    </div>
+  </section>
+
+  <section class="keep">
+    <h2>Keeping you in the game until the last letter</h2>
+    <p>Reword’s unique gameplay means more strategy, more chaos, and far fewer games where one player gets ahead and spends the next 20 minutes polishing their victory speech. Leads can evaporate, tables can turn, and that smug letter wrangler on the other end of the screen may end up eating their... well... words.</p>
+  </section>
+
+  <section class="friends">
+    <div class="wrap">
+      <img src="img/friends.webp" width="508" height="550" alt="Two people back to back, each playing on a phone">
+      <div class="copy">
+        <h2>Play against friends or the AI</h2>
+        <p>Feeling social? Throw down the gauntlet and challenge a fellow wordsmith to a game. Prefer to sharpen your skills? Play quick solo game against the AI, with adjustable skill levels to keep things competitive.</p>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
 </main>
 
 <footer class="closing">
-  <h2>Keeping you in the game until the last letter</h2>
-  <p>Reword’s unique gameplay means more strategy, more chaos, and far fewer games where one player gets ahead and spends the next 20 minutes polishing their victory speech. Leads can evaporate, tables can turn, and that smug letter wrangler on the other end of the screen may end up eating their... well... words.</p>
+  <h2>Stop reading. Start spelling.</h2>
+  <p>Download Reword for your tablet or phone today.</p>
   <div class="badges">
     <a href="#" aria-label="Download on the App Store"><img src="img/app-store.png" width="114" height="35" alt=""></a>
     <a href="#" aria-label="Get it on Google Play"><img src="img/google-play.png" width="114" height="35" alt=""></a>
@@ -322,13 +393,19 @@
 </footer>
 
 <script>
-// The first three cards act out their move, the way the game does it: a tile lifts, travels to its new place, and
-// every tile that changed hands turns purple. SWAP: N for the Z in CRAZE (CRANE), O for the W in MOWN (MOON).
-// STEAL: the D off GAMED (GAME) into the rack, which slides over to make room. Nothing moves until the card's Play
-// button is tapped (three playing at once on a tall screen was too much); the result then stays, and the button
-// becomes Replay. The button is added here, so a browser that cannot animate never shows one.
+// The four gameplay features share one box that pins to the middle of the screen while the page scrolls past it.
+// Scroll position is the clock: how far you have scrolled through the section decides which feature shows and how
+// far its tiles have travelled (scroll back and they go back). SWAP: N for the Z in CRAZE (CRANE), O for the W in
+// MOWN (MOON). STEAL: the D off GAMED (GAME) into the rack, which slides over to make room. The last feature's
+// purple tiles settle into place. Every tile that changes hands turns purple as it lands, the way it does in the game.
+// Without this script, or with reduced motion, the page keeps four plain cards showing their starting position.
 (() => {
-  if (!('animate' in Element.prototype)) return;
+  const features = document.querySelector('.features');
+  if (!features || !CSS.supports('position', 'sticky') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const stage = features.querySelector('.stage'), box = features.querySelector('.box');
+  const steps = [...features.querySelectorAll('.step')], dots = [...features.querySelectorAll('.dot')];
+  features.classList.add('scrolly');
 
   const VAL = { A:1,B:3,C:6,D:3,E:1,F:5,G:3,H:5,I:1,J:8,K:6,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:2,V:6,W:5,X:8,Y:5,Z:10 };
   const FONT = "'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif";
@@ -339,111 +416,155 @@
     `<text x="60" y="52.2" font-family="${FONT}" font-size="70.6" font-weight="900" fill="#2f1900" text-anchor="middle" dominant-baseline="central">${l}</text>` +
     `<text x="111" y="111" font-family="${FONT}" font-size="25.1" font-weight="700" fill="#2f1900" fill-opacity="0.7" text-anchor="end">${VAL[l]}</text></svg>`);
   const letterOf = img => /tile-([A-Z])\.svg/.exec(img.getAttribute('src'))[1];
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const ready = img => (img.decode ? img.decode() : Promise.resolve()).catch(() => {});
 
-  // Where an element sits inside the card's tile block
-  const box = (el, root) => {
+  const clamp = x => Math.min(1, Math.max(0, x));
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const rel = (el, root) => {   // where an element sits inside the tile block
     const a = el.getBoundingClientRect(), b = root.getBoundingClientRect();
     return { x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height };
   };
-  // A copy of a tile that travels over the card while the real one waits, hidden, where it will land
-  const flyer = (play, src, at) => {
-    const f = new Image(); f.src = src; f.alt = ''; f.className = 'fly';
-    Object.assign(f.style, { left: at.x + 'px', top: at.y + 'px', width: at.w + 'px', height: at.h + 'px' });
-    play.appendChild(f);
-    return f;
+  const show = (el, on) => { el.style.visibility = on ? 'visible' : 'hidden'; };
+
+  // A tile in flight: its own face, with the purple one fading in over it as it lands
+  const flyer = (play, letter) => {
+    const el = document.createElement('div'); el.className = 'fly';
+    const tan = new Image(); tan.src = `../tiles/tile-${letter}.svg`; tan.alt = '';
+    const pur = new Image(); pur.src = purple(letter); pur.alt = '';
+    el.append(tan, pur); play.appendChild(el);
+    return { el, pur };
   };
-  const move = (from, to, lift, k) =>
-    `translate(${to.x + to.w / 2 - from.x - from.w / 2}px, ${to.y + to.h / 2 - from.y - from.h / 2 - lift}px) scale(${to.w / from.w * k}, ${to.h / from.h * k})`;
-  // Lift, travel, set down
-  const travel = (f, from, to, delay) => f.animate([
-    { transform: 'none' },
-    { transform: 'translateY(-10px) scale(1.1)', offset: 0.2 },
-    { transform: move(from, to, 10, 1.1), offset: 0.8 },
-    { transform: move(from, to, 0, 1) },
-  ], { duration: 950, delay, easing: 'ease-in-out', fill: 'both' });
-  // The real tile, already purple, shows through as the travelling (still tan) copy fades away
-  const land = (img, f) => {
-    img.style.visibility = '';
-    f.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, fill: 'forwards' }).finished.then(() => f.remove());
+  // A purple tile that takes the place of one that has landed
+  const twin = (play, letter) => {
+    const img = new Image(); img.src = purple(letter); img.alt = ''; img.className = 'twin';
+    play.appendChild(img);
+    return img;
+  };
+  const place = (img, at) => Object.assign(img.style, { left: at.x + 'px', top: at.y + 'px', width: at.w + 'px', height: at.h + 'px' });
+  // Lift, travel, set down: u runs 0 to 1 along the way
+  const fly = (f, from, to, u) => {
+    const arc = Math.sin(Math.PI * u), pop = 1 + 0.12 * arc;
+    const w = lerp(from.w, to.w, u) * pop, h = lerp(from.h, to.h, u) * pop;
+    const cx = lerp(from.x + from.w / 2, to.x + to.w / 2, u), cy = lerp(from.y + from.h / 2, to.y + to.h / 2, u) - 14 * arc;
+    Object.assign(f.el.style, { width: from.w + 'px', height: from.h + 'px',
+      transform: `translate(${cx - w / 2}px, ${cy - h / 2}px) scale(${w / from.w}, ${h / from.h})` });
+    f.pur.style.opacity = ease(clamp((u - 0.55) / 0.4));
   };
 
-  async function swap(play, bi, ri) {
+  // Each controller measures its tiles (on load and on resize) and draws itself at t, 0 to 1. A tile that leaves
+  // its square leaves it empty, as in the game; the purple copy appears once the tile that took its place has landed.
+  const swap = (play, bi, ri) => {
     const b = play.querySelectorAll('.word img')[bi], r = play.querySelectorAll('.rack img')[ri];
-    const bSrc = b.getAttribute('src'), rSrc = r.getAttribute('src'), bL = letterOf(b), rL = letterOf(r);
-    const pb = box(b, play), pr = box(r, play);
-    const up = flyer(play, rSrc, pr), down = flyer(play, bSrc, pb);
-    b.style.visibility = r.style.visibility = 'hidden';
-    b.src = purple(rL); r.src = purple(bL);
-    await Promise.all([ready(b), ready(r)]);
-    const a1 = travel(up, pr, pb, 0), a2 = travel(down, pb, pr, 250);
-    await a1.finished; land(b, up);
-    await a2.finished; land(r, down);
-    return () => { b.src = bSrc; r.src = rSrc; };
-  }
-
-  async function steal(play, bi) {
-    const b = play.querySelectorAll('.word img')[bi], rack = play.querySelector('.rack');
-    const tiles = [...rack.querySelectorAll('img')], before = tiles.map(t => t.getBoundingClientRect().left);
-    const pb = box(b, play), f = flyer(play, b.getAttribute('src'), pb);
-    b.style.visibility = 'hidden';
-    const n = new Image(); n.src = purple(letterOf(b)); n.alt = ''; n.style.visibility = 'hidden';
-    await ready(n);
-    rack.appendChild(n);
-    // The rack makes room: its tiles slide over from where they were
-    tiles.forEach((t, k) => {
-      const dx = before[k] - t.getBoundingClientRect().left;
-      t.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 500, delay: 300, easing: 'ease-in-out', fill: 'backwards' });
-    });
-    await travel(f, pb, box(n, play), 0).finished;
-    land(n, f);
-    return () => { n.remove(); b.style.visibility = ''; };
-  }
-
-  const PLAY = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor"/></svg>';
-  const REPLAY = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.75a4.25 4.25 0 1 1-4.02 2.87" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M1.2 1.6l.9 3.3 3.2-1.1z" fill="currentColor"/></svg>';
-
-  document.querySelectorAll('.play[data-swap], .play[data-steal]').forEach(play => {
-    const what = play.dataset.swap ? 'swap' : 'steal';
-    const act = what === 'swap'
-      ? () => swap(play, ...play.dataset.swap.split(',').map(Number))
-      : () => steal(play, Number(play.dataset.steal));
-    const btn = document.createElement('button');
-    btn.type = 'button'; btn.className = 'demo-btn';
-    const label = replay => {
-      btn.innerHTML = (replay ? REPLAY : PLAY) + `<span>${replay ? 'Replay' : 'Play'}</span>`;
-      btn.setAttribute('aria-label', `${replay ? 'Replay' : 'Play'} the ${what}`);
+    const bL = letterOf(b), rL = letterOf(r);
+    const up = flyer(play, rL), down = flyer(play, bL), twB = twin(play, rL), twR = twin(play, bL);
+    let pb, pr;
+    return {
+      measure() { pb = rel(b, play); pr = rel(r, play); place(twB, pb); place(twR, pr); },
+      draw(t) {
+        const u1 = ease(clamp(t / 0.72)), u2 = ease(clamp((t - 0.28) / 0.72));
+        b.style.visibility = r.style.visibility = t > 0 ? 'hidden' : '';
+        // Both tiles come off their squares the moment it starts, so each shows as a flyer until it lands
+        // (the second one waits where it was for a moment).
+        show(up.el, t > 0 && u1 < 1); if (t > 0 && u1 < 1) fly(up, pr, pb, u1);
+        show(down.el, t > 0 && u2 < 1); if (t > 0 && u2 < 1) fly(down, pb, pr, u2);
+        show(twB, u1 >= 1); show(twR, u2 >= 1);
+      },
     };
-    label(false);
-    // Inside the tile block, so it lines up with the tiles' edge on desktop (right, or left on the flipped card)
-    // and is centred under them on phones.
-    play.appendChild(btn);
+  };
 
-    // The word and the rack fade out and back while the card resets; the button stays put.
-    const tiles = [...play.querySelectorAll('.word, .rack-line')];
-    const fade = async (a, b) => {
-      const anims = tiles.map(t => t.animate([{ opacity: a }, { opacity: b }], { duration: 250, fill: 'forwards' }));
-      await Promise.all(anims.map(x => x.finished));
-      return anims;
+  const steal = (play, bi) => {
+    const b = play.querySelectorAll('.word img')[bi], rack = [...play.querySelectorAll('.rack img')];
+    const f = flyer(play, letterOf(b)), tw = twin(play, letterOf(b));
+    let pb, pn, shift;
+    return {
+      measure() {
+        rack.forEach(i => { i.style.transform = ''; });
+        pb = rel(b, play); pn = rel(rack[rack.length - 1], play);
+        shift = pn.x - rel(rack[rack.length - 2], play).x;   // one tile and its gap
+        place(tw, pn);
+      },
+      draw(t) {
+        const u = ease(clamp(t / 0.8)), s = ease(clamp((t - 0.1) / 0.55));
+        rack.forEach(i => { i.style.transform = s ? `translateX(${-shift * s}px)` : ''; });
+        b.style.visibility = t > 0 ? 'hidden' : '';
+        show(f.el, t > 0 && u < 1); if (t > 0 && u < 1) fly(f, pb, pn, u);
+        show(tw, u >= 1);
+      },
     };
+  };
 
-    let undo = null;
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      if (undo) {   // back to the start first, out of sight
-        const out = await fade(1, 0);
-        undo(); undo = null;
-        const back = await fade(0, 1);
-        [...out, ...back].forEach(x => x.cancel());
-        await sleep(250);
-      }
-      undo = await act();
-      await sleep(300);
-      label(true);
-      btn.disabled = false;
-    });
+  const loan = play => {
+    const tiles = [...play.querySelectorAll('.loan svg')];
+    return {
+      measure() {},
+      draw(t) {
+        tiles.forEach(tile => {
+          const k = +tile.dataset.k, v = ease(clamp((t - k * 0.14) / 0.5));
+          tile.style.opacity = v;
+          tile.style.transform = `translateY(${-26 * (1 - v)}px) rotate(${+tile.dataset.r + (k % 2 ? 14 : -14) * (1 - v)}deg)`;
+        });
+      },
+    };
+  };
+
+  const ctls = steps.map(step => {
+    const play = step.querySelector('.play');
+    if (play && play.dataset.swap) return swap(play, ...play.dataset.swap.split(',').map(Number));
+    if (play && play.dataset.steal) return steal(play, Number(play.dataset.steal));
+    return loan(step);
   });
+
+  // ── the scroll ──────────────────────────────────────────────────────
+  const STEP = 0.1, RUN = 0.55;   // a step's tiles start moving a tenth of the way in, and are home by 65%
+  let scrollLen = 1, pinTop = 0, active = 0, last = [];
+
+  const layout = () => {
+    const vh = innerHeight, h = box.offsetHeight;
+    scrollLen = Math.round(Math.min(560, Math.max(340, vh * 0.58))) * steps.length;
+    pinTop = Math.max(12, Math.round((vh - h) / 2));
+    features.style.height = (h + scrollLen) + 'px';
+    stage.style.top = pinTop + 'px';
+    ctls.forEach(c => c.measure());
+    last = [];
+    update();
+  };
+
+  const setActive = i => {
+    active = i;
+    steps.forEach((s, k) => s.classList.toggle('on', k === i));
+    dots.forEach((d, k) => d.setAttribute('aria-current', k === i ? 'true' : 'false'));
+  };
+  const progress = () => clamp((pinTop - features.getBoundingClientRect().top) / scrollLen) * steps.length;
+  function update() {
+    const x = progress(), i = Math.min(steps.length - 1, Math.floor(x));
+    if (i !== active) setActive(i);
+    ctls.forEach((c, k) => {
+      const t = clamp((x - k - STEP) / RUN);
+      if (t !== last[k]) { last[k] = t; c.draw(t); }
+    });
+  }
+
+  let queued = false;
+  addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; update(); }); } }, { passive: true });
+
+  // The mobile toolbar growing and shrinking changes the height without being a resize worth redoing the section for.
+  let w0 = innerWidth, h0 = innerHeight;
+  addEventListener('resize', () => {
+    if (innerWidth === w0 && Math.abs(innerHeight - h0) < 150) return;
+    w0 = innerWidth; h0 = innerHeight; layout();
+  });
+  if ('ResizeObserver' in window) new ResizeObserver(layout).observe(box);
+  addEventListener('load', layout);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+
+  // A dot scrolls to the end of its step: the tiles home, the words showing
+  dots.forEach((d, k) => d.addEventListener('click', () => {
+    const top = scrollY + features.getBoundingClientRect().top;
+    const x = k + STEP + RUN + 0.08;
+    scrollTo({ top: top + (x / steps.length) * scrollLen - pinTop, behavior: 'smooth' });
+  }));
+
+  layout();
 })();
 </script>
 

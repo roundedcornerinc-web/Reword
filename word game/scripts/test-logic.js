@@ -939,7 +939,8 @@ console.log('\nStrength meter — a swap square keeps its word multiplier in the
   ok('the worker and the on-thread search are both told where the swaps are',
     /findBestPlayWithRack\(d\.rack, d\.board, WORDS, new Set\(\), true, new Set\(d\.swapKeys \|\| \[\]\)[,)]/.test(src) &&
     /swapKeys: \[\.\.\.swapPendingPositions\]/.test(src) &&
-    /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapPendingPositions\)[,)]/.test(src),
+    /_bestPlayOnThread\(rack, _searchBoard\(\), swapPendingPositions, pendingRemovals, isEmpty\(\)\)/.test(src) &&
+    /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapKeys\)[,)]/.test(src),
     'one of the meter\'s searches is still blind to this turn\'s swaps');
 })();
 
@@ -992,8 +993,50 @@ console.log('\nStrength meter — the stolen square is off limits\n');
   ok('both of the meter\'s searches are told which squares this turn\'s steals blocked',
     /blocked: \[\.\.\.pendingRemovals\]/.test(src) &&
     /findBestPlayWithRack\(d\.rack, d\.board, WORDS, new Set\(\), true, new Set\(d\.swapKeys \|\| \[\]\), new Set\(d\.blocked \|\| \[\]\)\)/.test(src) &&
-    /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapPendingPositions\), new Set\(pendingRemovals\)\)/.test(src),
+    /_bestPlayOnThread\(rack, _searchBoard\(\), swapPendingPositions, pendingRemovals, isEmpty\(\)\)/.test(src) &&
+    /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapKeys\), new Set\(blockedKeys\)\)/.test(src),
     'a meter search is still free to play into a stolen square');
+})();
+
+// ── Hindsight: the best play the rack had, shown after the player's own ───────────────────
+// It reuses the meter's search, so it must hand back the play itself (not just its score), mark a
+// first move's blank as the blank, and only offer itself when the play could have been beaten.
+console.log('\nHindsight — the best play behind the meter\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const c = {};
+  vm.createContext(c);
+  vm.runInContext([grabFunction('_firstMovePlacements'), grabFunction('hindsightBeatsPlay')].join('\n'), c);
+
+  const tiles = c._firstMovePlacements('QUIZ', 7, 6, 0, 1, ['Q', 'U', ' ', 'Z']);
+  ok('a first move is laid out from its start square', tiles.map(t => t.row + ',' + t.col).join(' ') === '7,6 7,7 7,8 7,9',
+    JSON.stringify(tiles));
+  ok('the letter the rack is short of is drawn as the blank', tiles.map(t => t.letter).join('') === 'QUiZ',
+    tiles.map(t => t.letter).join(''));
+
+  const h = (best, mine, done = true) => ({ done, myScore: mine, play: best == null ? null : { score: best } });
+  ok('offered when the best play beat yours', c.hindsightBeatsPlay(h(66, 4)) === true, '');
+  ok('greyed out when yours was the best (100%)', c.hindsightBeatsPlay(h(66, 66)) === false, '');
+  ok('greyed out while the search is still running', c.hindsightBeatsPlay(h(66, 4, false)) === false, '');
+  ok('greyed out when the search found nothing', c.hindsightBeatsPlay(h(null, 4)) === false, '');
+
+  ok('the worker sends the play back, and both searches get the same position Hindsight saved',
+    /self\.postMessage\(\{ type: 'result', id: d\.id, best: best, play: play \}\)/.test(src) &&
+    /cb\(m\.best, m\.play\)/.test(src) &&
+    /_firstMovePlacements\.toString\(\)/.test(src) &&
+    /_bestPlayOnThread\(f\.rack, f\.board, f\.swapKeys, f\.blocked, f\.empty\)/.test(src) &&
+    /recordHindsight\(hindsightFrom, lastPlayScore\)/.test(src),
+    'a piece of the Hindsight search path is missing');
+  ok('pass and exchange end it, and an AI game saves it',
+    (src.match(/setHindsight\(null\);   \/\/ your last move is now this/g) || []).length === 2 &&
+    /hindsight: currentHindsight\(\),/.test(src),
+    'Hindsight would outlive the move it is about, or be lost on reload');
 })();
 
 // ── The AI's swaps and steals score by the player's rules ────────────────────────────────

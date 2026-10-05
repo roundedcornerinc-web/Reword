@@ -580,9 +580,9 @@
   });
 
   // ── the scroll ──────────────────────────────────────────────────────
-  // A step's tiles start moving 8% of the way in and are home by 53%; the rest of the step is a rest, with the
-  // finished words showing, before the next feature appears.
-  const STEP = 0.08, RUN = 0.45;
+  // A step rests before and after its tiles move: they start a fifth of the way in and are home by 56%, and the rest
+  // of the step holds the finished words on screen before the next feature appears.
+  const STEP = 0.2, RUN = 0.36;
   const wide = matchMedia('(min-width: 901px)');
   let scrollLen = 1, pinTop = 0, pinOff = 0, active = 0, last = [];
 
@@ -597,7 +597,7 @@
     pinOff = el.getBoundingClientRect().top - features.getBoundingClientRect().top;
     el.style.position = '';
     const h = el.offsetHeight;
-    scrollLen = Math.round(Math.min(640, Math.max(400, vh * 0.68))) * steps.length;
+    scrollLen = Math.round(Math.min(800, Math.max(500, vh * 0.85))) * steps.length;
     const bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bar')) || 0;   // the banner takes the top of the screen
     pinTop = bar + Math.max(12, Math.round((vh - bar - h) / 2));
     features.style.height = (pinOff + h + scrollLen) + 'px';

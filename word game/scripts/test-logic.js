@@ -1039,6 +1039,87 @@ console.log('\nHindsight — the best play behind the meter\n');
     'Hindsight would outlive the move it is about, or be lost on reload');
 })();
 
+// ── Hindsight lasts only until the opponent replies ─────────────────────────────────────────
+// It is about the play you just made. Once the opponent has moved (play, pass or exchange — any of
+// which hands the turn back), the lightbulb goes; it used to sit beside Replay until your next move.
+console.log('\nHindsight — gone once the opponent has moved\n');
+
+(function () {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const c = { window: { tutorialMode: false }, gameOver: false, pendingPlacements: {}, pendingRemovals: new Set() };
+  vm.createContext(c);
+  vm.runInContext(grabFunction('canShowHindsight'), c);
+  c.currentPlayer = 'ai';
+  ok('offered while you wait on the opponent', c.canShowHindsight() === true, '');
+  c.currentPlayer = 'player';
+  ok('gone once the opponent has moved and it is your turn again', c.canShowHindsight() === false, '');
+  c.currentPlayer = 'ai'; c.gameOver = true;
+  ok('gone when the game is over', c.canShowHindsight() === false, '');
+  const area = src.slice(src.indexOf('<div id="strength-area">'), src.indexOf('<div id="rack">'));
+  ok('the button sits in the strength meter row and swaps places with the meter',
+    area.includes('id="hindsight-btn"') &&
+    /getElementById\('strength-area'\)\?\.classList\.toggle\('hindsight', \(!!h && canShowHindsight\(\)\) \|\| showing\)/.test(src) &&
+    /#strength-area\.hindsight #strength-track/.test(src) && /background: #7b2ff7;/.test(src),
+    'Hindsight is no longer standing in for the meter');
+})();
+
+// ── A notification tap opens the game it is about ───────────────────────────────────────────
+// Tapping a "your turn" notification resumes the app, and the resume starts a server refresh of
+// the game you had left. That refresh used to land after the tap had opened the new game, restart
+// the listener for the OLD game and put it back on screen. Each async step now checks that its
+// game is still the one open.
+console.log('\nNotification tap — the old game does not take the screen back\n');
+
+inSequence(async () => {
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  let release, started = [];
+  const c = {
+    console, _lastAppliedUpdate: 0, onlineGameId: 'AAAA', onlineUnsubscribe: () => {},
+    startOnlineListener: id => { started.push(id); },
+    db: { collection: () => ({ doc: () => ({ get: () => new Promise(r => { release = r; }) }) }) },
+  };
+  vm.createContext(c);
+  vm.runInContext('async ' + grabFunction('resyncOnlineGame'), c);
+  const resync = c.resyncOnlineGame('AAAA');          // resume: refresh the game you left
+  c.onlineGameId = 'BBBB';                              // the tap opens the other game meanwhile
+  release({ exists: true, data: () => ({ status: 'active', lastUpdated: { toMillis: () => 5 } }) });
+  await resync;
+  ok('a late refresh of the game you left does not restart its listener', started.length === 0,
+    'restarted listener for ' + started.join(', '));
+
+  // A listener whose game is no longer on screen paints nothing.
+  let onSnap, painted = false;
+  const d = {
+    onlineGameId: 'BBBB', onlineUnsubscribe: null, myOnlineRole: 'p1',
+    db: { collection: () => ({ doc: () => ({ onSnapshot: cb => { onSnap = cb; return () => {}; } }) }) },
+    document: { getElementById: () => ({ set textContent(v) { painted = true; }, classList: { contains: () => true } }) },
+  };
+  vm.createContext(d);
+  vm.runInContext(grabFunction('startOnlineListener'), d);
+  d.startOnlineListener('AAAA');
+  d.onlineGameId = 'BBBB';
+  onSnap({ exists: true, data: () => ({ status: 'waiting', players: { p2: { name: 'Old' } } }) });
+  ok('a snapshot for a game no longer open is ignored', painted === false, 'the old game painted the screen');
+  d.startOnlineListener('BBBB');
+  onSnap({ exists: true, data: () => ({ status: 'waiting', players: { p2: { name: 'New' } } }) });
+  ok('the open game still gets its snapshots', painted === true, 'the open game was ignored too');
+
+  ok('a game load that is overtaken by another stops, and push listeners go on once',
+    /\/\/ Opened another game while this one loaded[^\n]*\n\s*if \(onlineGameId !== gameId\) return;/.test(grabFunction('loadOnlineGame')) &&
+    /if \(_nativePushListening\) \{ await Push\.register\(\); return; \}\s*_nativePushListening = true;/.test(src),
+    'loadOnlineGame lost its guard, or registerNativePush can stack listeners again');
+});
+
 // ── The AI's swaps and steals score by the player's rules ────────────────────────────────
 // The AI banks its search's score, and its searches used stingier rules than a player's play: its swap square
 // never took its DW/TW, and the tile it took (swapped in or stolen) got no letter bonus — and any word whose only

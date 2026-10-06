@@ -254,7 +254,7 @@ body {
   -webkit-hyphens: none;
   hyphens: none;
 }
-#replay-btn, #hindsight-btn {
+#replay-btn {
   flex: 0 0 52px;
   display: none;
   align-items: center;
@@ -265,9 +265,7 @@ body {
   cursor: pointer;
   color: #fff;
 }
-#replay-btn.visible, #hindsight-btn.visible { display: flex; }
-/* Side by side with Replay the two read as one dark box; the hairline keeps them two buttons. */
-#replay-btn.visible + #hindsight-btn.visible { box-shadow: inset 1px 0 0 rgba(255,255,255,0.08); }
+#replay-btn.visible { display: flex; }
 /* Exit sits at the far end of the bar during the tutorial, mirroring the replay button.
    Below the rack it was grey-on-dark and easy to miss. */
 #tut-exit-btn {
@@ -286,13 +284,8 @@ body {
 }
 #tut-exit-btn.visible { display: flex; }
 #replay-btn svg { width: 19px; height: 19px; display: block; }
-/* Same drawn stroke as Replay: 1 unit = 1.13px in both (Replay is 19px over 16.8 units). */
-#hindsight-btn svg { width: 18.2px; height: 21.7px; display: block; overflow: visible; }
-#replay-btn:active svg, #hindsight-btn:active svg { transform: scale(0.9); }
-#replay-btn.playing svg, #hindsight-btn.playing svg { opacity: 0.55; }
-/* Greyed out while the search runs, and for good when the play was already the best one. */
-#hindsight-btn:disabled { cursor: default; }
-#hindsight-btn:disabled svg { opacity: 0.3; transform: none; }
+#replay-btn:active svg { transform: scale(0.9); }
+#replay-btn.playing svg { opacity: 0.55; }
 /* Success and narration share one colour; red stays reserved for rejections. */
 #msg-bar.good #msg-text { color: var(--msg-info); }
 /* White, not red: red-on-purple was the least readable pairing in the whole UI, and
@@ -432,6 +425,7 @@ body {
 }
 
 #strength-area {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -463,6 +457,43 @@ body {
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+/* Hindsight takes the meter's place from your play until the opponent replies (or you start
+   laying tiles down again). The meter is hidden, not removed, so the row keeps its height and
+   "tiles left" stays put. The tab runs up into the board wrapper's 6px bottom padding. */
+#strength-area.hindsight #strength-label,
+#strength-area.hindsight #strength-track,
+#strength-area.hindsight #strength-pct { visibility: hidden; }
+#hindsight-btn {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 7px;
+  background: #7b2ff7;
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#strength-area.hindsight #hindsight-btn { display: flex; }
+/* 1 unit = 1.5px, the drawn stroke of the icons below the rack. */
+#hindsight-btn svg { width: 21.6px; height: 12.1px; display: block; overflow: visible; }
+#hindsight-btn:active svg { transform: scale(0.9); }
+#hindsight-btn.playing svg, #hindsight-btn.playing span { opacity: 0.55; }
+/* Dimmed while the search runs, and for good when the play was already the best one. */
+#hindsight-btn:disabled { cursor: default; }
+#hindsight-btn:disabled svg, #hindsight-btn:disabled span { opacity: 0.4; transform: none; }
 #strength-fill {
   height: 100%;
   width: 0%;
@@ -2548,15 +2579,6 @@ body {
       <polyline points="15.48187 1.70549 15.33198 4.29596 12.74151 4.14607"/>
     </svg>
   </button>
-  <button id="hindsight-btn" type="button" aria-label="Show the best play you could have made" onclick="toggleHindsight()">
-    <svg viewBox="0 0 16.06024 19.21005" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M8.80897,15.6375v1.84353c0,.3394-.27512.61451-.61451.61451h-1.84353c-.3394,0-.61451-.27511-.61451-.61451v-1.84353"/>
-      <path d="M7.8872,18.09554c0,.3394-.27512.61451-.61451.61451s-.61451-.27511-.61451-.61451"/>
-      <path d="M7.27269,4.57631c2.54539,0,4.60883,2.06344,4.60883,4.60883,0,1.33961-.57217,2.54466-1.48506,3.38623-.62462.57586-.97298,1.39119-.97298,2.24075v.21087c0,.3394-.27512.61451-.61451.61451h-3.07255c-.3394,0-.61451-.27511-.61451-.61451v-.21087c0-.84956-.34837-1.66489-.97299-2.24075-.91289-.84157-1.48505-2.04663-1.48505-3.38623,0-2.54539,2.06343-4.60883,4.60883-4.60883Z"/>
-      <path d="M15.56024,9.01621C15.56024,4.31486,11.74538.5,7.04403.5,4.6834.5,2.55186,1.45621,1.00798,3.00008"/>
-      <polyline points="3.27897 3.59771 .5 3.59771 .5 .80877"/>
-    </svg>
-  </button>
   <span id="msg-text"></span>
   <button id="tut-exit-btn" type="button" onclick="closeTutorial()">Exit tutorial</button>
 </div>
@@ -2570,6 +2592,15 @@ body {
     <span id="strength-label">Word Strength</span>
     <div id="strength-track"><div id="strength-fill"></div></div>
     <span id="strength-pct"></span>
+    <button id="hindsight-btn" type="button" aria-label="Hindsight: show the best play you could have made" onclick="toggleHindsight()">
+      <svg viewBox="0 0 14.3857 8.04653" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12.90288,7.54653H1.48283c-.57809,0-1.0313-.49653-.97867-1.07222l.27503-3.00852c.04626-.50598.47058-.89328.97867-.89328h10.86998c.50809,0,.93241.3873.97867.89328l.27503,3.00852c.05263.57568-.40058,1.07222-.97866,1.07222Z"/>
+        <line x1="2.27335" y1="5.05952" x2="3.56291" y2="6.34908"/>
+        <line x1="3.19447" y1="3.81601" x2="5.35909" y2="5.93457"/>
+        <line x1="7.1092" y1="2.29617" x2="7.1092" y2=".5"/>
+      </svg>
+      <span>Hindsight</span>
+    </button>
     <span id="tiles-left-inline"><span id="bag-num">100</span> tiles left</span>
   </div>
   <div id="rack"></div>
@@ -5372,8 +5403,7 @@ function updateReplayButton() {
   const btn = document.getElementById('replay-btn');
   if (!btn) return;
   const h = currentHindsight();
-  // Your own move needs no replay — you just made it — so Hindsight stands in for it.
-  // Replay is for the opponent's move, and then the two sit side by side.
+  // Your own move needs no replay — you just made it. Replay is for the opponent's move.
   const lastIsMine = !!h && h.moveSig === _moveSig(lastMoveKeys);
   const replaying = replayState.active && replayState.mode !== 'hindsight';
   btn.classList.toggle('visible', (canReplayLastMove() && !lastIsMine) || replaying);
@@ -5382,7 +5412,8 @@ function updateReplayButton() {
   const hb = document.getElementById('hindsight-btn');
   if (!hb) return;
   const showing = replayState.active && replayState.mode === 'hindsight';
-  hb.classList.toggle('visible', (!!h && canShowHindsight()) || showing);
+  // It stands in for the strength meter: laying tiles down (canShowHindsight) brings the meter back.
+  document.getElementById('strength-area')?.classList.toggle('hindsight', (!!h && canShowHindsight()) || showing);
   hb.classList.toggle('playing', showing);
   hb.disabled = !showing && !hindsightBeatsPlay(h);
 }
@@ -5487,8 +5518,8 @@ function stopReplay() {
 // After a play, the best one the player's rack had: the strength meter's own search on the
 // position it measured them on, so it is the play that would have read 100%. Swaps and
 // steals they made that turn are part of that position; ones they didn't make aren't tried.
-// The position and rack are saved when the play is submitted, so it can still be shown after
-// the opponent has moved. It lasts until the player's next move (play, pass or exchange).
+// It is offered only until the opponent replies; the record itself lasts until the player's
+// next move (play, pass or exchange), so leaving the game and coming back mid-wait keeps it.
 // Online it is kept per game in this device's localStorage, never sent to the opponent; an
 // AI game keeps it in its own save.
 const HINDSIGHT_KEY  = 'reword_hindsight';
@@ -5522,8 +5553,10 @@ function currentHindsight() {
   return hindsight;
 }
 
+// Only between your play and the opponent's reply: once they have moved (a play, pass or
+// exchange hands the turn back), the moment has passed and the lightbulb goes.
 function canShowHindsight() {
-  return !window.tutorialMode && !gameOver
+  return !window.tutorialMode && !gameOver && currentPlayer !== 'player'
     && Object.keys(pendingPlacements).length === 0 && pendingRemovals.size === 0;
 }
 // Is there anything to show? Not while the search runs, and not when the play was already the best.
@@ -8745,6 +8778,10 @@ async function resyncOnlineGame(gameId) {
   if (!onlineUnsubscribe) startOnlineListener(gameId);
   try {
     const snap = await db.collection('games').doc(gameId).get({ source: 'server' });
+    // Another game was opened while this read was out — typically a notification tap, which
+    // arrives together with the resume that started this. Restarting the listener here
+    // would put the game you had left back on screen over the one you tapped.
+    if (onlineGameId !== gameId) return;
     if (!snap.exists) return;
     const data = snap.data();
     const stamp = data.lastUpdated?.toMillis?.() || 0;
@@ -9013,6 +9050,8 @@ async function saveOnlineState(action = null) {
 function startOnlineListener(gameId) {
   if (onlineUnsubscribe) { onlineUnsubscribe(); onlineUnsubscribe = null; }
   onlineUnsubscribe = db.collection('games').doc(gameId).onSnapshot(snap => {
+    // A listener for a game no longer on screen (one torn down mid-delivery) must not paint it.
+    if (onlineGameId !== gameId) return;
     if (!snap.exists) return;
     const data = snap.data();
 
@@ -9548,6 +9587,8 @@ async function loadOnlineGame(gameId, myRole) {
     } catch (e) {
       snap = await db.collection('games').doc(gameId).get();
     }
+    // Opened another game while this one loaded (two quick taps, or a notification): that one wins.
+    if (onlineGameId !== gameId) return;
     if (!snap.exists) {
       // Don't immediately wipe the stored game — the document may be
       // temporarily unavailable. Only remove it if the game is explicitly
@@ -9959,6 +10000,7 @@ function notifyYourTurn(opName) {
 
 // ── Native APNs push (Capacitor) ──────────────────────
 let myApnsToken = null;
+let _nativePushListening = false;
 
 async function registerNativePush() {
   const Push = window.Capacitor?.Plugins?.PushNotifications;
@@ -9966,6 +10008,10 @@ async function registerNativePush() {
   try {
     const { receive } = await Push.requestPermissions();
     if (receive !== 'granted') return;
+    // This runs on startup and again from showNotifPrompt. The listeners go on once: a second
+    // set made every notification tap load its game twice.
+    if (_nativePushListening) { await Push.register(); return; }
+    _nativePushListening = true;
     Push.addListener('registration', async (token) => {
       myApnsToken = token.value;
       console.log('[Push] APNs token:', myApnsToken?.slice(0, 20) + '…');

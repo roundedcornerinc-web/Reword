@@ -391,9 +391,18 @@ body {
 }
 .tile-letter {
   color: var(--tile-text);
-  font-weight: 900;
-  font-size: clamp(9px, 2.6vw, 15px);
+  font-weight: 700;
+  font-size: clamp(16px, 5.4vw, 27px);
   line-height: 1;
+}
+.cell .tile-on-board { padding-top: 1px; padding-bottom: 0; box-sizing: border-box; }
+.cell .tile-on-board .tile-val {
+  position: absolute;
+  right: 1.5px;
+  top: 1px;
+  padding-right: 0;
+  font-size: clamp(5px, 1.5vw, 8px);
+  font-weight: 800;
 }
 .tile-val {
   color: var(--tile-text);
@@ -466,34 +475,36 @@ body {
 #hindsight-btn {
   position: absolute;
   left: 50%;
-  top: -6px;
-  bottom: 0;
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: none;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 0 7px;
-  background: #7b2ff7;
+  gap: 8px;
+  height: 23px;
+  padding: 0 9px;
+  background: #74d71f;
   border: none;
-  color: #fff;
+  border-radius: 4px;
+  color: #1a1030;
   font-family: inherit;
   font-size: 0.6rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
   touch-action: manipulation;
 }
 #strength-area.hindsight #hindsight-btn { display: flex; }
-/* 1 unit = 1.5px, the drawn stroke of the icons below the rack. */
-#hindsight-btn svg { width: 21.6px; height: 12.1px; display: block; overflow: visible; }
-#hindsight-btn:active svg { transform: scale(0.9); }
+#hindsight-btn svg { width: 32px; height: 12px; display: block; overflow: visible; }
+#hindsight-btn:active { transform: translate(-50%, -50%) scale(0.96); }
 #hindsight-btn.playing svg, #hindsight-btn.playing span { opacity: 0.55; }
 /* Dimmed while the search runs, and for good when the play was already the best one. */
 #hindsight-btn:disabled { cursor: default; }
-#hindsight-btn:disabled svg, #hindsight-btn:disabled span { opacity: 0.4; transform: none; }
+#hindsight-btn:disabled svg, #hindsight-btn:disabled span { opacity: 0.4; }
+#hindsight-btn:disabled:active { transform: translate(-50%, -50%); }
 #strength-fill {
   height: 100%;
   width: 0%;
@@ -556,8 +567,8 @@ body {
 }
 /* Fonts scale with the tile so a shrunken rack stays legible instead of overflowing its tiles.
    The ratios reproduce the original 1.69rem / 0.6rem at the full 46px width. */
-.rack-tile .tile-letter { font-size: calc(var(--rack-tile-w, 46px) * 0.588); color: var(--tile-text); }
-.rack-tile .tile-val { font-size: calc(var(--rack-tile-w, 46px) * 0.209); color: var(--tile-text); opacity: 0.7; position: absolute; right: 4px; bottom: 3px; }
+.rack-tile .tile-letter { font-size: calc(var(--rack-tile-w, 46px) * 0.74); font-weight: 700; color: var(--tile-text); }
+.rack-tile .tile-val { font-size: calc(var(--rack-tile-w, 46px) * 0.209); color: var(--tile-text); opacity: 0.7; position: absolute; right: 4px; top: 3px; }
 .rack-tile.empty-slot { background: rgba(255,255,255,0.06); box-shadow: none; cursor: default; border: 2px dashed rgba(255,255,255,0.15); }
 .rack-tile.empty-slot:hover { transform: none; }
 
@@ -2593,13 +2604,14 @@ body {
     <div id="strength-track"><div id="strength-fill"></div></div>
     <span id="strength-pct"></span>
     <button id="hindsight-btn" type="button" aria-label="Hindsight: show the best play you could have made" onclick="toggleHindsight()">
-      <svg viewBox="0 0 14.3857 8.04653" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12.90288,7.54653H1.48283c-.57809,0-1.0313-.49653-.97867-1.07222l.27503-3.00852c.04626-.50598.47058-.89328.97867-.89328h10.86998c.50809,0,.93241.3873.97867.89328l.27503,3.00852c.05263.57568-.40058,1.07222-.97866,1.07222Z"/>
-        <line x1="2.27335" y1="5.05952" x2="3.56291" y2="6.34908"/>
-        <line x1="3.19447" y1="3.81601" x2="5.35909" y2="5.93457"/>
-        <line x1="7.1092" y1="2.29617" x2="7.1092" y2=".5"/>
-      </svg>
       <span>Hindsight</span>
+      <svg viewBox="0 0 15.94713 5.98238" fill="none" stroke="currentColor" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="4.32683" cy="2.99119" r="2.49119"/>
+        <circle cx="11.86244" cy="2.99119" r="2.49119"/>
+        <path d="M6.82128,2.88231c0-.51119.5701-.92559,1.27336-.92559s1.27336.4144,1.27336.92559"/>
+        <line x1="14.37043" y1="2.46339" x2="15.44713" y2="2.46339"/>
+        <line x1=".5" y1="2.46339" x2="1.5767" y2="2.46339"/>
+      </svg>
     </button>
     <span id="tiles-left-inline"><span id="bag-num">100</span> tiles left</span>
   </div>

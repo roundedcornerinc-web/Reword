@@ -799,6 +799,15 @@ console.log('\nMore menu — nothing opens it but the MORE button\n');
     !/showConfirmSheet\([^)]*openMoreMenu/.test(src) && !/openMoreMenu\s*\)/.test(src.replace(/function openMoreMenu\s*\(\s*\)/g, '')),
     'a showConfirmSheet call still passes openMoreMenu as its cancel callback');
 
+  // A play counting down locks the icon row, so MORE must not open the menu then, and starting the
+  // countdown must put away a menu that is already up.
+  ok('MORE does nothing while a play counts down',
+    /if \(_playCountdown\) return;/.test(grabFunction('toggleMoreMenu')),
+    'toggleMoreMenu does not return early while _playCountdown is set');
+  ok('starting the countdown closes the menu',
+    grabFunction('onPlayButton').includes('closeMoreMenu()'),
+    'onPlayButton does not call closeMoreMenu()');
+
   // Leaving the game screen must drop the menu, or it survives into the next screen and
   // no tap will clear it — which is what forced an app restart.
   ok('leaving for the home screen closes the menu',
@@ -1061,10 +1070,10 @@ console.log('\nHindsight — gone once the opponent has moved\n');
   c.currentPlayer = 'ai'; c.gameOver = true;
   ok('gone when the game is over', c.canShowHindsight() === false, '');
   const area = src.slice(src.indexOf('<div id="strength-area">'), src.indexOf('<div id="rack">'));
-  ok('the button sits in the strength meter row and swaps places with the meter',
+  ok('the button sits in the strength meter row, swaps places with the meter, and shows only when the play was beaten',
     area.includes('id="hindsight-btn"') &&
-    /getElementById\('strength-area'\)\?\.classList\.toggle\('hindsight', \(!!h && canShowHindsight\(\)\) \|\| showing\)/.test(src) &&
-    /#strength-area\.hindsight #strength-track/.test(src) && /background: #7b2ff7;/.test(src),
+    /getElementById\('strength-area'\)\?\.classList\.toggle\('hindsight', \(!!h && canShowHindsight\(\) && hindsightBeatsPlay\(h\)\) \|\| showing\)/.test(src) &&
+    /#strength-area\.hindsight #strength-track/.test(src) && /#hindsight-btn \{[^}]*background: #110b2f;/.test(src),
     'Hindsight is no longer standing in for the meter');
 })();
 
@@ -1566,8 +1575,8 @@ console.log('\nScoreboard names — fitted in fractions, re-fitted when the room
 
   // The pad has to be resettable: an inline width can't be put back with style.width = ''.
   ok('the right-hand pad is CSS and addressable, so the fit can narrow and restore it',
-    /<div id="score-right-pad"><\/div>/.test(src) && /#score-right-pad\s*\{[^}]*width:\s*22px/.test(src) &&
-    !/<div style="width:22px;flex-shrink:0;"><\/div>/.test(src) && /score-right-pad/.test(codeOnly(grabFunction('fitNameLabels'))),
+    /<div id="score-right-pad"><\/div>/.test(src) && /#score-right-pad\s*\{[^}]*width:\s*8px/.test(src) &&
+    !/<div style="width:22px;flex-shrink:0;"><\/div>/.test(src) && /score-right-pad/.test(codeOnly(grabFunction('_fitNameLabels'))),
     'the pad is an inline-styled div again, or fitNameLabels no longer touches it');
 
   // The arithmetic. planNameRoom says where room comes from for names that are STILL too long
@@ -2044,7 +2053,7 @@ console.log('\nPlay — held for two seconds before it goes through\n');
       pendingPlacements: { '7,7': { letter: 'C', rackIdx: 0 }, '7,8': { letter: 'A', rackIdx: 1 } },
       pendingRemovals: new Set(), swapPendingPositions: new Set(), exchangeSelectedIdxs: new Set(), _nextGameQueue: [],
       gameOver: false, currentPlayer: 'player', exchangeMode: false, isOnlineMode: false,
-      confirmExchange() {}, showOtherGamesOverlay() {},
+      confirmExchange() {}, showOtherGamesOverlay() {}, closeMoreMenu() {},
       // A committed online play clears the turn and redraws, then saveOnlineState hands it to the opponent and redraws again.
       submitPlay: dry => {
         w.calls.push(dry ? 'check' : 'submit');

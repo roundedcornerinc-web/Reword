@@ -36,7 +36,7 @@
   --board-bg: #dfdfdf;
   --board-line: #ffffff;
   --tile-bg: #efd1a9;
-  --tile-text: #2c1a00;
+  --tile-text: #342711;
   --tile-placed: #e8c870;
   --tile-shadow: #b8865a;
   --tw: #d1302e;
@@ -94,6 +94,10 @@ body {
   align-items: stretch;
   justify-content: space-between;
   gap: 6px;
+  /* The room the smaller logo gave up (151 to 106px, 22px a side) goes to the left edge. The
+     right side has no padding of its own: #score-right-pad already holds that 22px, and keeping
+     it there leaves it for fitNameLabels() to borrow. */
+  padding: 0 0 0 22px;
 }
 #score-left, #score-right { align-items: center; }
 #game-title { align-self: center; }
@@ -111,10 +115,10 @@ body {
   justify-content: flex-end;
   flex: 1;
 }
-/* Mirrors the home button on the left so the two scores sit the same distance from their
-   edges. It is CSS rather than an inline width so fitNameLabels() can narrow it, and put it
-   back, when the opponent's name needs the room. */
-#score-right-pad { width: 22px; flex-shrink: 0; }
+/* A little room at the opponent's right edge. It was 22px, mirroring the home button, until the
+   opponent's score was moved out toward the edge. It is CSS rather than an inline width so
+   fitNameLabels() can narrow it, and put it back, when the opponent's name needs the room. */
+#score-right-pad { width: 8px; flex-shrink: 0; }
 
 #btn-home {
   background: none;
@@ -124,6 +128,10 @@ body {
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  /* Back where it was, at the header's edge; the scoreboard's side padding moves the scores,
+     not this arrow. Shifted rather than margined so the score keeps its place. */
+  position: relative;
+  left: -22px;
 }
 
 #game-title {
@@ -132,6 +140,9 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  /* Centred on the score digits rather than on the digits-plus-name block, which sat it low. */
+  position: relative;
+  top: -8px;
 }
 .turn-arrow { display: none; align-items: center; }
 .turn-arrow svg { width: 8px; height: auto; }
@@ -140,7 +151,9 @@ body {
 #panel-player, #panel-ai { transition: opacity 0.3s; }
 
 #game-logo-img {
-  width: 151px;
+  /* 106px on a 375pt phone (SE) grows one-for-one with the screen, so the gap between the
+     logo and the scores stays about the same, up to its full 151px at 420pt. */
+  width: clamp(106px, calc(100vw - 269px), 151px);
   height: auto;
   display: block;
 }
@@ -158,9 +171,9 @@ body {
 .score-panel {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
 }
-#panel-ai { align-items: flex-end; }
+#panel-ai { align-items: center; }
 
 .score-panel .pts { font-size: 34px; font-weight: 400; font-family: 'Segoe UI', system-ui, sans-serif; color: #fff; line-height: 1; }
 
@@ -193,7 +206,7 @@ body {
   align-items: center;
   gap: 5px;
   margin-top: 2px;
-  justify-content: flex-end;
+  justify-content: center;
   max-width: 100%;
   min-width: 0;
 }
@@ -238,9 +251,9 @@ body {
   line-height: 1.35;
   background: #3c2d75;
   color: #ccc;
-  text-align: left;
+  text-align: center;
 }
-/* Left-aligned against the replay button, and vertically centred in the two-line box so
+/* Centred in the space beside the replay button, and vertically centred in the two-line box so
    the common one-line message doesn't sit high. balance evens the two lines out, which is
    what keeps a single stranded word off the second line; breaking is word-only. */
 #msg-text {
@@ -248,7 +261,7 @@ body {
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   padding: 7px 10px 4px;
   text-wrap: balance;
   -webkit-hyphens: none;
@@ -484,10 +497,10 @@ body {
   gap: 8px;
   height: 23px;
   padding: 0 9px;
-  background: #74d71f;
+  background: #110b2f;
   border: none;
   border-radius: 4px;
-  color: #1a1030;
+  color: #fff;
   font-family: inherit;
   font-size: 0.6rem;
   font-weight: 500;
@@ -586,8 +599,8 @@ body {
   animation: pulse 1s ease-in-out infinite alternate;
   flex-shrink: 0;
 }
-.held-tile .tile-letter { font-size: 1.2rem; color: #2c1a00; }
-.held-tile .tile-val { font-size: 0.6rem; color: #2c1a00; opacity: 0.7; align-self: flex-end; padding-right: 2px; }
+.held-tile .tile-letter { font-size: 1.2rem; color: #342711; }
+.held-tile .tile-val { font-size: 0.6rem; color: #342711; opacity: 0.7; align-self: flex-end; padding-right: 2px; }
 .held-tile.held-selected {
   background: #fff176;
   box-shadow: 0 3px 0 #a08000, 0 0 12px rgba(255,220,0,0.9);
@@ -825,6 +838,14 @@ body {
 }
 .ngc-btn-human { background: var(--btn-primary); color: #fff; }
 .ngc-btn-ai    { background: #2a1a5e; color: #aaa; }
+.ngc-friend-list { max-height: 38vh; overflow-y: auto; margin-bottom: 12px; -webkit-overflow-scrolling: touch; }
+.ngc-friend-btn {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 18px; margin-bottom: 8px; border-radius: 18px; border: none; cursor: pointer;
+  background: #2a1a5e; color: #fff; font-family: inherit; text-align: left; touch-action: manipulation;
+}
+.ngc-friend-name { font-size: 1rem; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ngc-friend-meta { font-size: 0.7rem; color: #9a8fc4; flex-shrink: 0; }
 .ngc-skill-row { display: flex; gap: 10px; margin-bottom: 12px; }
 .ngc-skill-btn {
   flex: 1; height: 52px; border-radius: 26px; border: 2px solid rgba(255,255,255,0.12);
@@ -1091,7 +1112,7 @@ body {
 #blank-picker.show #blank-picker-inner { transform:translateY(0); }
 #blank-picker-title { text-align:center; color:#fff; font-weight:800; font-size:0.9rem; margin-bottom:12px; letter-spacing:0.5px; }
 #blank-picker-letters { display:grid; grid-template-columns:repeat(9,1fr); gap:5px; }
-.blank-letter-btn { background:#f5deb3; color:#2c1a00; border:none; border-radius:5px; padding:7px 2px; font-size:0.85rem; font-weight:800; cursor:pointer; }
+.blank-letter-btn { background:#f5deb3; color:#342711; border:none; border-radius:5px; padding:7px 2px; font-size:0.85rem; font-weight:800; cursor:pointer; }
 .blank-letter-btn:hover { background:#e8c870; }
 /* The letter a placed blank is playing as now, when it is tapped or dragged to be picked again. */
 .blank-letter-btn.current { background:#d4a0ff; box-shadow: inset 0 -2px 0 #7b2ff7; }
@@ -1160,8 +1181,17 @@ body {
   gap: 0;
   pointer-events: auto;
   transform: translateY(100%);
-  transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
+  /* Closed, the menu is parked below #more-menu-clip's edge and only the clip's overflow:hidden hides
+     it. On iOS 27 that clip is dropped for a moment when the play countdown dims the board (the
+     opacity transitions re-composite the layers), and the closed menu shows over the rack. So it is
+     also visibility:hidden when closed, switched off only once the slide down has finished. */
+  visibility: hidden;
+  transition: transform 0.28s cubic-bezier(0.22,1,0.36,1), visibility 0s linear 0.28s;
   box-shadow: none;
+}
+#more-menu.show {
+  visibility: visible;
+  transition: transform 0.28s cubic-bezier(0.22,1,0.36,1), visibility 0s;
 }
 #more-menu-header {
   display: flex;
@@ -1946,7 +1976,7 @@ body {
    and type as the lettered tiles. */
 .stat-tile.blank { position: relative; }
 .stat-tile.blank img, .stat-tile.blank svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.stat-tile.blank text { fill: #2c1a00; font-family: 'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif; }
+.stat-tile.blank text { fill: #342711; font-family: 'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif; }
 .stat-tile.blank .tl { font-size: 70.6px; font-weight: 900; text-anchor: middle; dominant-baseline: central; }
 .stat-tile.blank .tv { font-size: 25.1px; font-weight: 700; fill-opacity: 0.7; text-anchor: end; }
 .stat-tile-score-badge {
@@ -3474,6 +3504,7 @@ function onPlayButton() {
   const now = Date.now();
   _playCountdown = { startedAt: now, deadline: now + PLAY_COUNTDOWN_MS, sig: playSignature(), timer: setInterval(tickPlayCountdown, 100) };
   document.getElementById('game-screen').classList.add('play-pending');
+  closeMoreMenu();   // a menu already up (or opened by a stray tap) must not stay over a counting play
   updatePlayButton();
 }
 
@@ -4445,6 +4476,14 @@ function onPendingTileDrop(r, c, fromKey) {
 let touchDragIdx  = null; // rack tile index for touch drag
 let touchStartPt  = null; // where the finger went down, so a tap can be told from a drag
 let touchGhost    = null;
+// A new drag must never leave the previous ghost behind: a second touchstart before the first touchend
+// (second finger, or a touch the picker overlay swallowed) used to overwrite the variable and strand the
+// old ghost on the board as a bare letter. The blank picker clears it too — a drag is over once it opens.
+function clearTouchGhost() { if (touchGhost) { touchGhost.remove(); touchGhost = null; } }
+// The ghost belongs to a drag in progress. If a redraw finds one with no drag behind it (a touchend that
+// never arrived), it is stranded: take it down. Called from renderBoard, so picking a blank's letter,
+// which redraws, always clears one.
+function dropStrandedGhost() { if (touchGhost && touchPendingKey == null && touchDragIdx === null) clearTouchGhost(); }
 let _dropTargetTimer = null; // debounce: only show drop-target after finger pauses
 
 function onTouchStart(e, idx) {
@@ -4474,6 +4513,7 @@ function onTouchStart(e, idx) {
   const _srcRect = document.getElementById('rack')?.querySelectorAll('.rack-tile')[idx]?.getBoundingClientRect();
   const _gw = Math.round(_srcRect?.width  || 46);
   const _gh = Math.round(_srcRect?.height || 52);
+  clearTouchGhost();
   touchGhost = document.createElement('div');
   touchGhost.className = 'rack-tile';
   touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;width:${_gw}px;height:${_gh}px;transform:translate(-50%,-50%);transition:none;`;
@@ -4663,6 +4703,7 @@ function onPendingTouchStart(e, key) {
   touchPendingStartX = t.clientX;
   touchPendingStartY = t.clientY;
 
+  clearTouchGhost();
   touchGhost = document.createElement('div');
   touchGhost.className = 'tile-on-board ' + (pending.isSwap ? 'is-swap' : 'is-new');
   touchGhost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.85;width:34px;height:34px;border-radius:4px;inset:unset;transform:translate(-50%,-50%);transition:none;display:flex;flex-direction:column;align-items:center;justify-content:center;`;
@@ -5425,7 +5466,7 @@ function updateReplayButton() {
   if (!hb) return;
   const showing = replayState.active && replayState.mode === 'hindsight';
   // It stands in for the strength meter: laying tiles down (canShowHindsight) brings the meter back.
-  document.getElementById('strength-area')?.classList.toggle('hindsight', (!!h && canShowHindsight()) || showing);
+  document.getElementById('strength-area')?.classList.toggle('hindsight', (!!h && canShowHindsight() && hindsightBeatsPlay(h)) || showing);
   hb.classList.toggle('playing', showing);
   hb.disabled = !showing && !hindsightBeatsPlay(h);
 }
@@ -5679,6 +5720,7 @@ function toggleHindsight() {
 }
 
 function renderBoard() {
+  if (typeof dropStrandedGhost === 'function') dropStrandedGhost();
   const boardEl = document.getElementById('board');
   boardEl.innerHTML = '';
   // During a replay the board is a read-only picture of a moment in the last move: it draws
@@ -6158,7 +6200,7 @@ function _fitOneName(el, gap) {
   return Math.max(0, _textWidth(el) - avail);
 }
 
-function fitNameLabels() {
+function _fitNameLabels() {
   const logo = document.getElementById('game-logo-img');
   const pad  = document.getElementById('score-right-pad');
   const opp  = document.getElementById('ai-name-display');
@@ -6180,6 +6222,27 @@ function fitNameLabels() {
   if (pad  && padGive  > 0) pad.style.width  = (padMax - padGive) + 'px';
   fitOpp(); fitMe();   // now that there is room, settle on the largest size that fits
 }
+
+// Puts the logo midway between the two score numbers, not the name blocks under them, so equal
+// digit counts leave equal gaps whatever the names. The columns are equal, so the logo would
+// otherwise be centred on the screen; shift it by half the difference of the two gaps.
+function centerLogoBetweenScores() {
+  const title = document.getElementById('game-title');
+  const me = document.getElementById('score-player');
+  const opp = document.getElementById('score-ai');
+  if (!title || !me || !opp) return;
+  title.style.transform = '';
+  const t = title.getBoundingClientRect(), m = me.getBoundingClientRect(), o = opp.getBoundingClientRect();
+  if (!t.width || !m.width || !o.width) return;   // laid out while hidden
+  const shift = ((o.left - t.right) - (t.left - m.right)) / 2;
+  if (Math.abs(shift) >= 0.5) title.style.transform = 'translateX(' + shift.toFixed(1) + 'px)';
+}
+function fitNameLabels() { _fitNameLabels(); centerLogoBetweenScores(); }
+// Scores change width as digits are added; transform is a style change, so this cannot loop.
+['score-player', 'score-ai'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el && window.ResizeObserver) new ResizeObserver(centerLogoBetweenScores).observe(el);
+});
 
 // The opponent name is assigned from many places, so watch the elements instead of chasing
 // every call site. Only text changes are observed — fitting sets style, which is an attribute,
@@ -6742,6 +6805,7 @@ let blankPickerOnCancel = null;
 let blankPickerTargetKey = null;
 function showBlankPicker(callback, opts) {
   const { targetKey = null, onCancel = null, current = null } = opts || {};
+  if (typeof clearTouchGhost === 'function') clearTouchGhost();
   blankPickerCallback = callback;
   blankPickerOnCancel = onCancel;
   setBlankPickerTarget(targetKey);
@@ -6754,6 +6818,7 @@ function showBlankPicker(callback, opts) {
     btn.textContent = ch;
     btn.addEventListener('click', () => {
       document.getElementById('blank-picker').classList.remove('show');
+      if (typeof clearTouchGhost === 'function') clearTouchGhost();
       // Clear the latch BEFORE running the callback. It used to be cleared after, so any
       // throw inside the callback — it runs updateUI(), so most of the render path is in
       // scope — left blankPickerCallback set with the picker already hidden. From that
@@ -7713,6 +7778,9 @@ function closeMoreMenu() {
 
 function toggleMoreMenu(e) {
   e?.stopPropagation();
+  // The icon row is locked while a play counts down (.play-pending), so a tap that reaches MORE in
+  // that window is not a real one: opening the menu now would sit over the play being made.
+  if (_playCountdown) return;
   if (isMoreMenuOpen()) closeMoreMenu(); else openMoreMenu();
 }
 
@@ -9019,8 +9087,8 @@ function applyOnlineState(data) {
       notifyYourTurn(opName);
       document.title = '🔔 Your Turn — Reword';
     } else {
-      showMsg(`Waiting for ${opponentOnlineName || 'opponent'} to play…` +
-        describeLastAction(data.lastAction, myOnlineRole, 'You'), 'info');
+      // Just what you did ("You played QUOTA for 22 points."); no "waiting for…" lead-in.
+      showMsg(describeLastAction(data.lastAction, myOnlineRole, 'You').trim(), 'info');
       document.title = 'Reword';
     }
     updateGamesBadge();
@@ -10659,7 +10727,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     fly.id = 'tut-fly';
     fly.textContent = letter;
     fly.style.cssText = 'position:fixed;z-index:185;pointer-events:none;' +
-      'background:#f5deb3;color:#2c1a00;font-weight:900;font-size:1rem;border-radius:5px;' +
+      'background:#f5deb3;color:#342711;font-weight:900;font-size:1rem;border-radius:5px;' +
       'display:flex;align-items:center;justify-content:center;' +
       'box-shadow:0 4px 12px rgba(0,0,0,0.5);' +
       'width:' + fr.width + 'px;height:' + fr.height + 'px;' +
@@ -12125,7 +12193,10 @@ function closeOtherGamesOverlay() {
   if (overlay) overlay.classList.remove('show');
 }
 
-function showNewGameChoice() {
+function showNewGameChoice(e) {
+  // Without this the click bubbles to the document's outside-tap handler, which sees
+  // the freshly opened sheet and a target that isn't inside it, and closes it again.
+  e?.stopPropagation();
   closeOtherGamesOverlay();
   ngcShowMain();
   document.getElementById('new-game-choice').classList.add('show');
@@ -12139,10 +12210,39 @@ function closeNewGameChoice() {
 function ngcShowMain() {
   document.getElementById('ngc-page-main').style.display = '';
   document.getElementById('ngc-page-skill').style.display = 'none';
+  document.getElementById('ngc-page-friend').style.display = 'none';
+}
+
+// Challenge a Friend: pick from the friend list first, or Other for someone new (the invite-link
+// flow). With no friends yet there is nothing to pick, so it goes straight to the invite flow.
+function ngcChallengeFriend() {
+  const friends = getFriends();
+  if (friends.length === 0) { ngcChallengeOther(); return; }
+  // Names come from the other player, so they are escaped before going into innerHTML.
+  document.getElementById('ngc-friend-list').innerHTML = friends.map(f => {
+    const meta = f.lastPlayed ? timeAgo(f.lastPlayed) : 'Never played';
+    return `<button class="ngc-friend-btn" onclick="event.stopPropagation();ngcPickFriend('${escHtml(f.id)}')">
+      <span class="ngc-friend-name">${escHtml(f.name)}</span><span class="ngc-friend-meta">${meta}</span>
+    </button>`;
+  }).join('');
+  document.getElementById('ngc-page-main').style.display = 'none';
+  document.getElementById('ngc-page-skill').style.display = 'none';
+  document.getElementById('ngc-page-friend').style.display = '';
+}
+
+function ngcPickFriend(friendId) {
+  closeNewGameChoice();
+  challengeFriend(friendId);
+}
+
+function ngcChallengeOther() {
+  closeNewGameChoice();
+  newOnlineGame();
 }
 
 function ngcShowSkillPicker() {
   document.getElementById('ngc-page-main').style.display = 'none';
+  document.getElementById('ngc-page-friend').style.display = 'none';
   document.getElementById('ngc-page-skill').style.display = '';
   ngcSetSkill(aiSkill || 'hard');
 }
@@ -12219,7 +12319,7 @@ async function buildOtherGameCards() {
     </div>`;
   }).join('');
 
-  const newCard = `<button class="og-new-card" onclick="showNewGameChoice()">
+  const newCard = `<button class="og-new-card" onclick="showNewGameChoice(event)">
     <span class="og-new-plus">+</span>
     <span class="og-new-lbl">Start New Game</span>
   </button>`;
@@ -12417,7 +12517,17 @@ document.addEventListener('click', e => {
       <button id="ngc-close" onclick="closeNewGameChoice()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="35.16273 2.5 18.83136 23.18971 2.5 2.5"/></svg></button>
     </div>
     <button class="ngc-btn ngc-btn-ai" onclick="ngcShowSkillPicker()">Play vs AI</button>
-    <button class="ngc-btn ngc-btn-human" onclick="closeNewGameChoice();newOnlineGame()">Challenge a Friend</button>
+    <button class="ngc-btn ngc-btn-human" onclick="ngcChallengeFriend()">Challenge a Friend</button>
+  </div>
+  <!-- Page 3: pick a friend, or Other for someone new -->
+  <div id="ngc-page-friend" style="display:none;">
+    <div id="ngc-header">
+      <button style="background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;" onclick="ngcShowMain()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="2.5 2.5 18.83136 23.18971 35.16273 2.5"/></svg></button>
+      <span id="ngc-title">Choose a Friend</span>
+      <button style="background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;" onclick="closeNewGameChoice()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="35.16273 2.5 18.83136 23.18971 2.5 2.5"/></svg></button>
+    </div>
+    <div class="ngc-friend-list" id="ngc-friend-list"></div>
+    <button class="ngc-btn ngc-btn-human" onclick="ngcChallengeOther()">Other</button>
   </div>
   <!-- Page 2: skill picker -->
   <div id="ngc-page-skill" style="display:none;">

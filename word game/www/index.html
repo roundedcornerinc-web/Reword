@@ -1264,6 +1264,34 @@ body {
   text-align: center;
 }
 #confirm-sheet.show { transform: translateY(0); }
+#psheet-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 502; }
+#psheet-overlay.show { display: block; }
+#psheet {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: #1a1040;
+  border-radius: 20px 20px 0 0;
+  padding: 24px 24px calc(28px + env(safe-area-inset-bottom, 0px));
+  z-index: 503;
+  transform: translateY(100%);
+  visibility: hidden;
+  transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), visibility 0s linear 0.25s;
+  text-align: center;
+}
+#psheet.show { transform: translateY(0); visibility: visible; transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), visibility 0s; }
+#psheet-title { color: #fff; font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+#psheet-sub { color: #aaa; font-size: 0.8rem; margin-bottom: 18px; }
+#psheet-btns { display: flex; flex-direction: column; gap: 10px; max-height: 40vh; overflow-y: auto; }
+.psheet-btn, #psheet-cancel {
+  width: 100%; border: none; border-radius: 14px; padding: 14px;
+  font-size: 0.9rem; font-weight: 700; cursor: pointer; font-family: inherit;
+  background: #7b2ff7; color: #fff; touch-action: manipulation;
+}
+.psheet-btn.danger { background: #c0334b; }
+#psheet-cancel { margin-top: 10px; background: rgba(255,255,255,0.1); }
+.friend-more-btn {
+  background: none; border: none; color: #9b8ec4; font-size: 1.4rem; line-height: 1;
+  padding: 6px 10px; margin-right: 2px; cursor: pointer; touch-action: manipulation;
+}
 #confirm-sheet-msg {
   color: #fff;
   font-size: 1rem;
@@ -1369,6 +1397,10 @@ body {
 }
 #modal h2 { font-size: 1.5rem; font-weight: 600; color: #fff; margin: 0 0 6px; }
 #modal .go-emoji { font-size: 2rem; display: block; margin-bottom: 8px; }
+#modal .go-star {
+  display: block; width: 84px; height: auto; margin: 0 auto 6px;
+  filter: drop-shadow(0 0 14px rgba(255,200,60,0.55)) drop-shadow(0 4px 10px rgba(0,0,0,0.45));
+}
 #modal .go-reason { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin: 0; }
 .go-scores {
   display: flex;
@@ -2417,6 +2449,15 @@ body {
         <button class="settings-save-btn" onclick="saveSettingsName()">Save</button>
       </div>
 
+      <span class="settings-section-label">Safety</span>
+      <div class="settings-row" onclick="openBlockedList()" style="cursor:pointer">
+        <div class="settings-row-label">
+          Blocked players
+          <div class="settings-row-sublabel" id="blocked-count-label">None</div>
+        </div>
+        <span style="color:#9b8ec4;font-size:1.3rem;line-height:1">›</span>
+      </div>
+
       <span class="settings-section-label">Game</span>
       <div class="settings-row">
         <div class="settings-row-label">
@@ -2689,6 +2730,10 @@ body {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg>
       Cancel Game
     </button>
+    <button class="more-item" id="menu-player" style="display:none;" onclick="closeMoreMenu();openGamePlayerSheet()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><circle cx="10" cy="7" r="3.2"/><path d="M3.5 17c.6-3.2 3.1-5 6.5-5s5.9 1.8 6.5 5"/><line x1="3" y1="3" x2="17" y2="17"/></svg>
+      Report or Block Player
+    </button>
     <button class="more-item" onclick="closeMoreMenu();reportIssue()">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><circle cx="10" cy="10" r="9"/><line x1="10" y1="6" x2="10" y2="10"/><circle cx="10" cy="14" r=".5" fill="currentColor"/></svg>
       Report an Issue
@@ -2794,11 +2839,192 @@ const WORD_SUPP = `CHORES SHORES STORES SCORES BORES CORES MORES PORES TORES GOR
 STAIN STAID STAIR STANK STARK STARE STAVE DRAIN GRAIN CRANE BRAVE GRAVE SHAVE SLAVE CLOVE GROVE DROVE BRINE SPINE SWINE TWINE RHYME CHIME SLIME GRIME PRIME CRIME ATONE PRONE PHONE GROAN GROIN BRAID PLAID MOIST FOIST HOIST BOOST QUAIL SNAIL FRAIL TAINT FEINT GLINT FLINT RIVET BRISK DROWN FROWN CROWN BLOWN FLOWN SHOWN SPAN CLAN BRAN SLICK FLICK TRICK THICK BRICK CLICK FLOCK CLOCK BLOCK KNOCK STOCK SHOCK FROCK BROOK DROOL SPOOL DROOP SWOOP SNOOP TROOP GROUP SNEAK CREAK BLEAK STEAK FREAK SQUEAK SPEAK STREAK SLEEK CREEK REEK BREEK CHEEK SLEEK GEEK MEEK SEEK PEEK WEEK HEEL FEEL KEEL PEEL REEL TEEL HEEL KNEEL STEEL WHEEL IDEAL MODAL TONAL MORAL LOCAL NAVAL BANAL CANAL FINAL PENAL LEGAL REGAL VOCAL FOCAL PETAL MEDAL PEDAL RIVEN GIVEN TOKEN RISEN OAKEN LADEN WIDEN WOKEN RIPEN TAKEN VIXEN LIKEN RISEN STAIN DRAINS GRAINS TRAINS PLAINS SNAILS TRAILS TAINTS FEINTS GLINTS FLINTS HOISTS
 SITZ SMITE SMEAR SMASH SMART SMALL SMELL SMILE SMIRK SMOKE SNARE SNEAK SNIFF SNORE SNORT SNOUT SNOWY SOBER SHRUG SHRUB SHRED SHREW SHOWN SHOES SHOOT SHOUT SHOVE SHRINE SHRILL SHIRE SHIRT SHINY SHINE SHTICK SPRAT SPRIG SPRIT SPRITE SQUALL SQUAT SQUID SQUIRT STORK STORM STORE STOIC STOMP STOOP SLOPE SLOTH SLOSH SLOSH SNOBS SNOWY SNUFF SOFTY SOGGY SOLAR SONAR SONIC SORRY SOUND SOUTH STARK STASH STIFF STOCK STOIC STONE STORM STOUT STRAP STRAW STRAY STRIP STRUT STUNT SUAVE SUNNY SUPER SURGE SWARM SWORN SWORD SWORE SYRUP TABBY TACIT TAFFY TALLY TARDY TAWNY TEPID TERSE THEFT THEIR THERE THESE THICK THING THOSE THREE THREW THROB THROW THUMP TIDAL TILLS TIMID TIPSY TITAN TITLE TITTY TOADY TOFFY TOLLS TONAL TOPSY TORSO TOTAL TOUGH TOXIC TRACK TRADE TRAIL TRAMP TRAWL TREAD TREAT TREND TRIAL TRICK TRIED TRITE TROLL TROUT TROVE TRUCE TRUCK TRULY TRUMP TRUNK TRUSS TRYST TULIP TUMOR TUMMY TUNER TUNIC TYING ULCER ULTRA UMAMI UNIFY UNITY UNTIE UPPER USURP UTTER UVULA VAGUE VALID VALOR VAPID VAULT VAUNT VENAL VERGE VIPER VIRGE VISOR VOCAL VODKA VOGUE VOILA VOUCH VULVA WARTY WEARY WEDGE WEEDY WEIRD WHACK WHARF WHEAT WHERE WHICH WHILE WHIFF WHINE WHIRL WHOSE WIDER WINDY WITTY WOOZY WORDY WORSE WORST WRATH WRIST WRONG YACHT YEARN YIELD YOUNG YOURS YUMMY ZAPPY ZIPPY ZONAL ZONED ZONES ZOOMS ZOMBIE ZIPPER ZITHER`;
 
+// ═══════════════════════════════════════════════════════
+//  CONTENT FILTER
+// ═══════════════════════════════════════════════════════
+// Reword shows other people's display names and the words they play, so both are screened: Apple
+// requires an app with user-generated content to filter objectionable material. There is no
+// official list of banned words, so this one is our own and meant to be edited. Two uses:
+//   BLOCKED_WORDS: words that cannot be played at all. They are removed from the dictionary at
+//     load, so the player's own check, the AI's search and the strength meter all agree. They
+//     are slurs and strong profanity that the word list still accepts; mild words
+//     (damn, crap) and plain anatomy (anus, penis) are left alone.
+//   _NAME_STRONG / _NAME_WEAK: names. Strong terms are refused anywhere inside a name once the
+//     usual disguises are undone (FuCk, f.u.c.k, sh1t). Weak terms are real words or names that
+//     also appear inside innocent ones (ass in Cassie, nazi in Nazir, coon in Raccoon), so they
+//     are refused only when they stand alone.
+const BLOCKED_WORDS = new Set(`FAG FAGS FAGGED FAGGING FAGGOT FAGGOTS FAGGOTED FAGGOTING FAGOT FAGOTS FAGOTED FAGOTER FAGOTERS FAGOTING DYKE DYKED DYKES CHINK CHINKS CHINKY GOOK GOOKS GOOKY COON COONS TRANNY RETARD RETARDS RETARDED GYP GYPS GYPO GYPOS GYPPO GYPPOS GYPPED GYPPER GYPPERS GYPPING FUCK FUCKS FUCKED FUCKER FUCKERS FUCKING FUCKOFF FUCKOFFS FUCKUP FUCKUPS FUCKWIT FUCKWITS FUCKFACE FUCKFACES FUCKHEAD FUCKHEADS MOTHERFUCKER MOTHERFUCKERS MOTHERFUCKING SHIT SHITS SHITE SHITES SHITTY SHITTIER SHITTIEST SHITTED SHITTER SHITTERS SHITTING SHITBAG SHITBAGS SHITCAN SHITCANS SHITCANNED SHITCANNING SHITFACE SHITFACES SHITFACED SHITHEAD SHITHEADS SHITHEADED SHITHEEL SHITHEELS SHITHOLE SHITHOLES SHITHOUSE SHITHOUSES SHITLESS SHITLIST SHITLISTS SHITLOAD SHITLOADS SHITSTORM SHITSTORMS SHITWORK SHITWORKS SHITKICKER SHITKICKERS SHITTINESS BITCH BITCHY BITCHED BITCHEN BITCHES BITCHING BITCHIER BITCHIEST BITCHERY BITCHERIES BITCHILY BITCHINESS BITCHINESSES SLUT SLUTS SLUTTY SLUTTIER SLUTTIEST SLUTTISH SLUTTISHLY WHORE WHORES WHORED WHOREDOM WHOREDOMS WHORESON WHORESONS WHOREHOUSE WHOREHOUSES WHOREMASTER WHOREMASTERS WHOREMONGER WHOREMONGERS WANK WANKS WANKED WANKER WANKERS WANKING PISS PISSY PISSED PISSER PISSERS PISSES PISSING PISSIER PISSIEST PISSHOLE PISSHOLES PISSANT PISSANTS ASSHOLE ASSHOLES ARSEHOLE ARSEHOLES DOUCHEBAG DOUCHEBAGS JIZZ JIZZES PUSSY PUSSIES COCK COCKS DICK DICKS CUM CUMS TITTY TITTIES SKANKY SKANKIER SKANKIEST BOLLOCKS BOLLOCKING BOLLOCKINGS`.split(/\s+/));
+const _NAME_STRONG = 'fuck shit cunt bitch whore slut nigger nigga faggot fagot retard rapist pedophile paedophile porn penis vagina dildo jizz cumshot blowjob handjob twat asshole asshat arsehole bollock motherfuck cocksuck dickhead douchebag hitler kkk beaner wetback towelhead raghead tranny pussy'.split(' ');
+const _NAME_WEAK = new Set('ass arse cock dick tit tits cum anal anus sex rape coon spic spick chink gook dyke fag homo lesbo wank wanker pedo nazi prick piss gyp kike jap paki negro bastard hoe thot tard'.split(' '));
+// Strong terms that are safe to also look for once repeated letters are squeezed (fuuuck, shiiit).
+const _NAME_SQUEEZABLE = ['fuck', 'shit', 'cunt', 'bitch', 'whore', 'slut', 'faggot', 'dildo', 'porn'];
+const _LEET = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i', '+': 't' };
+const NAME_REFUSED = 'Please choose a different name.';
+
+function _deLeet(s) {
+  return String(s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[0134578@$!+]/g, c => _LEET[c] || c);
+}
+
+// Null when the name is fine, otherwise NAME_REFUSED. It never says which word tripped it.
+function nameProblem(name) {
+  const s = _deLeet(name);
+  const flat = s.replace(/[^a-z]/g, '');
+  if (!flat) return null;
+  if (_NAME_STRONG.some(t => flat.includes(t))) return NAME_REFUSED;
+  const squeezed = flat.replace(/(.)\1+/g, '$1');
+  if (_NAME_SQUEEZABLE.some(t => squeezed.includes(t.replace(/(.)\1+/g, '$1')))) return NAME_REFUSED;
+  const tokens = s.split(/[^a-z]+/).filter(Boolean);
+  const weak = w => _NAME_WEAK.has(w) || (w.endsWith('s') && _NAME_WEAK.has(w.slice(0, -1)));
+  if (weak(flat) || tokens.some(weak)) return NAME_REFUSED;
+  return null;
+}
+
+// What to show for a name that came from another player: theirs, unless it fails the same test
+// (an older version of the app, or an account made before the filter, can still carry one).
+function cleanName(name) {
+  return nameProblem(name) ? 'Player' : name;
+}
+
+// ═══════════════════════════════════════════════════════
+//  REPORT AND BLOCK PLAYERS
+// ═══════════════════════════════════════════════════════
+// Blocking is kept in step across devices through users/{uid}.blocked, the way friends are.
+// A blocked player's games never reach the home list (see snapToGame), they cannot be
+// re-added as a friend, and their invite links are refused.
+function getBlocked() {
+  try { return JSON.parse(localStorage.getItem('reword_blocked') || '[]'); }
+  catch { return []; }
+}
+
+function isBlocked(id) {
+  return !!id && getBlocked().some(b => b.id === id);
+}
+
+function saveBlocked(list) {
+  try { localStorage.setItem('reword_blocked', JSON.stringify(list)); } catch (e) {}
+  const uid = getPlayerId();
+  if (uid) db.collection('users').doc(uid).set({ blocked: list }, { merge: true }).catch(() => {});
+  updateBlockedLabel();
+}
+
+function blockPlayer(id, name) {
+  if (!id || id === getPlayerId()) return;
+  const list = getBlocked();
+  if (!list.some(b => b.id === id)) list.push({ id, name: cleanName(name) || 'Player', at: Date.now() });
+  saveBlocked(list);
+  // No longer a friend, and every game with them leaves the list.
+  const friends = getFriends().filter(f => f.id !== id);
+  try { localStorage.setItem('reword_friends', JSON.stringify(friends)); } catch (e) {}
+  const uid = getPlayerId();
+  if (uid) db.collection('users').doc(uid).set({ friends }, { merge: true }).catch(() => {});
+  (window._homeGames || []).filter(g => g.opponentId === id).forEach(g => removeStoredGame(g.id));
+  window._homeGames = (window._homeGames || []).filter(g => g.opponentId !== id);
+  updateGamesBadge();
+  if (document.getElementById('friends-overlay')?.classList.contains('active')) buildFriendsList();
+}
+
+function unblockPlayer(id) {
+  saveBlocked(getBlocked().filter(b => b.id !== id));
+}
+
+// Merge the Firestore copy in on load so a reinstall or a second device keeps its blocks.
+async function syncBlockedFromCloud() {
+  const uid = getPlayerId();
+  if (!uid) return;
+  try {
+    const remote = (await db.collection('users').doc(uid).get()).data()?.blocked;
+    if (!Array.isArray(remote) || remote.length === 0) return;
+    const merged = getBlocked();
+    let changed = false;
+    remote.forEach(r => { if (r && r.id && !merged.some(b => b.id === r.id)) { merged.push(r); changed = true; } });
+    if (changed) { try { localStorage.setItem('reword_blocked', JSON.stringify(merged)); } catch (e) {} updateBlockedLabel(); }
+  } catch (e) { console.warn('[Blocked] could not load blocked players:', e); }
+}
+
+// Reports go to the developer by email, the same way "Report an Issue" does.
+function reportPlayer(id, name, gameId) {
+  const subject = encodeURIComponent('Reword – Player Report');
+  const body = encodeURIComponent(
+    'Player: ' + (name || 'unknown') + '\nPlayer ID: ' + (id || 'unknown') + '\nGame: ' + (gameId || 'none') +
+    '\n\nWhat happened:\n\n\n');
+  window.location.href = `mailto:info@rewordgame.app?subject=${subject}&body=${body}`;
+}
+
+// A bottom sheet of buttons, built per use. buttons: [{ label, danger, onClick }].
+function showPlayerSheet(title, sub, buttons) {
+  document.getElementById('psheet-title').textContent = title;
+  document.getElementById('psheet-sub').textContent = sub || '';
+  const box = document.getElementById('psheet-btns');
+  box.innerHTML = '';
+  buttons.forEach(b => {
+    const el = document.createElement('button');
+    el.className = 'psheet-btn' + (b.danger ? ' danger' : '');
+    el.textContent = b.label;
+    el.onclick = () => { closePlayerSheet(); b.onClick(); };
+    box.appendChild(el);
+  });
+  document.getElementById('psheet-overlay').classList.add('show');
+  document.getElementById('psheet').classList.add('show');
+}
+
+function closePlayerSheet() {
+  document.getElementById('psheet-overlay').classList.remove('show');
+  document.getElementById('psheet').classList.remove('show');
+}
+
+// inGame: blocking leaves the game that is open and goes home.
+function openPlayerSheet(id, name, gameId, inGame) {
+  const shown = cleanName(name) || 'Player';
+  showPlayerSheet(shown, 'Report abusive behaviour, or block this player.', [
+    { label: 'Report Player', onClick: () => reportPlayer(id, name, gameId) },
+    { label: 'Block Player', danger: true, onClick: () => showConfirmSheet(
+        `Block ${shown}?`, 'Their games and challenges stop appearing, and they leave your friends list.', 'Block',
+        () => {
+          blockPlayer(id, name);
+          if (inGame) goHome();
+          showHomeToast(`${shown} is blocked.`);
+        }, null) },
+  ]);
+}
+
+// The More menu's entry: the opponent's id is read from the game itself.
+async function openGamePlayerSheet() {
+  if (!isOnlineMode || !onlineGameId) return;
+  let opp = null;
+  try {
+    const d = (await db.collection('games').doc(onlineGameId).get()).data();
+    opp = d?.players?.[myOnlineRole === 'p1' ? 'p2' : 'p1'];
+  } catch (e) {}
+  if (!opp?.id) { showMsg("Couldn't find that player.", 'bad'); return; }
+  openPlayerSheet(opp.id, opp.name || opponentOnlineName, onlineGameId, true);
+}
+
+function friendMore(friendId) {
+  const f = getFriends().find(x => x.id === friendId);
+  if (f) openPlayerSheet(f.id, f.name, null, false);
+}
+
+function updateBlockedLabel() {
+  const el = document.getElementById('blocked-count-label');
+  if (!el) return;
+  const n = getBlocked().length;
+  el.textContent = n === 0 ? 'None' : n === 1 ? '1 player' : n + ' players';
+}
+
+function openBlockedList() {
+  const list = getBlocked();
+  showPlayerSheet('Blocked players',
+    list.length ? 'Tap a name to unblock them.' : "You haven't blocked anyone.",
+    list.map(b => ({ label: 'Unblock ' + (cleanName(b.name) || 'Player'), onClick: () => { unblockPlayer(b.id); showHomeToast('Unblocked.'); } })));
+}
+
 // AI_WORDS is always the compact curated list — keeps the AI move search fast.
 const AI_WORDS = new Set([
   ...WORD_DATA.trim().split(/\s+/).filter(w=>w.length>=2),
   ...WORD_SUPP.trim().split(/\s+/).filter(w=>w.length>=2)
 ]);
+
+BLOCKED_WORDS.forEach(w => AI_WORDS.delete(w));
 
 // WORDS starts as the curated list and is replaced by the full dictionary once loaded.
 // Only used for player word validation — never for the AI search loop.
@@ -2828,6 +3054,7 @@ let WORDS = new Set(AI_WORDS);
         setTimeout(processBatch, 0);
       } else {
         const full = new Set(words);
+        BLOCKED_WORDS.forEach(w => full.delete(w));
         if (full.size > 1000) {
           WORDS = full;
           // Start the strength worker now and hand it the full dictionary, so it has already
@@ -7438,9 +7665,11 @@ function showWinnerModal({ myScore, oppScore, myName, oppName, myDeduct, oppDedu
   if (youResigned) {
     topContent = `${_flagSVG}<h2 id="modal-title">You Resigned</h2>`;
   } else {
-    const emoji = myWins ? (isOnline ? '🏆' : '🎉') : oppWins ? '😔' : '🤝';
+    // Every win, online or against the AI, gets the gold star; a loss and a tie keep their emoji.
+    const badge = myWins ? '<img class="go-star" src="icons/win-star.png" alt="">'
+                         : `<span class="go-emoji">${oppWins ? '😔' : '🤝'}</span>`;
     const title = myWins ? 'You Won!' : oppWins ? `${oppName} Won!` : "It's a Tie!";
-    topContent = `<span class="go-emoji">${emoji}</span><h2 id="modal-title">${title}</h2>` +
+    topContent = `${badge}<h2 id="modal-title">${title}</h2>` +
       (theyResigned ? `<div class="go-reason">${escHtml(oppName)} resigned</div>` : '');
   }
 
@@ -7804,7 +8033,7 @@ function startEditName() {
   input.select();
   function commit() {
     const val = input.value.trim();
-    playerName = val || 'You';
+    playerName = (val && !nameProblem(val)) ? val : 'You';
     localStorage.setItem('playerName', playerName);
     display.innerHTML = `<span id="player-name-text">${playerName}</span>`;
   }
@@ -8301,6 +8530,7 @@ async function submitAuth() {
   const pass  = document.getElementById('auth-pass').value;
 
   if (creating && !name)   return setAuthError('Pick a display name — your opponent sees this.', 'auth-name');
+  if (creating && nameProblem(name)) return setAuthError(NAME_REFUSED, 'auth-name');
   if (!email)              return setAuthError('Enter your email address.', 'auth-email');
   if (!pass)               return setAuthError('Enter your password.', 'auth-pass');
   if (creating && pass.length < 6) return setAuthError('Passwords need to be at least 6 characters.', 'auth-pass');
@@ -8354,7 +8584,7 @@ async function signInWithApple() {
     }
     if (playerName === 'You') {
       const typed = document.getElementById('auth-name').value.trim();
-      if (typed) { playerName = typed.slice(0, 10); try { localStorage.setItem('playerName', playerName); } catch(e) {} }
+      if (typed && !nameProblem(typed)) { playerName = typed.slice(0, 10); try { localStorage.setItem('playerName', playerName); } catch(e) {} }
     }
     await onAccountReady();
     finishAuth();
@@ -8404,6 +8634,7 @@ async function onAccountReady({ writeName = false } = {}) {
   updateAccountUI();
   try { savePushTarget(); } catch(e) {}
   try { syncGamesFromFirestore(); } catch(e) {}
+  try { syncBlockedFromCloud(); } catch(e) {}
 }
 
 // Signing in on a device that already has games is the common case, so the claimed list has
@@ -8527,6 +8758,7 @@ async function saveAccountEdits() {
   const setErr = m => { err.textContent = m; };
 
   if (!name) return setErr('Pick a display name — your opponent sees this.');
+  if (nameProblem(name)) return setErr(NAME_REFUSED);
   if (!email) return setErr('Enter your email address.');
   const emailChanged = email !== (user.email || '');
   // Firebase refuses to change an email on a stale session, so that change is
@@ -9150,7 +9382,7 @@ function startOnlineListener(gameId) {
     const opRole = myOnlineRole === 'p1' ? 'p2' : 'p1';
     const opInfo = data.players?.[opRole];
     if (opInfo?.name) {
-      opponentOnlineName = opInfo.name;
+      opponentOnlineName = cleanName(opInfo.name);
       const el = document.getElementById('ai-name-display');
       if (el) el.textContent = opponentOnlineName;
     }
@@ -9240,7 +9472,7 @@ async function joinOnlineGame(gameId) {
     if (isMyPlayerId(data.players?.p1?.id)) {
       isOnlineMode = true; myOnlineRole = 'p1'; onlineGameId = gameId.toUpperCase();
       updateResignButton();
-      opponentOnlineName = data.players?.p2?.name || 'Opponent';
+      opponentOnlineName = cleanName(data.players?.p2?.name || 'Opponent');
       const el = document.getElementById('ai-name-display');
       if (el) el.textContent = opponentOnlineName;
       applyOnlineState(data);
@@ -9252,7 +9484,7 @@ async function joinOnlineGame(gameId) {
     if (isMyPlayerId(data.players?.p2?.id)) {
       isOnlineMode = true; myOnlineRole = 'p2'; onlineGameId = gameId.toUpperCase();
       updateResignButton();
-      opponentOnlineName = data.players?.p1?.name || 'Opponent';
+      opponentOnlineName = cleanName(data.players?.p1?.name || 'Opponent');
       const el = document.getElementById('ai-name-display');
       if (el) el.textContent = opponentOnlineName;
       applyOnlineState(data);
@@ -9270,9 +9502,10 @@ async function joinOnlineGame(gameId) {
       return;
     }
 
+    if (isBlocked(data.players?.p1?.id)) { showMsg('You have blocked the player who sent this invite.', 'bad'); return; }
     isOnlineMode = true; myOnlineRole = 'p2'; onlineGameId = gameId.toUpperCase();
     updateResignButton();
-    opponentOnlineName = data.players?.p1?.name || 'Opponent';
+    opponentOnlineName = cleanName(data.players?.p1?.name || 'Opponent');
     const el = document.getElementById('ai-name-display');
     if (el) el.textContent = opponentOnlineName;
     addStoredGame(gameId.toUpperCase(), 'p2');
@@ -9366,6 +9599,8 @@ function updateResignButton() {
   btn.style.display = (inAiGame || inOnlineGame) ? 'flex' : 'none';
   if (lbl) lbl.textContent = inOnlineGame ? 'Resign Game' : 'End AI Game';
   if (cancelBtn) cancelBtn.style.display = 'none';
+  const playerBtn = document.getElementById('menu-player');
+  if (playerBtn) playerBtn.style.display = inOnlineGame ? 'flex' : 'none';
 }
 
 // Resign confirmation — online games warn about lost progress; AI games don't
@@ -9558,6 +9793,7 @@ function _recordFriend(id, name, lastPlayed) {
   if (!id || !name) return;
   if (id === getPlayerId()) return;                 // never friend yourself
   if (_FRIEND_PLACEHOLDERS.has(name)) return;
+  if (isBlocked(id)) return;                        // a blocked player is never a friend
 
   const friends = getFriends();
   const when = lastPlayed || Date.now();
@@ -9679,7 +9915,7 @@ async function loadOnlineGame(gameId, myRole) {
     }
     const data = snap.data();
     const opRole = myRole === 'p1' ? 'p2' : 'p1';
-    opponentOnlineName = data.players?.[opRole]?.name || 'Opponent';
+    opponentOnlineName = cleanName(data.players?.[opRole]?.name || 'Opponent');
     const el = document.getElementById('ai-name-display');
     if (el) el.textContent = opponentOnlineName;
     if ('Notification' in window && Notification.permission === 'default') {
@@ -9977,7 +10213,7 @@ async function claimSlot(role) {
     await db.collection('games').doc(gameId).update({ [`players.${role}.id`]: myId });
     isOnlineMode = true; myOnlineRole = role; onlineGameId = gameId;
     updateResignButton();
-    opponentOnlineName = data.players?.[opRole]?.name || 'Opponent';
+    opponentOnlineName = cleanName(data.players?.[opRole]?.name || 'Opponent');
     const el = document.getElementById('ai-name-display');
     if (el) el.textContent = opponentOnlineName;
     addStoredGame(gameId, role);
@@ -10023,6 +10259,7 @@ function confirmNameModal() {
   const input = document.getElementById('name-modal-input');
   const val = input.value.trim();
   if (!val) { input.classList.add('error'); return; }
+  if (nameProblem(val)) { input.value = ''; input.placeholder = NAME_REFUSED; input.classList.add('error'); return; }
   input.classList.remove('error');
   // Save and apply as playerName
   playerName = val.slice(0, 10);
@@ -11307,6 +11544,7 @@ function snapToGame(snap, myRole) {
   const d = snap.data();
   if (!d || d.status === 'cancelled') return null;
   const opRole = myRole === 'p1' ? 'p2' : 'p1';
+  if (isBlocked(d.players?.[opRole]?.id)) return null;   // a blocked player's games never reach the list
   const isWaiting = d.status === 'waiting';
   return {
     id: snap.id,
@@ -11316,7 +11554,7 @@ function snapToGame(snap, myRole) {
     currentPlayer: isWaiting ? 'ai' : (d.currentTurn === myRole ? 'player' : 'ai'),
     playerScore: d.scores?.[myRole] ?? 0,
     aiScore: d.scores?.[opRole] ?? 0,
-    opponentName: isWaiting ? 'a friend' : (d.players?.[opRole]?.name || 'Opponent'),
+    opponentName: isWaiting ? 'a friend' : cleanName(d.players?.[opRole]?.name || 'Opponent'),
     opponentId: d.players?.[opRole]?.id || null,
     updatedAt: d.lastUpdated?.toMillis?.() || null,
     rematchChallenge: !!(d.rematchChallenge && d.currentTurn === myRole),
@@ -11667,6 +11905,7 @@ function openSettings() {
   document.getElementById('toggle-sound').checked = s.sound !== false;
   document.getElementById('toggle-haptics').checked = s.haptics !== false;
   document.getElementById('toggle-zoom').checked = s.zoom !== false;
+  updateBlockedLabel();
   switchHomeTab('settings');
 }
 
@@ -11675,6 +11914,7 @@ function closeSettings() {
 }
 function saveSettingsName() {
   const val = document.getElementById('settings-name-input').value.trim();
+  if (nameProblem(val)) { showHomeToast(NAME_REFUSED, 'bad'); return; }
   playerName = val || 'You';
   localStorage.setItem('playerName', playerName);
   recordDeviceIdentity();   // keep the name on the identity record current
@@ -11705,7 +11945,7 @@ function escHtml(s) {
 
 function buildFriendsList() {
   const list = document.getElementById('friends-list');
-  const friends = getFriends();
+  const friends = getFriends().filter(f => !isBlocked(f.id));
   if (friends.length === 0) {
     list.innerHTML = '<div id="friends-empty">No friends yet.<br>Add one to start playing!</div>';
     return;
@@ -11715,9 +11955,10 @@ function buildFriendsList() {
     const ago = f.lastPlayed ? timeAgo(f.lastPlayed) : 'Never played';
     return `<div class="friend-row">
       <div class="friend-info">
-        <div class="friend-name">${escHtml(f.name)}</div>
+        <div class="friend-name">${escHtml(cleanName(f.name))}</div>
         <div class="friend-meta">Last played ${ago}</div>
       </div>
+      <button class="friend-more-btn" aria-label="Report or block ${escHtml(cleanName(f.name))}" onclick="event.stopPropagation();friendMore('${escHtml(f.id)}')">⋯</button>
       <button class="friend-play-btn" onclick="event.stopPropagation();friendPlay('${escHtml(f.id)}')">PLAY</button>
     </div>`;
   }).join('');
@@ -11993,7 +12234,7 @@ function buildHomeGamesList() {
   });
 
   rematchChallenges.forEach(function(g) {
-    const challenger = g.rematchChallengerName || g.opponentName || 'Your opponent';
+    const challenger = cleanName(g.rematchChallengerName || g.opponentName || 'Your opponent');
     const card = document.createElement('div');
     card.className = 'rematch-challenge-card';
     card.innerHTML =
@@ -12216,13 +12457,13 @@ function ngcShowMain() {
 // Challenge a Friend: pick from the friend list first, or Other for someone new (the invite-link
 // flow). With no friends yet there is nothing to pick, so it goes straight to the invite flow.
 function ngcChallengeFriend() {
-  const friends = getFriends();
+  const friends = getFriends().filter(f => !isBlocked(f.id));
   if (friends.length === 0) { ngcChallengeOther(); return; }
   // Names come from the other player, so they are escaped before going into innerHTML.
   document.getElementById('ngc-friend-list').innerHTML = friends.map(f => {
     const meta = f.lastPlayed ? timeAgo(f.lastPlayed) : 'Never played';
     return `<button class="ngc-friend-btn" onclick="event.stopPropagation();ngcPickFriend('${escHtml(f.id)}')">
-      <span class="ngc-friend-name">${escHtml(f.name)}</span><span class="ngc-friend-meta">${meta}</span>
+      <span class="ngc-friend-name">${escHtml(cleanName(f.name))}</span><span class="ngc-friend-meta">${meta}</span>
     </button>`;
   }).join('');
   document.getElementById('ngc-page-main').style.display = 'none';
@@ -12496,6 +12737,14 @@ document.addEventListener('click', e => {
     <button class="btn btn-play" style="width:100%;margin-bottom:10px" onclick="shareOnlineInvite()">Share Invite</button>
     <button class="btn btn-recall" style="width:100%" onclick="cancelOnlineGame()">Cancel</button>
   </div>
+</div>
+
+<div id="psheet-overlay" onclick="closePlayerSheet()"></div>
+<div id="psheet">
+  <div id="psheet-title"></div>
+  <div id="psheet-sub"></div>
+  <div id="psheet-btns"></div>
+  <button id="psheet-cancel" onclick="closePlayerSheet()">Cancel</button>
 </div>
 
 <div id="confirm-overlay" onclick="closeConfirmSheet()"></div>

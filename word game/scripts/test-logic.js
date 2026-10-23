@@ -808,6 +808,14 @@ console.log('\nMore menu — nothing opens it but the MORE button\n');
     grabFunction('onPlayButton').includes('closeMoreMenu()'),
     'onPlayButton does not call closeMoreMenu()');
 
+  // Every win shows the gold star (online and AI alike); the asset ships in icons/, which sync copies.
+  ok('the win notice shows the gold star on any win',
+    /const badge = myWins\s*\?\s*'<img class="go-star" src="icons\/win-star\.png"/.test(src),
+    'showWinnerModal does not put icons/win-star.png in the badge when myWins');
+  ok('the win star image exists',
+    require('fs').existsSync(require('path').join(__dirname, '..', 'icons', 'win-star.png')),
+    'icons/win-star.png is missing');
+
   // Leaving the game screen must drop the menu, or it survives into the next screen and
   // no tap will clear it — which is what forced an app restart.
   ok('leaving for the home screen closes the menu',
@@ -1109,7 +1117,7 @@ inSequence(async () => {
   // A listener whose game is no longer on screen paints nothing.
   let onSnap, painted = false;
   const d = {
-    onlineGameId: 'BBBB', onlineUnsubscribe: null, myOnlineRole: 'p1',
+    onlineGameId: 'BBBB', onlineUnsubscribe: null, myOnlineRole: 'p1', cleanName: n => n,
     db: { collection: () => ({ doc: () => ({ onSnapshot: cb => { onSnap = cb; return () => {}; } }) }) },
     document: { getElementById: () => ({ set textContent(v) { painted = true; }, classList: { contains: () => true } }) },
   };
@@ -2261,6 +2269,61 @@ console.log('\nApp Store readiness\n');
   ok('no "Scrabble" in the page or the web manifest (Hasbro/Mattel trademark)', tm.length === 0, 'found in ' + tm.join(', '));
   ok('Info.plist says the app uses no non-exempt encryption',
     /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\/>/.test(read('ios/App/App/Info.plist')), 'ITSAppUsesNonExemptEncryption missing or not false');
+})();
+
+// ── Content filter, names and blocking ──────────────────────────────────────────────────────────
+(function () {
+  console.log('\nContent filter and blocking');
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const root = path.join(__dirname, '..');
+  const c = vm.createContext({});
+  vm.runInContext([
+    grabLines('const BLOCKED_WORDS', 'const BLOCKED_WORDS'), grabLines('const _NAME_STRONG', 'const _NAME_STRONG'),
+    grabLines('const _NAME_WEAK', 'const _NAME_WEAK'), grabLines('const _NAME_SQUEEZABLE', 'const _NAME_SQUEEZABLE'),
+    grabLines('const _LEET', 'const _LEET'), grabLines('const NAME_REFUSED', 'const NAME_REFUSED'),
+    grabFunction('_deLeet'), grabFunction('nameProblem'), grabFunction('cleanName'),
+  ].join('\n'), c);
+  const bad = n => vm.runInContext('nameProblem(' + JSON.stringify(n) + ')', c);
+
+  const refused = ['fuck', 'FuCk', 'f.u.c.k', 'sh1t', 'sh!t', 'b1tch', 'a$$', 'ass', 'Ass Hat', 'asshole', 'fuuuck', 'dick', 'D1CK', 'nigga', 'Nazi', 'porn', 'xXfuckXx', 'cum', 'whore', 'sluts'];
+  refused.forEach(n => ok('a name is refused: ' + n, bad(n) === 'Please choose a different name.', 'nameProblem(' + JSON.stringify(n) + ') = ' + bad(n)));
+  const allowed = ['Brady', 'Cassie', 'Class', 'Bass', 'Nazir', 'Nazia', 'Raccoon', 'Essex', 'Hancock', 'Grape', 'Dickens', 'Analyst', 'Scoop', 'Mike5', 'Brook', 'Sam', 'You', 'Peacock', 'Assist', 'Pass'];
+  allowed.forEach(n => ok('an ordinary name is allowed: ' + n, bad(n) === null, 'nameProblem(' + JSON.stringify(n) + ') = ' + bad(n)));
+  ok('cleanName keeps a fine name and masks a refused one',
+    vm.runInContext("cleanName('Brady') === 'Brady' && cleanName('sh1thead') === 'Player'", c), 'cleanName misbehaves');
+
+  // Played words: the blocked list takes effect on the dictionary and the AI list before anything uses them.
+  const dict = new Set(fs.readFileSync(path.join(root, 'dictionary.txt'), 'utf8').split('\n').filter(Boolean));
+  const blocked = vm.runInContext('[...BLOCKED_WORDS]', c);
+  ['FUCK', 'SHIT', 'BITCH', 'FAGGOT', 'CHINK', 'GOOK', 'COON', 'RETARD', 'TRANNY', 'SLUT', 'WHORE'].forEach(w =>
+    ok('the word is blocked from play: ' + w, blocked.includes(w), w + ' missing from BLOCKED_WORDS'));
+  ['SPICE', 'NIGGLE', 'ASS', 'ANUS', 'PENIS', 'DAMN', 'CRAP', 'SHIITAKE', 'WHORL'].forEach(w =>
+    ok('an ordinary or mild word is not blocked: ' + w, !blocked.includes(w), w + ' is in BLOCKED_WORDS'));
+  ok('the dictionary is filtered when it loads', /BLOCKED_WORDS\.forEach\(w => full\.delete\(w\)\);\s*if \(full\.size > 1000\)/.test(src), 'the full dictionary is not filtered');
+  ok('the AI list is filtered too', /BLOCKED_WORDS\.forEach\(w => AI_WORDS\.delete\(w\)\);/.test(src), 'AI_WORDS is not filtered');
+  ok('the blocked list only names words that exist or could', blocked.length > 100 && blocked.every(w => /^[A-Z]+$/.test(w)), 'BLOCKED_WORDS looks wrong');
+
+  // Every place a name is typed is screened.
+  [['submitAuth', 'nameProblem(name)'], ['saveAccountEdits', 'nameProblem(name)'], ['saveSettingsName', 'nameProblem(val)'], ['confirmNameModal', 'nameProblem(val)'], ['startEditName', 'nameProblem(val)']]
+    .forEach(([fn, call]) => ok(fn + ' screens the name', grabFunction(fn).includes(call), fn + ' does not call ' + call));
+  ok('signing in with Apple or Google screens the typed name', /if \(typed && !nameProblem\(typed\)\)/.test(src), 'the social sign-in name is not screened');
+
+  // Blocking.
+  ok('a blocked player\'s games never reach the home list', /isBlocked\(d\.players\?\.\[opRole\]\?\.id\)\) return null/.test(grabFunction('snapToGame')), 'snapToGame does not drop blocked opponents');
+  ok('a blocked player is never recorded as a friend', grabFunction('_recordFriend').includes('isBlocked(id)'), '_recordFriend does not check isBlocked');
+  ok('their invite link is refused', /isBlocked\(data\.players\?\.p1\?\.id\)/.test(src), 'joining a game does not check the creator against the block list');
+  ok('blocking removes the friend and the games', /function blockPlayer[\s\S]*?reword_friends[\s\S]*?removeStoredGame/.test(src), 'blockPlayer does not remove friends and games');
+  ok('the More menu offers Report or Block in online games only', src.includes("id=\"menu-player\"") && /playerBtn\.style\.display = inOnlineGame/.test(grabFunction('updateResignButton')), 'the menu item or its visibility is missing');
+  ok('the friends list has a report/block button', src.includes('friend-more-btn') && src.includes('friendMore('), 'the friends list has no report/block control');
+  ok('Settings lists blocked players so they can be unblocked', src.includes('openBlockedList()') && src.includes('unblockPlayer(b.id)'), 'there is no way to unblock');
+  ok('the privacy manifest ships with the app',
+    fs.existsSync(path.join(root, 'ios/App/App/PrivacyInfo.xcprivacy')) && /PrivacyInfo\.xcprivacy in Resources/.test(fs.readFileSync(path.join(root, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8')),
+    'PrivacyInfo.xcprivacy is missing or not in the Resources build phase');
 })();
 
 asyncChain.then(() => {

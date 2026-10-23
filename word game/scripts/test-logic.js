@@ -953,10 +953,34 @@ console.log('\nStrength meter — a swap square keeps its word multiplier in the
   const found = best(swapKeys), blind = best(new Set());
   ok('told where the swap is, the search finds the play (so the meter has a reading)', found >= actual, `best ${found}, play ${actual}`);
   ok('without it the search falls short, which is what blanked the meter', blind < actual, `best ${blind}, play ${actual}`);
+  // The purple tiles (taken from the board this turn) have to be played, so "best possible" may not leave one behind.
+  // Without this the meter measured a play against one the player could not make (it left their stolen tile
+  // unplayed), and Hindsight showed a word that did not use it.
+  const d = { BS: 15, aiSkill: 'hard', WORDS: new Set(['BED', 'BID']), AI_WORDS: null, console };
+  d.AI_WORDS = d.WORDS;
+  vm.createContext(d);
+  vm.runInContext([
+    grabLines('const PREMIUM = {}', "PREMIUM['7,7']"), grabLines('const VAL = {', 'const VAL = {'),
+    grabFunction('getWordAt'), grabFunction('getWordsFormed'), grabFunction('hasAdjacentTile'),
+    grabFunction('scoreWords'), grabFunction('scorePlay'), grabFunction('canSpell'), grabFunction('findBestPlayWithRack'),
+  ].join('\n'), d);
+  const dBoard = Array.from({ length: 15 }, () => Array(15).fill(null)); dBoard[7][7] = 'D';
+  const play = (rack, required, words) => { if (words) { d.WORDS.clear(); words.forEach(w => d.WORDS.add(w)); }
+    return d.findBestPlayWithRack(rack, dBoard, d.WORDS, new Set(), false, new Set(), new Set(), new Set(required)); };
+  let r = play(['B', 'E', 'Q'], [], ['BED']);
+  ok('with nothing required, the best play may leave a tile behind (the Q)', r && r.word === 'BED' && r.placements.every(p => p.rackIdx !== 2), JSON.stringify(r && r.word));
+  r = play(['B', 'E', 'Q'], [2], ['BED']);
+  ok('with the Q required, a play that leaves it behind is not a play at all', r === null, JSON.stringify(r && r.word));
+  r = play(['B', 'E', 'I'], [2], ['BED', 'BID']);
+  ok('with the I required, the play that uses it is the one chosen', r && r.word === 'BID' && r.placements.some(p => p.rackIdx === 2), JSON.stringify(r && r.word));
+  r = play(['B', 'E', 'I'], [1], ['BED', 'BID']);
+  ok('and with the E required, the other word', r && r.word === 'BED' && r.placements.some(p => p.rackIdx === 1), JSON.stringify(r && r.word));
+  r = play(['B', 'E', 'E'], [2], ['BED']);
+  ok('with two equal tiles, the required one is the one that is played', r && r.placements.some(p => p.rackIdx === 2), JSON.stringify(r && r.placements));
   ok('the worker and the on-thread search are both told where the swaps are',
     /findBestPlayWithRack\(d\.rack, d\.board, WORDS, new Set\(\), true, new Set\(d\.swapKeys \|\| \[\]\)[,)]/.test(src) &&
     /swapKeys: \[\.\.\.swapPendingPositions\]/.test(src) &&
-    /_bestPlayOnThread\(rack, _searchBoard\(\), swapPendingPositions, pendingRemovals, isEmpty\(\)\)/.test(src) &&
+    /_bestPlayOnThread\(rack, _searchBoard\(\), swapPendingPositions, pendingRemovals, isEmpty\(\), swappedRackIndices\)/.test(src) &&
     /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapKeys\)[,)]/.test(src),
     'one of the meter\'s searches is still blind to this turn\'s swaps');
 })();
@@ -1009,9 +1033,9 @@ console.log('\nStrength meter — the stolen square is off limits\n');
 
   ok('both of the meter\'s searches are told which squares this turn\'s steals blocked',
     /blocked: \[\.\.\.pendingRemovals\]/.test(src) &&
-    /findBestPlayWithRack\(d\.rack, d\.board, WORDS, new Set\(\), true, new Set\(d\.swapKeys \|\| \[\]\), new Set\(d\.blocked \|\| \[\]\)\)/.test(src) &&
-    /_bestPlayOnThread\(rack, _searchBoard\(\), swapPendingPositions, pendingRemovals, isEmpty\(\)\)/.test(src) &&
-    /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapKeys\), new Set\(blockedKeys\)\)/.test(src),
+    /findBestPlayWithRack\(d\.rack, d\.board, WORDS, new Set\(\), true, new Set\(d\.swapKeys \|\| \[\]\), new Set\(d\.blocked \|\| \[\]\), new Set\(d\.required \|\| \[\]\)\)/.test(src) &&
+    /_bestPlayOnThread\(rack, _searchBoard\(\), swapPendingPositions, pendingRemovals, isEmpty\(\), swappedRackIndices\)/.test(src) &&
+    /findBestPlayWithRack\(rack, boardCopy, wordSource, new Set\(\), true, new Set\(swapKeys\), new Set\(blockedKeys\), new Set\(required \|\| \[\]\)\)/.test(src),
     'a meter search is still free to play into a stolen square');
 })();
 
@@ -1063,7 +1087,7 @@ console.log('\nHindsight — the best play behind the meter\n');
     /self\.postMessage\(\{ type: 'result', id: d\.id, best: best, play: play \}\)/.test(src) &&
     /cb\(m\.best, m\.play\)/.test(src) &&
     /_firstMovePlacements\.toString\(\)/.test(src) &&
-    /_bestPlayOnThread\(f\.rack, f\.board, f\.swapKeys, f\.blocked, f\.empty\)/.test(src) &&
+    /_bestPlayOnThread\(f\.rack, f\.board, f\.swapKeys, f\.blocked, f\.empty, f\.required\)/.test(src) &&
     /recordHindsight\(hindsightFrom, lastPlayScore\)/.test(src),
     'a piece of the Hindsight search path is missing');
   ok('pass and exchange end it, and an AI game saves it',
@@ -1424,7 +1448,7 @@ console.log('\nStrength meter — one search per rack and board\n');
     console, setTimeout: (f) => f(), clearTimeout: () => {},
     board: Array.from({ length: 15 }, () => Array(15).fill(null)),
     playerRack: ['C','A','T','S','E','R','D'],
-    pendingRemovals: new Set(), pendingPlacements: {}, swapPendingPositions: new Set(),
+    pendingRemovals: new Set(), pendingPlacements: {}, swapPendingPositions: new Set(), swappedRackIndices: new Set(),
     bestPossibleScore: null, _bestScoreTimer: null,
     _strengthWorker: { postMessage: (m) => posts.push(m) }, _strengthWorkerReady: true,
     _strengthReqId: 0, _strengthPending: {},
@@ -1893,11 +1917,13 @@ console.log('\nRecall keeps swaps and steals; Reset undoes them\n');
       updateUI() { c.updateExchangeButton(); },
       playRecall: () => w.calls.push('recall sound'), playShuffle: () => w.calls.push('shuffle sound'),
       shuffleRack: () => w.calls.push('shuffle'), toggleExchangeMode: () => w.calls.push('exchange'),
+      isTabletLayout: () => false,
     };
     vm.createContext(c);
     vm.runInContext([
       grabFunction('resetPending'), grabFunction('recallTiles'), grabFunction('recallPlacedTiles'),
       grabFunction('handleShuffleOrRecall'), grabFunction('turnHasSwaps'), grabFunction('handleExchangeOrReset'),
+      grabFunction('tabletRecall'), grabFunction('tabletReset'),
       grabLines('const EXCHANGE_SVG', 'const EXCHANGE_SVG'), grabLines('const RESET_SVG', 'const RESET_SVG'),
       grabFunction('updateExchangeButton'),
     ].join('\n'), c);
@@ -1939,7 +1965,7 @@ console.log('\nRecall keeps swaps and steals; Reset undoes them\n');
   ok('the Exchange icon calls the Exchange-or-Reset handler', /<button class="icon-btn" id="btn-exchange" onclick="handleExchangeOrReset\(\)">/.test(src), 'the button still calls something else');
   const ui = grabFunction('updateUI').replace(/^\s*\/\/.*$/gm, '');
   ok('updateUI shows Recall only while tiles are on the board, and redraws the Exchange icon',
-    /const showRecall = hasPlaced;/.test(ui) && /updateExchangeButton\(\);/.test(ui), 'showRecall still counts swaps, or the Exchange icon is never redrawn');
+    /const showRecall = hasPlaced && !isTabletLayout\(\);/.test(ui) && /updateExchangeButton\(\);/.test(ui), 'showRecall still counts swaps, or the Exchange icon is never redrawn');
   // Each changing label reserves the width of every word it can show, so the Play button never resizes.
   const reserved = id => ((new RegExp(`id="${id}" data-labels="([^"]*)"`).exec(src) || [, ''])[1]).split('&#10;');
   const lacks = (id, words) => words.filter(x => !reserved(id).includes(x));
@@ -1951,9 +1977,23 @@ console.log('\nRecall keeps swaps and steals; Reset undoes them\n');
   const drawn = svg => { const vb = +/viewBox="[\d.\s-]+?\s([\d.]+)\s[\d.]+"/.exec(svg)[1], wd = +/width="([\d.]+)"/.exec(svg)[1];
     return [...svg.matchAll(/stroke-width="([\d.]+)"/g)].map(m => +(m[1] * wd / vb).toFixed(2)); };
   const bar = src.slice(src.indexOf('<div id="controls-icons">'), src.indexOf('<button id="btn-play"'));
-  const others = [...bar.matchAll(/<svg[\s\S]*?<\/svg>/g)].map(m => m[0]).concat(/const recallSVG\s*=\s*'([^']+)'/.exec(src)[1]);
+  const others = [...bar.matchAll(/<svg[\s\S]*?<\/svg>/g)].map(m => m[0]).concat(/const RECALL_SVG\s*=\s*'([^']+)'/.exec(src)[1]);
   const widths = new Set([...others.flatMap(drawn), ...drawn(vm.runInContext('RESET_SVG', world().c))]);
   ok('the Reset icon\'s stroke is as heavy as the rest of the bar (1.5px)', widths.size === 1 && widths.has(1.5), [...widths].join(', '));
+
+  // On a tablet Shuffle and Exchange stay what they say, and Recall and Reset have buttons of their own.
+  w = world(); w.c.isTabletLayout = () => true; w.c.handleShuffleOrRecall();
+  ok('on a tablet the shuffle button shuffles even with tiles on the board', w.calls.includes('shuffle') && w.placed() !== '', w.calls.join(',') + ' / ' + w.placed());
+  w = world(); w.c.isTabletLayout = () => true; w.c.handleExchangeOrReset();
+  ok('on a tablet the exchange button exchanges even when a swap has been made', w.calls.includes('exchange') && w.placed() !== '', w.calls.join(',') + ' / ' + w.placed());
+  w = world(); w.c.isTabletLayout = () => true; w.c.updateExchangeButton();
+  ok('and it is never relabelled Reset', w.lbl.textContent === 'Exchange', w.lbl.textContent);
+  w = world(); w.c.isTabletLayout = () => true; w.c.tabletRecall();
+  ok('the tablet Recall button takes the placed tiles back and keeps the swap', w.placed() === '7,7' && w.c.swapPendingPositions.has('7,7'), w.placed());
+  w = world(); w.c.isTabletLayout = () => true; w.c.tabletReset();
+  ok('the tablet Reset button undoes the whole turn', w.placed() === '' && w.c.swapPendingPositions.size === 0, w.placed() + ' / ' + w.c.swapPendingPositions.size);
+  w = world(); w.c.pendingPlacements = {}; w.c.swapPendingPositions = new Set(); w.c.pendingRemovals = new Set(); w.c.tabletRecall(); w.c.tabletReset();
+  ok('with nothing to take back, both do nothing', !w.calls.includes('recall sound'), w.calls.join(','));
 })();
 
 // ── Recall, Shuffle and Game over: the sounds Braden picked ──────────────────────────────────
@@ -1976,7 +2016,7 @@ inSequence(async function () {
   const calls = [];
   const h = { console, pendingPlacements: {}, swapCount: 0,
     playRecall: () => calls.push('recall sound'), recallPlacedTiles: () => calls.push('recall'), recallTiles: () => calls.push('reset'),
-    playShuffle: () => calls.push('shuffle sound'), shuffleRack: () => calls.push('shuffle') };
+    playShuffle: () => calls.push('shuffle sound'), shuffleRack: () => calls.push('shuffle'), isTabletLayout: () => false };
   vm.createContext(h);
   vm.runInContext(grabFunction('handleShuffleOrRecall'), h);
   const press = (placements, swaps) => { calls.length = 0; h.pendingPlacements = placements; h.swapCount = swaps; h.handleShuffleOrRecall(); return calls.join(' + '); };
@@ -2247,7 +2287,8 @@ console.log('\nPlay — held for two seconds before it goes through\n');
       bag: [1], playerRack: [1], aiRack: [1], playerScore: 0, aiScore: 0, isOnlineMode: false, opponentOnlineName: 'X', currentPlayer: 'player',
       pendingPlacements: { '7,7': { letter: 'C', rackIdx: 0, isSwap: false } }, swapCount: 0, ran: [] };
     for (const f of ['stopReplay', 'checkGameOver', 'updateTurnBadge', 'renderBoard', 'renderRack', 'renderScorePreview', 'updateReplayButton', 'updateStrengthBar',
-      'computeBestScore', 'updateResignButton', 'updatePlayButton', 'updateExchangeButton']) u[f] = () => u.ran.push(f);
+      'computeBestScore', 'updateResignButton', 'updatePlayButton', 'updateExchangeButton', 'updateTabletButtons']) u[f] = () => u.ran.push(f);
+    u.isTabletLayout = () => false; u.RECALL_SVG = '';
     vm.createContext(u); vm.runInContext(grabFunction('updateUI'), u); return u;
   };
   const u = ui(); let uiError = null;
@@ -2390,6 +2431,22 @@ console.log('\nApp Store readiness\n');
     /<img class="logo" src="reword_logo\.png"/.test(support) && /<h1>Support<\/h1>/.test(support) && fs.existsSync(path.join(root, 'reword_logo.png')), 'logo or title missing');
   ok('support and privacy pages use the info@rewordgame.app address',
     support.includes('mailto:info@rewordgame.app') && !/cdm92/.test(support + fs.readFileSync(path.join(root, 'privacy.html'), 'utf8')), 'an old contact address is still in use');
+})();
+
+// ── Tablet: no board zoom ───────────────────────────────────────────────────────────────────────
+(function () {
+  console.log('\nTablet layout');
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  ok('placing a tile or double-tapping does not zoom the board on a tablet', /if \(isTabletLayout\(\)\) return;/.test(grabFunction('zoomToCell')), 'zoomToCell has no tablet guard');
+  ok('and neither does the tutorial', /s\.zoom === false \|\| isTabletLayout\(\)/.test(src), 'tutZoom has no tablet guard');
+  ok('the Word zoom setting is hidden on a tablet, where it does nothing',
+    /<div class="settings-row phone-only">\s*<div class="settings-row-label">\s*Word zoom/.test(src) && /\.phone-only \{ display: none; \}/.test(src), 'the Word zoom row is still shown on a tablet');
+  ok('a phone still zooms (the guard is the only change)', /if \(_s\.zoom === false\) return;/.test(grabFunction('zoomToCell')), 'the phone zoom setting check is gone');
 })();
 
 asyncChain.then(() => {

@@ -31,6 +31,7 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 :root {
+  --col-max: 520px;   /* the phone's column; the tablet layout widens it (see the Tablet layout block) */
   --bg: #1a1040;
   --header-bg: linear-gradient(to bottom, #110b2d, #2d1b68);
   --board-bg: #dfdfdf;
@@ -66,7 +67,7 @@ body {
 /* ── HEADER ── */
 #header {
   width: 100%;
-  max-width: 520px;
+  max-width: var(--col-max);
   background: var(--header-bg);
   padding: 30px 14px 12px;
   display: flex;
@@ -240,7 +241,7 @@ body {
 /* ── MESSAGE BAR ── */
 #msg-bar {
   width: 100%;
-  max-width: 520px;
+  max-width: var(--col-max);
   /* Two lines are always reserved, even for a one-line message. Sizing to the content
      meant every message that wrapped grew the bar and shoved the board down mid-turn. */
   min-height: calc(2 * 1.35 * 0.82rem + 11px);
@@ -322,7 +323,7 @@ body {
 /* ── BOARD WRAPPER ── */
 #board-wrapper {
   width: 100%;
-  max-width: 520px;
+  max-width: var(--col-max);
   overflow: hidden;
   padding: 6px 4px;
   display: flex;
@@ -338,8 +339,8 @@ body {
   background: var(--board-line);
   border: 3px solid var(--board-line);
   border-radius: 6px;
-  width: min(98vw, 510px);
-  height: min(98vw, 510px);
+  width: var(--board-size, min(98vw, 510px));
+  height: var(--board-size, min(98vw, 510px));
   flex-shrink: 0;
   transform-origin: 0 0;
   transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
@@ -440,7 +441,7 @@ body {
 /* ── RACK ── */
 #rack-area {
   width: 100%;
-  max-width: 520px;
+  max-width: var(--col-max);
   background: #2a1c65;
   padding: 0 10px 8px;
   border-bottom: 2px solid #3d2b79;
@@ -612,7 +613,7 @@ body {
 /* ── CONTROLS ── */
 #controls {
   width: 100%;
-  max-width: 520px;
+  max-width: var(--col-max);
   display: flex;
   flex-wrap: nowrap;
   gap: 8px;
@@ -711,7 +712,7 @@ body {
   left: 50%;
   transform: translateX(-50%) translateY(100%);
   width: 100%;
-  max-width: 520px;
+  max-width: var(--col-max);
   background: #1a1040;
   border-radius: 18px 18px 0 0;
   z-index: 350;
@@ -825,7 +826,7 @@ body {
   left: 50%;
   transform: translateX(-50%) translateY(100%);
   width: 100%;
-  max-width: 520px;
+  max-width: var(--col-max);
   background: #1a1040;
   border-radius: 18px 18px 0 0;
   z-index: 450;
@@ -1697,7 +1698,7 @@ body {
   position: fixed;
   inset: 0;
   width: 100%;
-  max-width: 520px;
+  max-width: var(--col-max);
   left: 50%;
   transform: translateX(-50%);
   background: var(--bg);
@@ -1708,7 +1709,7 @@ body {
 #game-screen {
   display: none; flex-direction: column; align-items: center;
   position: fixed; inset: 0;
-  width: 100%; max-width: 520px;
+  width: 100%; max-width: var(--col-max);
   left: 50%; transform: translateX(-50%);
   overflow: hidden;
   touch-action: none;
@@ -2238,7 +2239,7 @@ body {
    free for the slide animation. */
 #settings-panel, #friends-panel, #stats-panel {
   top: 0; bottom: var(--home-nav-h, 84px); left: 0; right: 0;
-  width: 100%; max-width: 520px;
+  width: 100%; max-width: var(--col-max);
   margin-inline: auto;
   transform: none;
   transition: none;
@@ -2368,6 +2369,32 @@ body {
 #pull-refresh-indicator .ptr-spin { display: inline-block; }
 #pull-refresh-indicator.refreshing .ptr-spin { animation: ptrspin 0.7s linear infinite; }
 @keyframes ptrspin { to { transform: rotate(360deg); } }
+
+/* ── Tablet layout ──────────────────────────────────────────────────────────────────────────────
+   iPad-sized screens, 700 x 800 CSS px and up (the same query as TABLET_QUERY in the script). The
+   phone layout is a 520px column; here it widens to 820px, the board grows with it (and shrinks with
+   the screen's height in landscape, so the controls never fall off the bottom), and the rack and the
+   controls row grow to match. Recall and Reset get buttons of their own, greyed out until there is
+   something to take back. Nothing in this block applies to a phone: even an iPhone Pro Max turned
+   sideways is under 800px tall. */
+.tablet-only { display: none; }
+.icon-btn.disabled, .icon-btn:disabled { opacity: 0.35; pointer-events: none; }
+@media (min-width: 700px) and (min-height: 800px) {
+  :root {
+    --col-max: 820px;
+    --board-size: min(98vw, 800px, calc(100vh - 400px));
+  }
+  .tablet-only { display: flex; }
+  .phone-only { display: none; }   /* settings that do nothing on a tablet, such as Word zoom */
+  #rack { min-height: 80px; gap: 8px; }
+  #msg-bar { font-size: 1rem; }
+  #controls { gap: 28px; padding: 10px 28px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  #controls-icons { flex: 1 1 auto; justify-content: space-between; margin-left: 0; }
+  .icon-btn { padding: 4px 14px; gap: 7px; }
+  .icon-btn-ico { transform: scale(1.2); }
+  .icon-btn-lbl { font-size: 0.7rem; }
+  #btn-play { flex: 0 0 300px; height: 56px; border-radius: 28px; font-size: 1.45rem; }
+}
 </style>
 </head>
 <body>
@@ -2500,7 +2527,7 @@ body {
           <div class="settings-toggle-thumb"></div>
         </label>
       </div>
-      <div class="settings-row">
+      <div class="settings-row phone-only">
         <div class="settings-row-label">
           Word zoom
           <div class="settings-row-sublabel">Zooms in when a word is played</div>
@@ -2731,6 +2758,15 @@ body {
     <button class="icon-btn" id="btn-shuffle-recall" onclick="handleShuffleOrRecall()">
       <span class="icon-btn-ico" id="shuffle-recall-ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34.23209 22.88277" width="32"><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,3.36493h4.24195c2.14461,0,4.20139.9596,5.71786,2.66771l9.60906,10.82333c1.51647,1.7081,3.57325,2.66771,5.71786,2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M18.80162,7.89138l1.70949-1.85874c1.51647-1.7081,3.57325-2.66771,5.71786-2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,19.52367h4.24195c2.14461,0,4.20139-.9596,5.71786-2.66771l1.79259-2.01912"/><polygon fill="#fff" points="34.23209 3.42723 29.56953 6.85447 29.56953 0 34.23209 3.42723"/><polygon fill="#fff" points="34.23209 19.45554 29.56953 22.88277 29.56953 16.02831 34.23209 19.45554"/></svg></span>
       <span class="icon-btn-lbl" id="shuffle-recall-lbl" data-labels="Shuffle&#10;Recall">Shuffle</span>
+    </button>
+    <!-- Tablet layout only (hidden on phones, where Shuffle and Exchange change into Recall and Reset). -->
+    <button class="icon-btn tablet-only disabled" id="btn-recall" aria-label="Recall" onclick="tabletRecall()">
+      <span class="icon-btn-ico" id="recall-ico"></span>
+      <span class="icon-btn-lbl">Recall</span>
+    </button>
+    <button class="icon-btn tablet-only disabled" id="btn-reset" aria-label="Reset" onclick="tabletReset()">
+      <span class="icon-btn-ico" id="reset-ico"></span>
+      <span class="icon-btn-lbl">Reset</span>
     </button>
   </div>
   <button id="btn-play" onclick="onPlayButton()">Play</button>
@@ -3160,6 +3196,7 @@ function applyBoardTransform(Tx, Ty, S) {
 function zoomToCell(r, c) {
   const _s = JSON.parse(localStorage.getItem('reword_settings') || '{}');
   if (_s.zoom === false) return;
+  if (isTabletLayout()) return;   // the board is big enough on a tablet that zooming in only gets in the way
   const boardEl = document.getElementById('board');
   if (!boardEl) return;
   const W = boardEl.offsetWidth, H = boardEl.offsetHeight;
@@ -3846,7 +3883,7 @@ function submitPlay(dryRun) {
   // Hindsight searches the position the strength meter measured this play on: taken now,
   // before the commit below overwrites it.
   const hindsightFrom = { rack: [...playerRack], board: _searchBoard(), swapKeys: [...swapPendingPositions],
-                          blocked: [...pendingRemovals], empty: isEmpty() };
+                          blocked: [...pendingRemovals], empty: isEmpty(), required: [...swappedRackIndices] };
 
   // Record last-move keys in word order (for animation + highlight)
   const primaryKeys = Object.keys(allPlacements).filter(k => !allPlacements[k].isSwap);
@@ -5461,7 +5498,9 @@ function findAIMove(rackOverride = null) {
 // as old tiles instead, a DW/TW under a swap never counted and the player's own play beat "best possible".
 // blockedKeys: empty squares no tile may go on — a square stolen from this turn (the X), which the search board
 // shows as empty because the stolen tile is in the rack.
-function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRackIndices = new Set(), withBonus = false, swapKeys = new Set(), blockedKeys = new Set()) {
+// requiredIdx: rack indices of the purple tiles (taken from the board this turn). A play has to use every one of
+// them, so a candidate that leaves one behind is not a play the player could make and is not counted.
+function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRackIndices = new Set(), withBonus = false, swapKeys = new Set(), blockedKeys = new Set(), requiredIdx = new Set()) {
   const candidates = [];
   const maxLen = aiSkill === 'hard' ? 15 : 12;
 
@@ -5480,23 +5519,31 @@ function findBestPlayWithRack(rack, boardState, wordSource = AI_WORDS, noScoreRa
         touchesExisting = true;
       } else {
         if (blockedKeys.has(`${r},${c}`)) { valid = false; break; }
-        let foundIdx = -1;
-        for (let j = 0; j < rack.length; j++) {
-          if (!usedFlags[j] && rack[j] === ch) { foundIdx = j; usedFlags[j] = true; break; }
-        }
+        // Two tiles that would do: take the required one first, or it would be left behind and a
+        // play that does use it would be thrown out.
+        const pick = letter => {
+          let fallback = -1;
+          for (let j = 0; j < rack.length; j++) {
+            if (usedFlags[j] || rack[j] !== letter) continue;
+            if (requiredIdx.has(j)) return j;
+            if (fallback === -1) fallback = j;
+          }
+          return fallback;
+        };
+        const foundIdx = pick(ch);
         if (foundIdx !== -1) {
+          usedFlags[foundIdx] = true;
           placements.push({row:r, col:c, letter:ch, rackIdx: foundIdx});
         } else {
-          let blankIdx = -1;
-          for (let j = 0; j < rack.length; j++) {
-            if (!usedFlags[j] && rack[j] === ' ') { blankIdx = j; usedFlags[j] = true; break; }
-          }
+          const blankIdx = pick(' ');
           if (blankIdx === -1) { valid = false; break; }
+          usedFlags[blankIdx] = true;
           placements.push({row:r, col:c, letter:ch.toLowerCase(), rackIdx: blankIdx});
         }
       }
     }
     if (!valid || placements.length === 0) return;
+    for (const idx of requiredIdx) if (!usedFlags[idx]) return;   // a purple tile left unplayed: not a legal play
     if (!touchesExisting && !placements.some(p => hasAdjacentTile(boardState, p.row, p.col, null))) return;
 
     const tb = boardState.map(row => [...row]);
@@ -5926,14 +5973,14 @@ function _searchHindsight(h) {
     updateReplayButton();
   };
   // Same search as the meter: the worker when it is up, the on-thread one when it isn't.
-  const onThread = () => finish(_bestPlayOnThread(f.rack, f.board, f.swapKeys, f.blocked, f.empty));
+  const onThread = () => finish(_bestPlayOnThread(f.rack, f.board, f.swapKeys, f.blocked, f.empty, f.required));
   initStrengthWorker();
   if (_strengthWorker && _strengthWorkerReady) {
     const id = ++_strengthReqId;
     // A 0 is the search failing, as for the meter — fall back rather than show nothing.
     _strengthPending[id] = (best, play) => { delete _strengthPending[id]; if (best > 0 && play) finish(play); else onThread(); };
     _strengthWorker.postMessage({ type: 'compute', id, isEmpty: f.empty, rack: f.rack, board: f.board,
-                                  swapKeys: f.swapKeys, blocked: f.blocked });
+                                  swapKeys: f.swapKeys, blocked: f.blocked, required: f.required || [] });
   } else {
     setTimeout(onThread, 0);
   }
@@ -6363,7 +6410,7 @@ function renderRack() {
 // Shrink the rack tiles when there are too many to fit across the screen. Stealing tiles grows
 // the rack beyond the usual 7 — up to 11 — which at the fixed 46px overflowed both edges.
 // 46px stays the cap, so a normal rack renders exactly as before.
-const RACK_TILE_MAX = 46, RACK_TILE_RATIO = 52 / 46, RACK_GAP = 5;
+const RACK_TILE_MAX = 46, RACK_TILE_MAX_TABLET = 72, RACK_TILE_RATIO = 52 / 46, RACK_GAP = 5;
 function fitRack() {
   const rackEl = document.getElementById('rack');
   if (!rackEl) return;
@@ -6374,7 +6421,7 @@ function fitRack() {
   const style = getComputedStyle(holder);
   const avail = holder.clientWidth - parseFloat(style.paddingLeft || 0) - parseFloat(style.paddingRight || 0);
   if (avail <= 0) return;   // laid out while hidden; the next render will size it
-  const width = Math.min(RACK_TILE_MAX, Math.floor((avail - RACK_GAP * (count - 1)) / count));
+  const width = Math.min(isTabletLayout() ? RACK_TILE_MAX_TABLET : RACK_TILE_MAX, Math.floor((avail - RACK_GAP * (count - 1)) / count));
   if (!(width > 0)) return;
   rackEl.style.setProperty('--rack-tile-w', width + 'px');
   rackEl.style.setProperty('--rack-tile-h', Math.round(width * RACK_TILE_RATIO) + 'px');
@@ -7253,7 +7300,7 @@ function _strengthWorkerMain() {
           }
           if (at) play = { word: at[0], score: best, placements: _firstMovePlacements(at[0], at[1], at[2], at[3], at[4], d.rack) };
         } else {
-          var r = findBestPlayWithRack(d.rack, d.board, WORDS, new Set(), true, new Set(d.swapKeys || []), new Set(d.blocked || []));
+          var r = findBestPlayWithRack(d.rack, d.board, WORDS, new Set(), true, new Set(d.swapKeys || []), new Set(d.blocked || []), new Set(d.required || []));
           best = r ? r.score : 0;
           if (r) play = { word: r.word, score: r.score, placements: r.placements.map(function (p) { return { row: p.row, col: p.col, letter: p.letter }; }) };
         }
@@ -7339,7 +7386,9 @@ function _bestScoreKey(rack) {
   }
   const searchSig = _searchBoard().map(r => r.map(c => c || '.').join('')).join('');
   // Where the swaps are matters as well as what they spell: a swap square keeps its word multiplier.
-  return [...rack].sort().join('') + '|' + searchSig + '|' + [...(swapPendingPositions || [])].sort().join(';');
+  // The purple tiles are part of the question: a play has to use them, so the answer depends on which they are.
+  const need = [...(swappedRackIndices || [])].sort((a, b) => a - b).map(i => rack[i]).join('');
+  return [...rack].sort().join('') + '|' + searchSig + '|' + [...(swapPendingPositions || [])].sort().join(';') + '|' + need;
 }
 
 function resetBestScore() {
@@ -7386,7 +7435,7 @@ function computeBestScore() {
         if (_bestScoreKey([...playerRack]) === key) { bestPossibleScore = value; updateStrengthBar(); }
       };
       // blocked: a stolen square is empty on the search board but off limits this turn
-      _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: _searchBoard(), swapKeys: [...swapPendingPositions], blocked: [...pendingRemovals] });
+      _strengthWorker.postMessage({ type: 'compute', id, isEmpty: isEmpty(), rack, board: _searchBoard(), swapKeys: [...swapPendingPositions], blocked: [...pendingRemovals], required: [...swappedRackIndices] });
       return;
     }
     // No worker (dictionary still loading, or dead on this device). Not cached, so the
@@ -7440,13 +7489,13 @@ function _firstMovePlacements(w, r0, c0, dr, dc, rack) {
 }
 
 function _bestScoreOnThread(rack) {
-  const best = _bestPlayOnThread(rack, _searchBoard(), swapPendingPositions, pendingRemovals, isEmpty());
+  const best = _bestPlayOnThread(rack, _searchBoard(), swapPendingPositions, pendingRemovals, isEmpty(), swappedRackIndices);
   return best ? best.score : 0;
 }
 
 // The search itself, on whatever position it is handed (the meter: this turn's, as _searchBoard
 // builds it; Hindsight: the one saved when the play was submitted). Returns the play, or null.
-function _bestPlayOnThread(rack, board, swapKeys, blockedKeys, empty) {
+function _bestPlayOnThread(rack, board, swapKeys, blockedKeys, empty, required) {
     // board: this turn's steals and swaps applied -- see _searchBoard
     // The curated list is 3,545 words against the dictionary's 191,852, and it does not
     // contain JIBE or JIBES — so on a board where the player plays a word it has never
@@ -7511,7 +7560,7 @@ function _bestPlayOnThread(rack, board, swapKeys, blockedKeys, empty) {
       // gets too expensive — see FULL_DICT_TILE_LIMIT. Swap/steal loops are skipped either
       // way: they call findBestPlayWithRack hundreds of times and block for seconds.
       const boardCopy = board.map(r => [...r]);
-      const best = findBestPlayWithRack(rack, boardCopy, wordSource, new Set(), true, new Set(swapKeys), new Set(blockedKeys));
+      const best = findBestPlayWithRack(rack, boardCopy, wordSource, new Set(), true, new Set(swapKeys), new Set(blockedKeys), new Set(required || []));
       if (best) bestPlay = { word: best.word, score: best.score, placements: best.placements };
     }
 
@@ -7572,10 +7621,39 @@ function updateStrengthBar() {
   pct.textContent = currentScore > 0 ? pctVal + '%' : '';
 }
 
-// Recall while tiles are on the board (swaps and steals are kept), Shuffle otherwise.
+// iPad-sized screens get a wider layout (the "Tablet layout" CSS block uses the same query) and
+// their own Recall and Reset buttons, so Shuffle and Exchange stay what they say.
+const TABLET_QUERY = '(min-width: 700px) and (min-height: 800px)';
+function isTabletLayout() { return !!(window.matchMedia && window.matchMedia(TABLET_QUERY).matches); }
+
+// Recall while tiles are on the board (swaps and steals are kept), Shuffle otherwise. On a tablet it is
+// always Shuffle: Recall has a button of its own.
 function handleShuffleOrRecall() {
   const hasPlaced = Object.values(pendingPlacements).some(p => !p.isSwap);
-  if (hasPlaced) { playRecall(); recallPlacedTiles(); } else { playShuffle(); shuffleRack(); }
+  if (hasPlaced && !isTabletLayout()) { playRecall(); recallPlacedTiles(); } else { playShuffle(); shuffleRack(); }
+}
+
+// The tablet's Recall (tiles on the board come back, swaps and steals stay) and Reset (the whole turn
+// undone). Both are greyed out until there is something to take back.
+function tabletRecall() {
+  if (!Object.values(pendingPlacements).some(p => !p.isSwap)) return;
+  playRecall(); recallPlacedTiles();
+}
+function tabletReset() {
+  if (!turnHasSwaps()) return;
+  playRecall(); recallTiles();
+}
+function updateTabletButtons() {
+  const recall = document.getElementById('btn-recall'), reset = document.getElementById('btn-reset');
+  if (!recall || !reset) return;
+  const mine = currentPlayer === 'player' && !gameOver && !exchangeMode;
+  const canRecall = mine && Object.values(pendingPlacements).some(p => !p.isSwap);
+  const canReset = mine && turnHasSwaps();
+  recall.classList.toggle('disabled', !canRecall); recall.disabled = !canRecall;
+  reset.classList.toggle('disabled', !canReset); reset.disabled = !canReset;
+  const rIco = document.getElementById('recall-ico'), xIco = document.getElementById('reset-ico');
+  if (rIco && !rIco.firstChild) rIco.innerHTML = RECALL_SVG;
+  if (xIco && !xIco.firstChild) xIco.innerHTML = RESET_SVG;
 }
 
 // Has a swap or steal been made this turn?
@@ -7586,18 +7664,19 @@ function turnHasSwaps() {
 // The second icon is Exchange (Cancel while picking tiles to exchange) until a swap or steal is made,
 // then Reset: the whole turn undone, every tile back and every swap and steal taken back.
 function handleExchangeOrReset() {
-  if (turnHasSwaps()) { playRecall(); recallTiles(); } else toggleExchangeMode();
+  if (!isTabletLayout() && turnHasSwaps()) { playRecall(); recallTiles(); } else toggleExchangeMode();
 }
 
 const EXCHANGE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30.30599 25.53577" width="26" height="22"><rect fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x=".76113" y="11.62571" width="13.14894" height="13.14894" rx="3.316" ry="3.316" transform="translate(.0576 -.02311)"/><polygon fill="#fff" points="7.03185 .71069 10.00663 4.78466 4.03135 4.76576 7.03185 .71069"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x1="7.00822" y1="8.18298" x2="7.02217" y2="3.76937"/><rect fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x="16.39592" y=".76113" width="13.14894" height="13.14894" rx="3.316" ry="3.316" transform="translate(45.91747 14.74381) rotate(-180)"/><polygon fill="#fff" points="23.27414 24.82509 20.29936 20.75111 26.27464 20.77001 23.27414 24.82509"/><line fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.7484" x1="23.29778" y1="17.35279" x2="23.28382" y2="21.7664"/></svg>';
 // Braden's icon_reset.svg. Its stroke is set to draw 1.5px wide at this size, the same as every icon in the bar.
 const RESET_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.12 18.1" width="19.6" height="22" overflow="visible"><path fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.234" d="M1.01,15.09c1.55,1.55,3.69,2.51,6.06,2.51,4.72,0,8.55-3.83,8.55-8.55S11.79.5,7.07.5c-2.37,0-4.51.96-6.06,2.51"/><polyline fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.234" points="3.29 3.61 .5 3.61 .5 .81"/></svg>';
+const RECALL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22.9623 24.99989" width="21"><polygon fill="#fff" points="19.47966 24.86524 22.9623 20.12729 15.99702 20.12729 19.47966 24.86524"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6402" d="M.75084,24.24905l.05706-20.75049c.00481-1.52233,1.24281-2.75253,2.76515-2.74771l13.28802.02415c1.52233.00481,2.75253,1.24281,2.74771,2.76515l-.05706,18.04306"/></svg>';
 
 function updateExchangeButton() {
   const ico = document.getElementById('exchange-ico');
   const lbl = document.getElementById('exchange-label');
   if (!ico || !lbl) return;
-  const reset = turnHasSwaps();
+  const reset = turnHasSwaps() && !isTabletLayout();   // a tablet has a Reset button of its own
   const icon = reset ? 'reset' : 'exchange';
   if (ico.dataset.icon !== icon) { ico.innerHTML = reset ? RESET_SVG : EXCHANGE_SVG; ico.dataset.icon = icon; }
   lbl.textContent = reset ? 'Reset' : exchangeMode ? 'Cancel' : 'Exchange';
@@ -7670,11 +7749,11 @@ function updateUI() {
   const srIco = document.getElementById('shuffle-recall-ico');
   const srLbl = document.getElementById('shuffle-recall-lbl');
   const shuffleSVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34.23209 22.88277" width="32"><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,3.36493h4.24195c2.14461,0,4.20139.9596,5.71786,2.66771l9.60906,10.82333c1.51647,1.7081,3.57325,2.66771,5.71786,2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M18.80162,7.89138l1.70949-1.85874c1.51647-1.7081,3.57325-2.66771,5.71786-2.66771h3.93087"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6046" d="M.94224,19.52367h4.24195c2.14461,0,4.20139-.9596,5.71786-2.66771l1.79259-2.01912"/><polygon fill="#fff" points="34.23209 3.42723 29.56953 6.85447 29.56953 0 34.23209 3.42723"/><polygon fill="#fff" points="34.23209 19.45554 29.56953 22.88277 29.56953 16.02831 34.23209 19.45554"/></svg>';
-  const recallSVG  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22.9623 24.99989" width="21"><polygon fill="#fff" points="19.47966 24.86524 22.9623 20.12729 15.99702 20.12729 19.47966 24.86524"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.6402" d="M.75084,24.24905l.05706-20.75049c.00481-1.52233,1.24281-2.75253,2.76515-2.74771l13.28802.02415c1.52233.00481,2.75253,1.24281,2.74771,2.76515l-.05706,18.04306"/></svg>';
-  const showRecall = hasPlaced;
-  if (srIco) srIco.innerHTML = showRecall ? recallSVG : shuffleSVG;
+  const showRecall = hasPlaced && !isTabletLayout();   // on a tablet Recall has its own button
+  if (srIco) srIco.innerHTML = showRecall ? RECALL_SVG : shuffleSVG;
   if (srLbl) srLbl.textContent = showRecall ? 'Recall' : 'Shuffle';
   updateExchangeButton();
+  updateTabletButtons();
   if (window._tutPostRender) window._tutPostRender();
 }
 
@@ -8036,14 +8115,19 @@ function openMoreMenu() {
   if (!menu) return;
   const board    = document.getElementById('board-wrapper');
   const controls = document.getElementById('controls');
+  // The clip and the overlay sit inside #game-screen, which is shifted by a transform; that makes it
+  // (not the viewport) their containing block, so offsets have to be measured from the screen's own
+  // edges. On a phone the two are the same; on an iPad the screen is a centred column, and
+  // viewport offsets left the menu a few pixels wide.
+  const screenRect = (document.getElementById('game-screen') || document.body).getBoundingClientRect();
   const boardBottom = board ? board.getBoundingClientRect().bottom : window.innerHeight * 0.6;
-  const belowBoard = window.innerHeight - boardBottom;
+  const belowBoard = screenRect.bottom - boardBottom;
   if (clip) {
     clip.style.bottom = belowBoard + 'px';
     if (controls) {
       const cr = controls.getBoundingClientRect();
-      clip.style.left  = cr.left + 'px';
-      clip.style.right = (window.innerWidth - cr.right) + 'px';
+      clip.style.left  = (cr.left - screenRect.left) + 'px';
+      clip.style.right = (screenRect.right - cr.right) + 'px';
     }
   }
   if (overlay) { overlay.style.bottom = belowBoard + 'px'; overlay.classList.add('show'); }
@@ -10852,7 +10936,7 @@ document.getElementById('board-wrapper').addEventListener('touchstart', e => {
     var boardEl = document.getElementById('board');
     var wrapEl  = document.getElementById('board-wrapper');
     if (!boardEl || !wrapEl) return;
-    if (s.zoom === false) { zoomBoardOut(); return; }
+    if (s.zoom === false || isTabletLayout()) { zoomBoardOut(); return; }
     var W = boardEl.offsetWidth, H = boardEl.offsetHeight;
     if (!W || !H) return;
 

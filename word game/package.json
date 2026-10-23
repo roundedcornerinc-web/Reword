@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "scripts": {
     "check": "node scripts/check-syntax.js",
+    "support": "node scripts/build-support.js",
     "test": "node scripts/test-logic.js",
-    "presync": "npm run check && npm run test",
+    "presync": "npm run check && npm run support && npm run test",
     "sync": "cp index.html sw.js reword_logo.png reword_logo_tag.svg manifest.json dictionary.txt www/ && cp -r icons tiles sounds www/ && npx cap sync ios"
   },
   "dependencies": {

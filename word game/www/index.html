@@ -715,7 +715,11 @@ body {
   background: #1a1040;
   border-radius: 18px 18px 0 0;
   z-index: 350;
-  transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+  transition: transform 0.34s cubic-bezier(0.22,1,0.36,1);
+  /* Kept on its own compositing layer, drawn ahead of time, so the first frames of the slide are
+     not spent rasterising the sheet and its shadow. */
+  will-change: transform;
+  backface-visibility: hidden;
   border-top: 1px solid rgba(255,255,255,0.1);
   box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
 }
@@ -744,12 +748,27 @@ body {
 #og-scroll {
   display: flex;
   gap: 10px;
-  padding: 0 16px 32px;
+  /* The row is as tall as a game card from the first frame. The sheet is anchored to the bottom of
+     the screen and slides by 100% of its own height, so when it used to open on a short "Loading…"
+     line and then grew to fit the cards, the end point moved mid-slide and it jumped. */
+  min-height: 172px;
+  box-sizing: content-box;
+  padding: 0 16px calc(32px + env(safe-area-inset-bottom, 0px));
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
 #og-scroll::-webkit-scrollbar { display: none; }
+/* The tiles come in from the left as the sheet rises, one after another. */
+@keyframes og-tile-in {
+  from { opacity: 0; transform: translateX(-56px); }
+  to   { opacity: 1; transform: none; }
+}
+.og-card, .og-new-card {
+  animation: og-tile-in 0.42s cubic-bezier(0.22,1,0.36,1) both;
+  animation-delay: calc(var(--i, 0) * 60ms + 40ms);
+}
+@media (prefers-reduced-motion: reduce) { .og-card, .og-new-card { animation: none; } }
 .og-card {
   flex-shrink: 0;
   width: 118px;
@@ -2590,6 +2609,16 @@ body {
       <div class="faq-item">
         <div class="faq-q">How did my opponent make that play?</div>
         <div class="faq-a">Curious how they pulled that off? Tap the replay icon <svg class="faq-inline-icon" viewBox="0 0 16.20285 16.81585" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.91292,5.01059v6.79467c0,.48518.52523.78842.94541.54583l5.88435-3.39733c.42018-.24259.42018-.84907,0-1.09166l-5.88435-3.39734c-.42018-.24259-.94541.06065-.94541.54583Z"/><path d="M15.70285,11.45536c-1.68305,4.02887-6.31348,5.93054-10.34235,4.24749S-.57005,9.38937,1.113,5.36049,7.42649-.57005,11.45536,1.113c1.35348.56541,2.46689,1.46346,3.28496,2.5596"/><polyline points="15.48187 1.70549 15.33198 4.29596 12.74151 4.14607"/></svg> left of the play summary to find out. The board rewinds to how it looked before the last move, then shows any swaps or steals made before spelling out the new word.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">How do I report or block a player?</div>
+        <div class="faq-a"><p>In a game against that player, tap <strong>More</strong> and choose <strong>Report or Block Player</strong>. You can also tap the <strong>&hellip;</strong> button next to a friend on your Friends list.</p><p><strong>Report</strong> opens an email to us with the player's name, player ID and game code. Add what happened and send it, and we'll look into it. <strong>Block</strong> removes them from your friends, hides your games with them and stops their challenges and invitations from reaching you.</p><p>Changed your mind? Open <strong>Settings</strong>, tap <strong>Blocked players</strong> and choose their name to unblock them.</p></div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">How do I delete my account?</div>
+        <div class="faq-a"><p>On the home screen, tap the menu button (the three lines, top left) and choose your account name. Tap <strong>Edit Account</strong>, then <strong>Delete account</strong> at the bottom. Type <strong>DELETE</strong> to confirm, and enter your password if you're asked.</p><p>This permanently removes your account, your display name, your sign-in, your notification token and your solo games. Games you played against other people stay with those players, with your display name on them. If you want those removed too, email <strong>info@rewordgame.app</strong>.</p></div>
       </div>
 
     </div>
@@ -7190,14 +7219,15 @@ const _strengthPending = {};
 
 // Runs INSIDE the worker (stringified). BS/VAL/PREMIUM/WORDS + solver fns are injected above it.
 function _strengthWorkerMain() {
-  var _rackLen = 0;
+  var _rackLen = 0, _rack = [];
   function _tryFirst(w, r0, c0, dr, dc) {
     var pMap = {}, tb = [];
     for (var i = 0; i < BS; i++) tb.push(new Array(BS).fill(null));
+    var L = _firstMoveLetters(w, r0, c0, dr, dc, _rack);   // blanks in lowercase: they score 0
     for (var j = 0; j < w.length; j++) {
       var rr = r0 + j * dr, cc = c0 + j * dc;
-      pMap[rr + ',' + cc] = { letter: w[j], row: rr, col: cc };
-      tb[rr][cc] = w[j];
+      pMap[rr + ',' + cc] = { letter: L[j], row: rr, col: cc };
+      tb[rr][cc] = L[j];
     }
     if (!pMap['7,7']) return 0;
     var wds = getWordsFormed(pMap, tb);
@@ -7211,7 +7241,7 @@ function _strengthWorkerMain() {
     if (d.type === 'compute') {
       var best = 0, play = null;
       try {
-        _rackLen = d.rack.length;
+        _rackLen = d.rack.length; _rack = d.rack;
         if (d.isEmpty) {
           var at = null;
           for (var w of WORDS) {
@@ -7247,6 +7277,7 @@ function initStrengthWorker() {
       scoreWords.toString() + ';' +
       canSpell.toString() + ';' +
       findBestPlayWithRack.toString() + ';' +
+      _firstMoveLetters.toString() + ';' +
       _firstMovePlacements.toString() + ';' +
       '(' + _strengthWorkerMain.toString() + ')();';
     const blob = new Blob([src], { type: 'application/javascript' });
@@ -7374,14 +7405,37 @@ const FULL_DICT_TILE_LIMIT = 12;
 
 // A first move's tiles, laid out from (r0,c0). The first-move searches only know the word, so a
 // letter the rack is short of is the blank's, drawn lowercase like any committed blank.
-function _firstMovePlacements(w, r0, c0, dr, dc, rack) {
-  var left = {}, out = [];
-  for (var i = 0; i < rack.length; i++) left[rack[i]] = (left[rack[i]] || 0) + 1;
-  for (var j = 0; j < w.length; j++) {
-    var ch = w[j], own = left[ch] > 0;
-    if (own) left[ch]--;
-    out.push({ row: r0 + j * dr, col: c0 + j * dc, letter: own ? ch : ch.toLowerCase() });
+// A first-move word spelled from a rack that has blanks: which of its letters are the blanks, as the
+// word's letters with those in lowercase. Every copy of a letter the rack cannot supply has to be a
+// blank, and a blank scores nothing, so the blank goes on whichever copy sits on the weakest letter
+// square (a double or triple letter is worth more under a real tile than under a blank). The search
+// scored the whole word at face value before, so a rack with a blank was measured against a play
+// worth far more than any the player could make, and the strength meter read low.
+// Runs inside the strength worker too (stringified), so it is written in plain var style.
+function _firstMoveLetters(w, r0, c0, dr, dc, rack) {
+  var left = {}, lacking = {}, letters = w.split(''), i, j, ch;
+  for (i = 0; i < rack.length; i++) left[rack[i]] = (left[rack[i]] || 0) + 1;
+  for (j = 0; j < w.length; j++) {
+    ch = w[j];
+    if (left[ch] > 0) left[ch]--;
+    else lacking[ch] = (lacking[ch] || 0) + 1;
   }
+  for (ch in lacking) {
+    var spots = [];
+    for (j = 0; j < w.length; j++) {
+      if (w[j] !== ch) continue;
+      var prem = PREMIUM[(r0 + j * dr) + ',' + (c0 + j * dc)];
+      spots.push({ j: j, m: prem === 'TL' ? 3 : prem === 'DL' ? 2 : 1 });
+    }
+    spots.sort(function (a, b) { return a.m - b.m; });
+    for (i = 0; i < lacking[ch]; i++) letters[spots[i].j] = ch.toLowerCase();
+  }
+  return letters;
+}
+
+function _firstMovePlacements(w, r0, c0, dr, dc, rack) {
+  var letters = _firstMoveLetters(w, r0, c0, dr, dc, rack), out = [];
+  for (var j = 0; j < w.length; j++) out.push({ row: r0 + j * dr, col: c0 + j * dc, letter: letters[j] });
   return out;
 }
 
@@ -7420,9 +7474,10 @@ function _bestPlayOnThread(rack, board, swapKeys, blockedKeys, empty) {
           const sc = center - pos;
           if (sc >= 0 && sc + w.length <= BS) {
             const pMap = {}, tb = board.map(r => [...r]);
+            const L = _firstMoveLetters(w, center, sc, 0, 1, rack);   // blanks in lowercase: they score 0
             for (let i = 0; i < w.length; i++) {
-              pMap[`${center},${sc+i}`] = { letter: w[i], row: center, col: sc+i };
-              tb[center][sc+i] = w[i];
+              pMap[`${center},${sc+i}`] = { letter: L[i], row: center, col: sc+i };
+              tb[center][sc+i] = L[i];
             }
             if (pMap[`${center},${center}`]) {
               const wds = getWordsFormed(pMap, tb);
@@ -7436,9 +7491,10 @@ function _bestPlayOnThread(rack, board, swapKeys, blockedKeys, empty) {
           const sr = center - pos;
           if (sr >= 0 && sr + w.length <= BS) {
             const pMap = {}, tb = board.map(r => [...r]);
+            const L = _firstMoveLetters(w, sr, center, 1, 0, rack);   // blanks in lowercase: they score 0
             for (let i = 0; i < w.length; i++) {
-              pMap[`${sr+i},${center}`] = { letter: w[i], row: sr+i, col: center };
-              tb[sr+i][center] = w[i];
+              pMap[`${sr+i},${center}`] = { letter: L[i], row: sr+i, col: center };
+              tb[sr+i][center] = L[i];
             }
             if (pMap[`${center},${center}`]) {
               const wds = getWordsFormed(pMap, tb);
@@ -12425,7 +12481,8 @@ function showOtherGamesOverlay(e) {
   e?.stopPropagation();
   const overlay = document.getElementById('other-games-overlay');
   if (!overlay) return;
-  buildOtherGameCards();
+  buildOtherGameCards();      // empties the row to its reserved height at once, then fills it
+  void overlay.offsetHeight;  // commit that state so the slide starts from the hidden position
   overlay.classList.add('show');
 }
 
@@ -12454,7 +12511,7 @@ function ngcShowMain() {
   document.getElementById('ngc-page-friend').style.display = 'none';
 }
 
-// Challenge a Friend: pick from the friend list first, or Other for someone new (the invite-link
+// Challenge a Friend: pick from the friend list first, or Play Someone New for someone new (the invite-link
 // flow). With no friends yet there is nothing to pick, so it goes straight to the invite flow.
 function ngcChallengeFriend() {
   const friends = getFriends().filter(f => !isBlocked(f.id));
@@ -12498,7 +12555,7 @@ function ngcSetSkill(level) {
 async function buildOtherGameCards() {
   const scroll = document.getElementById('og-scroll');
   if (!scroll) return;
-  scroll.innerHTML = '<div style="color:#777;font-size:0.8rem;padding:16px 0;flex-shrink:0">Loading…</div>';
+  scroll.innerHTML = '';   // no placeholder text: the row keeps its height (see #og-scroll) and the tiles arrive when ready
 
   const cards = [];
 
@@ -12546,11 +12603,11 @@ async function buildOtherGameCards() {
     } catch(e) {}
   }
 
-  const cardHTML = cards.map(card => {
+  const cardHTML = cards.map((card, i) => {
     const onclick = card.type === 'ai'
       ? `closeOtherGamesOverlay();loadAiGameState()`
       : `closeOtherGamesOverlay();loadOnlineGame('${card.gameId}','${card.myRole}')`;
-    return `<div class="og-card">
+    return `<div class="og-card" style="--i:${i}">
       <div class="og-score">${card.myScore}</div>
       <div class="og-you">You</div>
       <div class="og-vs">vs</div>
@@ -12560,7 +12617,7 @@ async function buildOtherGameCards() {
     </div>`;
   }).join('');
 
-  const newCard = `<button class="og-new-card" onclick="showNewGameChoice(event)">
+  const newCard = `<button class="og-new-card" style="--i:${cards.length}" onclick="showNewGameChoice(event)">
     <span class="og-new-plus">+</span>
     <span class="og-new-lbl">Start New Game</span>
   </button>`;
@@ -12768,7 +12825,7 @@ document.addEventListener('click', e => {
     <button class="ngc-btn ngc-btn-ai" onclick="ngcShowSkillPicker()">Play vs AI</button>
     <button class="ngc-btn ngc-btn-human" onclick="ngcChallengeFriend()">Challenge a Friend</button>
   </div>
-  <!-- Page 3: pick a friend, or Other for someone new -->
+  <!-- Page 3: pick a friend, or Play Someone New -->
   <div id="ngc-page-friend" style="display:none;">
     <div id="ngc-header">
       <button style="background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;" onclick="ngcShowMain()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="2.5 2.5 18.83136 23.18971 35.16273 2.5"/></svg></button>
@@ -12776,7 +12833,7 @@ document.addEventListener('click', e => {
       <button style="background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;" onclick="closeNewGameChoice()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37.66273 25.68971" width="22"><polyline fill="none" stroke="#a77ef8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" points="35.16273 2.5 18.83136 23.18971 2.5 2.5"/></svg></button>
     </div>
     <div class="ngc-friend-list" id="ngc-friend-list"></div>
-    <button class="ngc-btn ngc-btn-human" onclick="ngcChallengeOther()">Other</button>
+    <button class="ngc-btn ngc-btn-human" onclick="ngcChallengeOther()">Play Someone New</button>
   </div>
   <!-- Page 2: skill picker -->
   <div id="ngc-page-skill" style="display:none;">

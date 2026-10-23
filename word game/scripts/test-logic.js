@@ -1027,15 +1027,31 @@ console.log('\nHindsight — the best play behind the meter\n');
     console.log('  FAIL  ' + name);
     console.log('          ' + detail);
   };
-  const c = {};
+  const c = { PREMIUM: {} };
   vm.createContext(c);
-  vm.runInContext([grabFunction('_firstMovePlacements'), grabFunction('hindsightBeatsPlay')].join('\n'), c);
+  vm.runInContext([grabFunction('_firstMoveLetters'), grabFunction('_firstMovePlacements'), grabFunction('hindsightBeatsPlay')].join('\n'), c);
 
   const tiles = c._firstMovePlacements('QUIZ', 7, 6, 0, 1, ['Q', 'U', ' ', 'Z']);
   ok('a first move is laid out from its start square', tiles.map(t => t.row + ',' + t.col).join(' ') === '7,6 7,7 7,8 7,9',
     JSON.stringify(tiles));
   ok('the letter the rack is short of is drawn as the blank', tiles.map(t => t.letter).join('') === 'QUiZ',
     tiles.map(t => t.letter).join(''));
+
+  // The blank goes where it costs least: on the copy of a letter that sits on the weakest letter square, so
+  // the best-possible play is not scored with the blank at face value (the meter read 59% on a play that was
+  // the best there was, because the blank was counted as a K).
+  c.PREMIUM = { '7,8': 'DL' };
+  ok('the blank is not put under a double letter that a real tile could use',
+    c._firstMoveLetters('EE', 7, 7, 0, 1, [' ', 'E']).join('') === 'eE', c._firstMoveLetters('EE', 7, 7, 0, 1, [' ', 'E']).join(''));
+  c.PREMIUM = { '7,7': 'DL' };
+  ok('and when the earlier copy has the weaker square, it takes the blank there',
+    c._firstMoveLetters('EE', 7, 7, 0, 1, [' ', 'E']).join('') === 'Ee', c._firstMoveLetters('EE', 7, 7, 0, 1, [' ', 'E']).join(''));
+  c.PREMIUM = {};
+  ok('two blanks cover two missing letters', c._firstMoveLetters('ABC', 7, 7, 0, 1, ['A', ' ', ' ']).join('') === 'Abc', c._firstMoveLetters('ABC', 7, 7, 0, 1, ['A', ' ', ' ']).join(''));
+  ok('the first-move search scores blanks as blanks, in the meter and in its worker',
+    /const L = _firstMoveLetters\(w, center, sc, 0, 1, rack\)/.test(src) && /const L = _firstMoveLetters\(w, sr, center, 1, 0, rack\)/.test(src) &&
+    /var L = _firstMoveLetters\(w, r0, c0, dr, dc, _rack\)/.test(src) && /_firstMoveLetters\.toString\(\)/.test(src) && /_rack = d\.rack/.test(src),
+    'a first-move search still scores its blank at face value');
 
   const h = (best, mine, done = true) => ({ done, myScore: mine, play: best == null ? null : { score: best } });
   ok('offered when the best play beat yours', c.hindsightBeatsPlay(h(66, 4)) === true, '');
@@ -2324,6 +2340,56 @@ console.log('\nApp Store readiness\n');
   ok('the privacy manifest ships with the app',
     fs.existsSync(path.join(root, 'ios/App/App/PrivacyInfo.xcprivacy')) && /PrivacyInfo\.xcprivacy in Resources/.test(fs.readFileSync(path.join(root, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8')),
     'PrivacyInfo.xcprivacy is missing or not in the Resources build phase');
+})();
+
+// ── Other Games sheet: steady height, tiles that slide in, and the Play Someone New label ───────
+(function () {
+  console.log('\nOther Games sheet');
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const css = (src.match(/#og-scroll \{[^}]*\}/) || [''])[0];
+  ok('the card row has its full height from the first frame (the sheet used to grow mid-slide and jump)',
+    /min-height:\s*172px/.test(css), '#og-scroll has no min-height of a card (172px)');
+  ok('the sheet is not opened on a short "Loading…" line', !grabFunction('buildOtherGameCards').includes('Loading'),
+    'buildOtherGameCards still writes a Loading line that changes the sheet height');
+  const show = grabFunction('showOtherGamesOverlay');
+  ok('the row is emptied before the slide, and the hidden state committed first',
+    show.indexOf('buildOtherGameCards()') !== -1 && show.indexOf('buildOtherGameCards()') < show.indexOf('offsetHeight') && show.indexOf('offsetHeight') < show.indexOf("classList.add('show')"),
+    'showOtherGamesOverlay does not build, force a reflow, then add .show in that order');
+  ok('the sheet keeps its own compositing layer', /#other-games-overlay \{[^}]*will-change:\s*transform/.test(src), '#other-games-overlay has no will-change: transform');
+  ok('the tiles slide in from the left, one after another',
+    /@keyframes og-tile-in \{[^}]*translateX\(-\d+px\)/.test(src) && /\.og-card, \.og-new-card \{[^}]*animation: og-tile-in[^}]*var\(--i/.test(src) &&
+    /class="og-card" style="--i:\$\{i\}"/.test(src) && /og-new-card" style="--i:\$\{cards\.length\}"/.test(src),
+    'the og-tile-in animation or the per-tile --i index is missing');
+  ok('the animation is switched off for reduced motion', /prefers-reduced-motion: reduce\) \{ \.og-card, \.og-new-card \{ animation: none/.test(src), 'no reduced-motion rule');
+  ok('the friend picker says Play Someone New, not Other',
+    />Play Someone New<\/button>/.test(src) && !/ngcChallengeOther\(\)">Other</.test(src), 'the button still says Other');
+})();
+
+// ── Support page ────────────────────────────────────────────────────────────────────────────────
+(function () {
+  console.log('\nSupport page');
+  const ok = (name, cond, detail) => {
+    if (cond) { passed++; console.log('  pass  ' + name); return; }
+    failures.push(name);
+    console.log('  FAIL  ' + name);
+    console.log('          ' + detail);
+  };
+  const root = path.join(__dirname, '..');
+  const support = fs.readFileSync(path.join(root, 'support.html'), 'utf8');
+  ok('the in-app FAQ explains how to report or block a player and how to delete an account',
+    src.includes('How do I report or block a player?') && src.includes('How do I delete my account?'), 'a FAQ entry is missing from index.html');
+  ok('the support page carries the same FAQ as the game (run npm run support if this fails)',
+    require('./build-support.js').build() === support, 'support.html is out of date with the FAQ in index.html');
+  ok('and so includes the new entries', support.includes('How do I report or block a player?') && support.includes('How do I delete my account?'), 'the support page lacks them');
+  ok('the support page has the logo and is titled Support',
+    /<img class="logo" src="reword_logo\.png"/.test(support) && /<h1>Support<\/h1>/.test(support) && fs.existsSync(path.join(root, 'reword_logo.png')), 'logo or title missing');
+  ok('support and privacy pages use the info@rewordgame.app address',
+    support.includes('mailto:info@rewordgame.app') && !/cdm92/.test(support + fs.readFileSync(path.join(root, 'privacy.html'), 'utf8')), 'an old contact address is still in use');
 })();
 
 asyncChain.then(() => {
